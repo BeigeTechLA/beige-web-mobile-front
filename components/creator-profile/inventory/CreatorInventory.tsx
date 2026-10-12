@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Package, RotateCcw, Plus, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { InventoryItem, InventoryRequest, inventoryApi, available, currency, formatInventoryDate, ListParams } from '@/components/common/inventory/inventory';
-import { InventoryButton, InventoryCard, InventoryImage, StatusBadge, useInventoryStyle } from '@/components/common/inventory/InventoryUI';
+import { InventoryItem, InventoryRequest, inventoryApi, formatInventoryDate, fulfillmentStatusFor, ListParams } from '@/components/common/inventory/inventory';
+import CreatorInventoryDialogs from '@/components/creator-profile/inventory/CreatorInventoryDialogs';
+import { InventoryButton, InventoryGroupCard, StatusBadge, useInventoryStyle } from '@/components/common/inventory/InventoryUI';
+import { inventoryHttpApi } from '@/lib/api';
 import InventoryRequestWizard from './InventoryRequestWizard';
 
 type View = 'catalog' | 'requests';
@@ -20,11 +21,12 @@ const ALIGN_CLASS: Record<Align, string> = {
 
 // Header and body cells share the same alignment + width so columns always line up.
 const REQUEST_COLUMNS: Column[] = [
-  { label: 'Request ID', align: 'left', width: '16%' },
-  { label: 'Purpose / Shoot', align: 'left', width: '22%' },
-  { label: 'Requested Inventory', align: 'left', width: '30%' },
-  { label: 'Submitted Date', align: 'left', width: '16%' },
-  { label: 'Status', align: 'center', width: '16%' },
+  { label: 'Request ID', align: 'left', width: '14%' },
+  { label: 'Purpose / Shoot', align: 'left', width: '20%' },
+  { label: 'Requested Inventory', align: 'left', width: '24%' },
+  { label: 'Submitted Date', align: 'left', width: '14%' },
+  { label: 'Fulfillment Status', align: 'left', width: '14%' },
+  { label: 'Request Status', align: 'center', width: '14%' },
 ];
 
 const thClass = (align: Align) => `px-6 py-4 align-middle whitespace-nowrap font-semibold ${ALIGN_CLASS[align]}`;
@@ -38,18 +40,52 @@ export default function CreatorInventory() {
   const [catalog, setCatalog] = useState<InventoryItem[]>([]);
   const [requests, setRequests] = useState<InventoryRequest[]>([]);
   const [totalRequests, setTotalRequests] = useState(0);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<{ id: string; name: string; description?: string; models: InventoryItem[] } | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<InventoryRequest | null>(null);
   const [requestItem, setRequestItem] = useState<InventoryItem | null>(null);
   const [wizard, setWizard] = useState(false);
   const [catalogBusy, setCatalogBusy] = useState(false);
   const [requestsBusy, setRequestsBusy] = useState(false);
+  const [returnTarget, setReturnTarget] = useState<InventoryRequest['items'][number] | null>(null);
+  const [returnFiles, setReturnFiles] = useState<File[]>([]);
+  const [returnBusy, setReturnBusy] = useState(false);
+
+  const submitReturn = async () => {
+    if (!selectedRequest || !returnTarget || !returnFiles.length) return toast.error('Add return condition photos first.');
+    setReturnBusy(true);
+    try {
+      const uploaded = await inventoryHttpApi.uploadInventoryConditionImages('creator', returnFiles);
+      const paths = (uploaded?.data || []).map((image: { file_path: string }) => image.file_path);
+      await inventoryHttpApi.returnCreatorInventoryItem(selectedRequest.id, returnTarget.request_item_id || '', paths);
+      toast.success('Equipment return recorded'); setReturnTarget(null); setReturnFiles([]);
+      inventoryApi.invalidateRequests('creator');
+      const refreshed = await inventoryApi.ownRequest(selectedRequest.id);
+      setSelectedRequest(refreshed); void loadRequests(); void loadCatalog();
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Unable to record equipment return.'); }
+    finally { setReturnBusy(false); }
+  };
+
+  const openRequestDetails = async (request: InventoryRequest) => {
+    setSelectedRequest(request);
+    inventoryApi.invalidateRequests('creator');
+    try { setSelectedRequest(await inventoryApi.ownRequest(request.id)); }
+    catch { toast.error('Could not refresh request handover status.'); }
+  };
+
+  const catalogGroups = useMemo(() => {
+    const groups = new Map<string, InventoryItem[]>();
+    catalog.forEach(model => {
+      const key = model.inventory_item_id || model.inventory_name || model.id;
+      groups.set(key, [...(groups.get(key) || []), model]);
+    });
+    return Array.from(groups.entries()).map(([id, models]) => ({ id, name: models[0].inventory_name || models[0].name, models }));
+  }, [catalog]);
 
   const loadCatalog = useCallback(async () => {
     setCatalogBusy(true);
     try {
       const result = await inventoryApi.catalog({ page: 1, limit: 100 });
-      setCatalog((result.data || []).filter(item => item.status === 'active' && available(item) > 0));
+      setCatalog((result.data || []).filter(item => item.status === 'active'));
     } catch {
       toast.error('Unable to load inventory items. Please try again.');
     } finally {
@@ -158,10 +194,10 @@ export default function CreatorInventory() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
                 <h2 className="text-lg font-semibold">Available Equipment Catalog</h2>
-                <p className={`mt-0.5 text-sm ${s.muted}`}>Click on any item to view specifications and add it to your request.</p>
+                <p className={`mt-0.5 text-sm ${s.muted}`}>Select an equipment item to view its models and available stock.</p>
               </div>
               <span className={`text-xs font-semibold px-3 py-1 rounded-full ${s.isDark ? 'bg-[#202020] text-zinc-300' : 'bg-zinc-100 text-zinc-700'}`}>
-                {catalog.length} Items Available
+              {catalogGroups.length} Equipment Items · {catalog.length} Models
               </span>
             </div>
           </div>
@@ -180,10 +216,8 @@ export default function CreatorInventory() {
               <p className={`mt-1 max-w-sm text-sm ${s.muted}`}>Currently all inventory items are assigned or out of stock. Please check back later.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {catalog.map(item => (
-                <InventoryCard key={item.id} item={item} onClick={() => setSelectedItem(item)} />
-              ))}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {catalogGroups.map(group => <InventoryGroupCard key={group.id} name={group.name} description={group.description} models={group.models} onClick={() => setSelectedGroup(group)} />)}
             </div>
           )}
         </section>
@@ -216,11 +250,11 @@ export default function CreatorInventory() {
                     key={request.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setSelectedRequest(request)}
+                    onClick={() => void openRequestDetails(request)}
                     onKeyDown={event => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        setSelectedRequest(request);
+                        void openRequestDetails(request);
                       }
                     }}
                     className={`cursor-pointer rounded-xl border p-4 transition-colors ${s.isDark ? 'border-[#2A2A2A] bg-[#161616] hover:bg-white/[0.04]' : 'border-[#EAEAEA] bg-[#FAFAFA] hover:bg-black/[0.025]'}`}
@@ -240,6 +274,37 @@ export default function CreatorInventory() {
 
                     <div className={`my-3 border-t ${s.isDark ? 'border-[#2A2A2A]' : 'border-[#EAEAEA]'}`} />
                     <RequestItemSummary request={request} muted={s.muted} />
+                    <div
+                      className={`mt-3 border-t pt-3 ${
+                        s.isDark ? 'border-[#2A2A2A]' : 'border-[#EAEAEA]'
+                      }`}
+                    >
+                      <p className={`mb-2 text-xs font-semibold ${s.muted}`}>
+                        Fulfillment Status
+                      </p>
+                      <div className="space-y-1.5">
+                        {request.items.map(line => {
+                          const value = fulfillmentStatusFor(request.status, line);
+                          const tone =
+                            value === 'overdue'
+                              ? 'text-red-500'
+                              : value === 'issued' || value === 'returned'
+                                ? 'text-emerald-500'
+                                : value === 'pending_issue'
+                                  ? 'text-amber-500'
+                                  : '';
+
+                          return (
+                            <p
+                              key={line.request_item_id || line.inventory_model_id}
+                              className={`text-xs font-medium capitalize ${tone}`}
+                            >
+                              {value.replaceAll('_', ' ')}
+                            </p>
+                          );
+                        })}
+                      </div>
+                    </div>
 
                     <div className={`mt-3 pt-3 border-t text-xs flex items-center justify-between ${s.isDark ? 'border-[#2A2A2A]' : 'border-[#EAEAEA]'} ${s.muted}`}>
                       <span>Submitted {formatInventoryDate(request.created_at)}</span>
@@ -271,11 +336,11 @@ export default function CreatorInventory() {
                         key={request.id}
                         role="button"
                         tabIndex={0}
-                        onClick={() => setSelectedRequest(request)}
+                        onClick={() => void openRequestDetails(request)}
                         onKeyDown={event => {
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
-                            setSelectedRequest(request);
+                          void openRequestDetails(request);
                           }
                         }}
                         className={`cursor-pointer border-t transition-colors ${
@@ -294,6 +359,30 @@ export default function CreatorInventory() {
                         </td>
                         <td className={tdClass('left', `whitespace-nowrap ${s.muted}`)}>
                           {formatInventoryDate(request.created_at)}
+                        </td>
+                        <td className={tdClass('left')}>
+                          <div className="space-y-1.5">
+                            {request.items.map(line => {
+                              const value = fulfillmentStatusFor(request.status, line);
+                              const tone =
+                                value === 'overdue'
+                                  ? 'text-red-500'
+                                  : value === 'issued' || value === 'returned'
+                                    ? 'text-emerald-500'
+                                    : value === 'pending_issue'
+                                      ? 'text-amber-500'
+                                      : '';
+
+                              return (
+                                <p
+                                  key={line.request_item_id || line.inventory_model_id}
+                                  className={`text-xs font-medium capitalize ${tone}`}
+                                >
+                                  {value.replaceAll('_', ' ')}
+                                </p>
+                              );
+                            })}
+                          </div>
                         </td>
                         <td className={tdClass('center')}>
                           <StatusBadge status={request.status} />
@@ -338,94 +427,20 @@ export default function CreatorInventory() {
         </section>
       )}
 
-      {/* Item Details Dialog */}
-      <Dialog open={!!selectedItem} onOpenChange={open => !open && setSelectedItem(null)}>
-        <DialogContent className={`max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl border p-6 ${s.surface}`}>
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Inventory Item Details</DialogTitle>
-          </DialogHeader>
-          {selectedItem && (
-            <div className="grid gap-6 sm:grid-cols-2 mt-2">
-              <InventoryImage src={selectedItem.image_url} alt={selectedItem.name} className="h-60 w-full sm:h-full rounded-xl" />
-              <div className="flex flex-col justify-between space-y-4">
-                <div className="space-y-3">
-                  <h2 className="text-xl font-bold">{selectedItem.name}</h2>
-                  <p className={`text-sm leading-relaxed ${s.muted}`}>{selectedItem.description || 'No description provided.'}</p>
-                  
-                  <div className={`grid grid-cols-2 gap-3 p-3.5 rounded-xl border ${s.isDark ? 'border-[#262626] bg-[#161616]' : 'border-[#EAEAEA] bg-[#FAFAFA]'}`}>
-                    <div>
-                      <p className={`text-xs ${s.muted}`}>Price / Unit</p>
-                      <p className="text-base font-bold mt-0.5">{currency(selectedItem.unit_price, selectedItem.currency)}</p>
-                    </div>
-                    <div>
-                      <p className={`text-xs ${s.muted}`}>Available Stock</p>
-                      <p className="text-base font-bold text-emerald-500 mt-0.5">{available(selectedItem)} units</p>
-                    </div>
-                  </div>
-                </div>
-
-                <InventoryButton
-                  variant="beige"
-                  className="h-12 w-full rounded-xl font-bold text-black shadow-xs hover:opacity-90"
-                  onClick={() => {
-                    setRequestItem(selectedItem);
-                    setSelectedItem(null);
-                    setWizard(true);
-                  }}
-                >
-                  Request This Item
-                </InventoryButton>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!selectedRequest} onOpenChange={open => !open && setSelectedRequest(null)}>
-        <DialogContent className={`max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl border p-6 ${s.surface}`}>
-          <DialogHeader>
-            <DialogTitle className="flex flex-wrap items-center justify-between gap-3 text-xl font-bold">
-              Request Details {selectedRequest && <StatusBadge status={selectedRequest.status} />}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedRequest && (
-            <div className="mt-2 space-y-5">
-              <div className={`grid grid-cols-2 gap-4 rounded-xl border p-4 text-sm ${s.isDark ? 'border-[#262626] bg-[#161616]' : 'border-[#EAEAEA] bg-[#FAFAFA]'}`}>
-                <div><p className={`text-xs ${s.muted}`}>Request ID</p><p className="mt-1 font-semibold">{selectedRequest.id}</p></div>
-                <div><p className={`text-xs ${s.muted}`}>Purpose</p><p className="mt-1 font-semibold">{selectedRequest.request_type === 'shoot' ? 'Assigned Shoot' : 'Personal Use'}</p></div>
-                {selectedRequest.shoot_name && <div><p className={`text-xs ${s.muted}`}>Assigned Shoot</p><p className="mt-1 font-semibold">{selectedRequest.shoot_name}</p></div>}
-                <div><p className={`text-xs ${s.muted}`}>Submitted</p><p className="mt-1 font-semibold">{formatInventoryDate(selectedRequest.created_at)}</p></div>
-              </div>
-
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold">Requested Inventory</h3>
-                {selectedRequest.items.map(line => (
-                  <div key={line.inventory_item_id} className={`flex items-center gap-3 rounded-xl border p-3 ${s.isDark ? 'border-[#262626] bg-[#161616]' : 'border-[#EAEAEA] bg-white'}`}>
-                    <InventoryImage src={line.item_image_snapshot} alt={line.item_name_snapshot} className="h-14 w-14 shrink-0 rounded-lg" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{line.item_name_snapshot}</p>
-                      <p className={`mt-1 text-xs ${s.muted}`}>Quantity: {line.quantity} · {currency(line.unit_price_snapshot)} / unit</p>
-                    </div>
-                    <p className="text-sm font-bold">{currency(line.line_total)}</p>
-                  </div>
-                ))}
-                <div className="flex justify-between border-t pt-3 text-sm font-semibold">
-                  <span>Total quantity: {selectedRequest.total_quantity}</span>
-                  <span>{currency(selectedRequest.total_amount)}</span>
-                </div>
-              </div>
-
-              {selectedRequest.admin_note && (
-                <div className={`rounded-xl border p-4 ${s.isDark ? 'border-[#262626] bg-[#161616]' : 'border-[#EAEAEA] bg-[#FAFAFA]'}`}>
-                  <p className={`text-xs ${s.muted}`}>Admin Note</p>
-                  <p className="mt-1 text-sm">{selectedRequest.admin_note}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
+      <CreatorInventoryDialogs
+        selectedGroup={selectedGroup}
+        onCloseGroup={() => setSelectedGroup(null)}
+        onRequestModel={model => { setRequestItem(model); setSelectedGroup(null); setWizard(true); }}
+        selectedRequest={selectedRequest}
+        onCloseRequest={() => setSelectedRequest(null)}
+        onBeginReturn={line => { setReturnTarget(line); setReturnFiles([]); }}
+        returnTarget={returnTarget}
+        returnFiles={returnFiles}
+        setReturnFiles={setReturnFiles}
+        returnBusy={returnBusy}
+        onCancelReturn={() => { setReturnTarget(null); setReturnFiles([]); }}
+        onSubmitReturn={() => void submitReturn()}
+      />
       <InventoryRequestWizard
         open={wizard}
         initialItem={requestItem}

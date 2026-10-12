@@ -28,17 +28,24 @@ export const inventoryHttpApi = {
     (await api.get('admin/inventory', { params })).data,
   getAdminItem: async (id: string) =>
     (await api.get(`admin/inventory/${encodeURIComponent(id)}`)).data,
-  createAdminItem: async (form: FormData) =>
-    (await api.post('admin/inventory', form, { headers: { 'Content-Type': 'multipart/form-data' } })).data,
+  createAdminItem: async (payload: Record<string, unknown>) =>
+    (await api.post('admin/inventory', payload)).data,
   updateAdminItem: async (id: string, payload: Record<string, unknown>) =>
     (await api.put(`admin/inventory/${encodeURIComponent(id)}`, payload)).data,
-  uploadAdminItemImage: async (id: string, image: File) => {
+  uploadAdminModelImages: async (images: File[]) => {
     const form = new FormData();
-    form.append('image', image);
-    return (await api.post(`admin/inventory/${encodeURIComponent(id)}/image`, form, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+    images.forEach(image => form.append('images', image));
+    return (await api.post('admin/inventory/model-images', form, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
   },
-  deleteAdminItemImage: async (id: string) =>
-    (await api.delete(`admin/inventory/${encodeURIComponent(id)}/image`)).data,
+  uploadInventoryConditionImages: async (scope: 'admin' | 'creator', images: File[]) => {
+    const form = new FormData();
+    images.forEach(image => form.append('images', image));
+    return (await api.post(`${scope}/inventory/condition-images`, form, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+  },
+  issueAdminInventoryItem: async (requestId: string, itemId: string, image_paths: string[]) =>
+    (await api.post(`admin/inventory-requests/${encodeURIComponent(requestId)}/items/${encodeURIComponent(itemId)}/issue`, { image_paths })).data,
+  returnCreatorInventoryItem: async (requestId: string, itemId: string, image_paths: string[]) =>
+    (await api.post(`creator/inventory/requests/${encodeURIComponent(requestId)}/items/${encodeURIComponent(itemId)}/return`, { image_paths })).data,
   updateAdminItemStatus: async (id: string, is_active: 0 | 1) =>
     (await api.patch(`admin/inventory/${encodeURIComponent(id)}/status`, { is_active })).data,
   listAdminRequests: async (status?: string) =>
@@ -47,11 +54,13 @@ export const inventoryHttpApi = {
     (await api.patch(`admin/inventory-requests/${encodeURIComponent(id)}/review`, { status, admin_note })).data,
   listCreatorItems: async () =>
     (await api.get('creator/inventory')).data,
+  getCreatorModelAvailability: async (modelId: string, pickupAt: string, returnAt: string) =>
+    (await api.get(`creator/inventory/models/${encodeURIComponent(modelId)}/availability`, { params: { pickup_at: pickupAt, return_at: returnAt } })).data,
   getCreatorItem: async (id: string) =>
     (await api.get(`creator/inventory/${encodeURIComponent(id)}`)).data,
   listAssignedShoots: async () =>
     (await api.get('creator/inventory/assigned-shoots')).data,
-  submitCreatorRequest: async (payload: { purpose: 'personal' | 'shoot'; shoot_id: string | null; items: { inventory_item_id: number; quantity: number }[] }) =>
+  submitCreatorRequest: async (payload: { purpose: 'personal' | 'shoot'; shoot_id: string | null; items: { inventory_model_id: number; quantity: number }[] }) =>
     (await api.post('creator/inventory/requests', payload)).data,
   listCreatorRequests: async () =>
     (await api.get('creator/inventory/requests')).data,

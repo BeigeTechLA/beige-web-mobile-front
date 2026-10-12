@@ -1,15 +1,30 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { ArrowLeft, Check, Minus, Plus, Search, Trash2, Package, Calendar } from 'lucide-react';
+import { ArrowLeft, Check, Minus, Plus, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InventoryItem, InventoryRequest, ShootOption, RequestLine, RequestType, inventoryApi, available, currency, formatInventoryDate, requestTotals } from '@/components/common/inventory/inventory';
-import { InventoryCard, InventoryImage, useInventoryStyle, InventoryButton } from '@/components/common/inventory/InventoryUI';
+import DatePicker from '@/components/ui/Datepicker';
+import TimePicker from '@/components/ui/Timepicker';
+import { InventoryItem, InventoryRequest, ShootOption, RequestLine, RequestType, inventoryApi, available, currency, requestTotals } from '@/components/common/inventory/inventory';
+import { InventoryGroupCard, InventoryImage, InventoryModelImageGallery, useInventoryStyle, InventoryButton } from '@/components/common/inventory/InventoryUI';
+import InventoryRequestPurposeStep from './InventoryRequestPurposeStep';
+import InventoryRequestCartStep from './InventoryRequestCartStep';
 
-// Shared grid template so the cart header and every cart row line up perfectly.
-// Columns: image | item name | quantity | line total | remove
-const CART_GRID = 'grid grid-cols-[64px_minmax(0,1fr)_72px_96px_40px] items-center gap-4';
+const parseLocalDateTime = (value: string): Date | null => {
+  if (!value) return null;
+  const [datePart, timePart = '00:00'] = value.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [hours, minutes] = timePart.split(':').map(Number);
+  if (![year, month, day, hours, minutes].every(Number.isFinite)) return null;
+  return new Date(year, month - 1, day, hours, minutes);
+};
+
+const combineLocalDateTime = (date: Date | null, time: Date | null): string => {
+  if (!date || !time) return '';
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(time.getHours())}:${pad(time.getMinutes())}`;
+};
 
 export default function InventoryRequestWizard({
   open,
@@ -24,7 +39,7 @@ export default function InventoryRequestWizard({
   onSubmitted: () => void;
   editing?: InventoryRequest | null;
   initialItem?: InventoryItem | null;
-  catalog: InventoryItem[];
+  catalog?: InventoryItem[];
 }) {
   const s = useInventoryStyle();
   const [step, setStep] = useState(0);
@@ -34,28 +49,49 @@ export default function InventoryRequestWizard({
   const [catalogSearch, setCatalogSearch] = useState('');
   const [items, setItems] = useState<RequestLine[]>([]);
   const [detail, setDetail] = useState<InventoryItem | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<{ id: string; name: string; description?: string; models: InventoryItem[] } | null>(null);
+  const [fallbackCatalog, setFallbackCatalog] = useState<InventoryItem[]>([]);
   const [qty, setQty] = useState(1);
+  const [pickupAt, setPickupAt] = useState('');
+  const [returnAt, setReturnAt] = useState('');
+  const [billingUnit, setBillingUnit] = useState<'hour' | 'day'>('day');
+  const [rangeAvailable, setRangeAvailable] = useState<number | null>(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!detail) return;
+    const pickup = new Date(Date.now() + 60 * 60 * 1000);
+    const due = new Date(pickup.getTime() + 24 * 60 * 60 * 1000);
+    const localValue = (date: Date) => { const offset = date.getTimezoneOffset() * 60_000; return new Date(date.getTime() - offset).toISOString().slice(0, 16); };
+    setPickupAt(localValue(pickup)); setReturnAt(localValue(due));
+    setBillingUnit(Number(detail.daily_rental_rate || 0) > 0 ? 'day' : 'hour');
+  }, [detail]);
+
+  useEffect(() => {
+    if (!detail || !pickupAt || !returnAt || new Date(returnAt) <= new Date(pickupAt)) { setRangeAvailable(null); setCheckingAvailability(false); return; }
+    let active = true;
+    setRangeAvailable(null);
+    setCheckingAvailability(true);
+    const timer = window.setTimeout(() => {
+      inventoryApi.modelAvailability(detail.inventory_model_id || detail.id, new Date(pickupAt).toISOString(), new Date(returnAt).toISOString())
+        .then(quantity => { if (active) setRangeAvailable(quantity); })
+        .catch(() => { if (active) { setRangeAvailable(0); toast.error('Could not check availability for these dates. Try again.'); } })
+        .finally(() => { if (active) setCheckingAvailability(false); });
+    }, 250);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [detail, pickupAt, returnAt]);
+
+  useEffect(() => {
     if (!open) return;
-    const firstLine: RequestLine | undefined = initialItem
-      ? {
-          inventory_item_id: initialItem.id,
-          item_name_snapshot: initialItem.name,
-          item_image_snapshot: initialItem.image_url,
-          unit_price_snapshot: initialItem.unit_price,
-          quantity: 1,
-          line_total: initialItem.unit_price,
-        }
-      : undefined;
     setStep(0);
     setType(editing?.request_type || 'personal');
     setShootId(editing?.shoot_id || '');
-    setItems(editing?.items || (firstLine ? [firstLine] : []));
-    setDetail(null);
+    setItems(editing?.items || []);
+    setDetail(initialItem || null);
+    setSelectedGroup(null);
   }, [open, editing, initialItem]);
 
   useEffect(() => {
@@ -81,43 +117,99 @@ export default function InventoryRequestWizard({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open || catalog !== undefined) return;
+    let active = true;
+    inventoryApi.catalog({ page: 1, limit: 100 })
+      .then(result => {
+        if (active) setFallbackCatalog((result.data || []).filter(item => item.status === 'active'));
+      })
+      .catch(() => {
+        if (active) toast.error('Unable to load inventory items. Please try again.');
+      });
+    return () => { active = false; };
+  }, [open, catalog]);
+
+  const availableCatalog = catalog ?? fallbackCatalog;
   const total = useMemo(() => requestTotals(items), [items]);
-  const filteredCatalog = useMemo(
-    () => catalog.filter(item => `${item.name} ${item.description || ''}`.toLowerCase().includes(catalogSearch.trim().toLowerCase())),
-    [catalog, catalogSearch]
-  );
+  const rentalEstimate = useMemo(() => {
+    if (!detail || !pickupAt || !returnAt) return 0;
+    const duration = new Date(returnAt).getTime() - new Date(pickupAt).getTime();
+    if (duration <= 0) return 0;
+    const unitMs = billingUnit === 'hour' ? 3_600_000 : 86_400_000;
+    const rate = billingUnit === 'hour' ? Number(detail.hourly_rental_rate || 0) : Number(detail.daily_rental_rate || 0);
+    return Math.max(1, Math.ceil(duration / unitMs)) * rate * qty;
+  }, [detail, pickupAt, returnAt, billingUnit, qty]);
+  const selectedAvailability = rangeAvailable ?? (detail ? available(detail) : 0);
+  const pickupDateTime = parseLocalDateTime(pickupAt);
+  const returnDateTime = parseLocalDateTime(returnAt);
+  const minReturnDate = pickupDateTime ? new Date(pickupDateTime.getFullYear(), pickupDateTime.getMonth(), pickupDateTime.getDate()) : undefined;
+  const minReturnTime = pickupDateTime && returnDateTime && pickupDateTime.toDateString() === returnDateTime.toDateString() ? pickupDateTime : undefined;
+  const catalogGroups = useMemo(() => {
+    const groups = new Map<string, InventoryItem[]>();
+    availableCatalog.forEach(model => {
+      const key = model.inventory_item_id || model.inventory_name || model.id;
+      groups.set(key, [...(groups.get(key) || []), model]);
+    });
+    return Array.from(groups.entries()).map(([id, models]) => ({ id, name: models[0].inventory_name || models[0].name, models }));
+  }, [availableCatalog]);
+  const filteredGroups = useMemo(() => {
+    const search = catalogSearch.trim().toLowerCase();
+    return catalogGroups.map(group => {
+      const itemMatches = group.name.toLowerCase().includes(search);
+      return { ...group, models: itemMatches ? group.models : group.models.filter(model => `${model.model_name || ''} ${model.description || ''}`.toLowerCase().includes(search)) };
+    }).filter(group => group.models.length > 0);
+  }, [catalogGroups, catalogSearch]);
+
+  const maxQuantity = (id: string) => {
+    if (detail && detail.id === id && rangeAvailable !== null) return rangeAvailable + (editing?.items.find(x => x.inventory_item_id === id)?.quantity || 0);
+    const product = availableCatalog.find(x => x.id === id) || (initialItem?.id === id ? initialItem : undefined);
+    return product ? available(product) + (editing?.items.find(x => x.inventory_item_id === id)?.quantity || 0) : items.find(x => x.inventory_item_id === id)?.quantity || 0;
+  };
 
   const changeQuantity = (id: string, n: number) => {
-    const product = catalog.find(x => x.id === id);
-    const existing = items.find(x => x.inventory_item_id === id);
-    const max = product ? available(product) + (editing?.items.find(x => x.inventory_item_id === id)?.quantity || 0) : existing?.quantity || 0;
-    if (n < 1 || !Number.isSafeInteger(n) || n > max) return;
-    setItems(prev => prev.map(x => (x.inventory_item_id === id ? { ...x, quantity: n, line_total: x.unit_price_snapshot * n } : x)));
+    const line = items.find(item => item.inventory_item_id === id);
+    const max = line?.available_for_dates ?? maxQuantity(id);
+    if (n < 1 || !Number.isSafeInteger(n)) return;
+    if (n > max) {
+      toast.error(`Only ${max} unit${max === 1 ? '' : 's'} available`);
+      return;
+    }
+    setItems(prev => prev.map(x => (x.inventory_item_id === id ? { ...x, quantity: n, line_total: x.base_rent ? x.base_rent / x.quantity * n : x.unit_price_snapshot * n, base_rent: x.base_rent ? x.base_rent / x.quantity * n : undefined } : x)));
   };
 
   const addItem = () => {
     if (!detail) return;
+    if (!pickupAt || !returnAt || new Date(returnAt) <= new Date(pickupAt)) return toast.error('Choose a valid pickup and return date/time.');
+    if (!(billingUnit === 'hour' ? detail.hourly_rental_rate : detail.daily_rental_rate)) return toast.error(`This model has no ${billingUnit} rental rate.`);
     const current = items.find(x => x.inventory_item_id === detail.id);
     const already = editing?.items.find(x => x.inventory_item_id === detail.id)?.quantity || 0;
-    const max = available(detail) + already;
+    const max = selectedAvailability + already;
     const next = qty + (current?.quantity || 0);
     if (!Number.isSafeInteger(qty) || qty < 1 || next > max) return toast.error(`Available quantity is ${max}`);
     setItems(prev =>
       current
-        ? prev.map(x => (x.inventory_item_id === detail.id ? { ...x, quantity: next, line_total: x.unit_price_snapshot * next } : x))
+              ? prev.map(x => (x.inventory_item_id === detail.id ? { ...x, quantity: next, line_total: rentalEstimate * (next / qty), expected_pickup_at: new Date(pickupAt).toISOString(), expected_return_at: new Date(returnAt).toISOString(), billing_unit: billingUnit, base_rent: rentalEstimate * (next / qty), available_for_dates: selectedAvailability } : x))
         : [
             ...prev,
             {
               inventory_item_id: detail.id,
-              item_name_snapshot: detail.name,
+              inventory_model_id: detail.inventory_model_id || detail.id,
+              item_name_snapshot: detail.model_name ? `${detail.inventory_name || detail.name} — ${detail.model_name}` : detail.name,
               item_image_snapshot: detail.image_url,
-              unit_price_snapshot: detail.unit_price,
+              unit_price_snapshot: billingUnit === 'hour' ? detail.hourly_rental_rate : detail.daily_rental_rate,
               quantity: qty,
-              line_total: detail.unit_price * qty,
+              line_total: rentalEstimate,
+              expected_pickup_at: new Date(pickupAt).toISOString(),
+              expected_return_at: new Date(returnAt).toISOString(),
+              billing_unit: billingUnit,
+              base_rent: rentalEstimate,
+              available_for_dates: selectedAvailability,
             },
           ]
     );
     setDetail(null);
+    if (initialItem) setStep(2);
     toast.success('Item added to request');
   };
 
@@ -131,7 +223,7 @@ export default function InventoryRequestWizard({
         {
           request_type: type,
           shoot_id: type === 'shoot' ? shootId : null,
-          items: items.map(({ inventory_item_id, quantity }) => ({ inventory_item_id, quantity })),
+          items: items.map(({ inventory_item_id, inventory_model_id, quantity, expected_pickup_at, expected_return_at, billing_unit }) => ({ inventory_item_id, inventory_model_id, quantity, expected_pickup_at, expected_return_at, billing_unit })),
         },
         editing?.id
       );
@@ -145,25 +237,27 @@ export default function InventoryRequestWizard({
     }
   };
 
-  const STEPS = ['Request Purpose', 'Select Items', 'Cart & Quantities', 'Review & Submit'];
+  const STEPS = initialItem
+    ? ['Request Purpose', 'Set Quantity', 'Cart & Quantities', 'Review & Submit']
+    : ['Request Purpose', 'Select Models', 'Cart & Quantities', 'Review & Submit'];
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v && !submitting) onClose(); }}>
-      <DialogContent className={`w-[calc(100vw-24px)] max-w-[840px] max-h-[92vh] overflow-y-auto rounded-2xl border p-6 ${s.surface}`}>
+      <DialogContent className={`w-[calc(100vw-24px)] max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl border p-4 sm:p-5 ${s.surface}`}>
         <DialogHeader className="pb-2">
           <DialogTitle className="text-xl font-bold">{editing ? 'Edit Inventory Request' : 'New Equipment Request'}</DialogTitle>
         </DialogHeader>
 
         {/* Step Navigation Bar */}
-        <div className={`grid grid-cols-2 gap-2 sm:grid-cols-4 border-b pb-5 mb-5 ${s.isDark ? 'border-[#262626]' : 'border-[#EAEAEA]'}`}>
-          {STEPS.map((label, i) => {
-            const isCurrent = step === i;
-            const isPassed = step > i;
+        <div className={`grid gap-2 border-b pb-5 mb-5 ${STEPS.length === 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'} ${s.isDark ? 'border-[#262626]' : 'border-[#EAEAEA]'}`}>
+          {STEPS.map((label, stepNumber) => {
+            const isCurrent = step === stepNumber;
+            const isPassed = step > stepNumber;
             return (
               <button
                 key={label}
-                disabled={i > step && ((i === 1 && type === 'shoot' && !shootId) || (i >= 2 && items.length === 0))}
-                onClick={() => setStep(i)}
+                disabled={stepNumber > step && ((stepNumber === 1 && type === 'shoot' && !shootId) || (stepNumber >= 2 && items.length === 0))}
+                onClick={() => setStep(stepNumber)}
                 className={`flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-all ${
                   isCurrent
                     ? 'bg-[#E8D1AB] text-black font-semibold shadow-xs'
@@ -185,7 +279,7 @@ export default function InventoryRequestWizard({
                       : 'bg-zinc-300 text-zinc-700'
                   }`}
                 >
-                  {isPassed ? <Check size={13} /> : i + 1}
+                  {isPassed ? <Check size={13} /> : stepNumber + 1}
                 </span>
                 <span className="text-xs truncate font-medium">{label}</span>
               </button>
@@ -202,129 +296,191 @@ export default function InventoryRequestWizard({
 
         {!loading && (
           <>
-            {/* Step 0: Purpose */}
-            {step === 0 && (
-              <div className="space-y-6 py-2">
-                <div>
-                  <h3 className="text-base font-bold">What is this equipment request for?</h3>
-                  <p className={`text-sm ${s.muted}`}>Select whether this request is for personal creative use or an upcoming shoot assignment.</p>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {(
-                    [
-                      { id: 'personal', label: 'Personal Use', sub: 'For personal projects or skill practice', icon: Package },
-                      { id: 'shoot', label: 'Assigned Shoot', sub: 'For an officially assigned BEIGE shoot', icon: Calendar },
-                    ] as const
-                  ).map(o => {
-                    const Icon = o.icon;
-                    const isSelected = type === o.id;
-                    return (
-                      <button
-                        key={o.id}
-                        type="button"
-                        className={`group relative rounded-2xl border p-5 text-left transition-all ${
-                          isSelected
-                            ? 'border-[#E8D1AB] ring-2 ring-[#E8D1AB]/50 ' + (s.isDark ? 'bg-zinc-900' : 'bg-[#FFFCF6]')
-                            : s.isDark
-                            ? 'border-[#262626] bg-[#161616] hover:border-zinc-700'
-                            : 'border-[#EAEAEA] bg-white hover:border-zinc-300'
-                        }`}
-                        onClick={() => setType(o.id)}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className={`p-3 rounded-xl mb-3 ${isSelected ? 'bg-[#E8D1AB] text-black' : s.isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-100 text-zinc-700'}`}>
-                            <Icon size={22} />
-                          </div>
-                          {isSelected && <Check size={20} className="text-[#E8D1AB]" />}
-                        </div>
-                        <h4 className="text-base font-bold">{o.label}</h4>
-                        <p className={`mt-1 text-xs leading-relaxed ${s.muted}`}>{o.sub}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {type === 'shoot' && (
-                  <div className={`space-y-2.5 p-4 rounded-xl border ${s.isDark ? 'border-[#262626] bg-[#161616]' : 'border-[#EAEAEA] bg-[#FAFAFA]'}`}>
-                    <label htmlFor="assigned-shoot" className="block text-sm font-semibold">
-                      Select Assigned Shoot
-                    </label>
-                    <Select value={shootId} onValueChange={setShootId}>
-                      <SelectTrigger id="assigned-shoot" className={`h-11 w-full rounded-xl ${s.field}`}>
-                        <SelectValue placeholder="Select from your assigned shoots list" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {shoots.length === 0 ? (
-                          <div className="p-3 text-xs text-center text-zinc-500">No assigned shoots found.</div>
-                        ) : (
-                          shoots.map(shoot => (
-                            <SelectItem key={shoot.id} value={shoot.id}>
-                              {shoot.name} ({shoot.id}) {shoot.date ? `· ${formatInventoryDate(shoot.date)}` : ''}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-            )}
+            {step === 0 && <InventoryRequestPurposeStep type={type} onTypeChange={setType} shootId={shootId} onShootChange={setShootId} shoots={shoots} />}
 
             {/* Step 1: Browse Catalog */}
             {step === 1 && (
               <div className="space-y-4">
                 {detail ? (
-                  <div className={`p-5 rounded-2xl border space-y-4 ${s.isDark ? 'border-[#262626] bg-[#161616]' : 'border-[#EAEAEA] bg-[#FAFAFA]'}`}>
+                  <div className={`mx-auto w-full min-w-0 max-w-2xl rounded-2xl border p-3 sm:p-4 space-y-3 ${s.isDark ? 'border-[#262626] bg-[#161616]' : 'border-[#EAEAEA] bg-[#FAFAFA]'}`}>
                     <button onClick={() => setDetail(null)} className={`flex items-center gap-1.5 text-xs font-semibold hover:underline ${s.muted}`}>
-                      <ArrowLeft size={14} /> Back to catalog
+                      <ArrowLeft size={14} /> Back to {selectedGroup ? 'models' : 'catalog'}
                     </button>
-                    <div className="grid sm:grid-cols-2 gap-6">
-                      <InventoryImage src={detail.image_url} alt={detail.name} className="w-full h-56 rounded-xl" />
-                      <div className="flex flex-col justify-between space-y-4">
+                    <div className="min-w-0 space-y-3">
+                      <InventoryModelImageGallery images={detail.model_images || []} alt={`${detail.inventory_name || detail.name} ${detail.model_name || ''}`} compact />
+                      <div className="min-w-0 space-y-3">
                         <div className="space-y-2">
-                          <h3 className="text-lg font-bold">{detail.name}</h3>
-                          <p className={`text-xs ${s.muted}`}>{detail.description || 'No description available.'}</p>
-                          <div className="pt-2 flex items-center justify-between text-sm">
-                            <span className="font-semibold">{currency(detail.unit_price, detail.currency)} / unit</span>
-                            <span className="text-xs font-medium text-emerald-500">{available(detail)} units available</span>
+                          <div>
+                            <p className={`text-[11px] font-semibold uppercase tracking-wide ${s.muted}`}>
+                              {detail.inventory_name || detail.name}
+                            </p>
+                            {detail.model_name && (
+                              <h3 className="mt-0.5 text-base font-bold">
+                                {detail.model_name}
+                              </h3>
+                            )}
                           </div>
+                          <p className={`text-xs ${s.muted}`}>{detail.description || 'No description available.'}</p>
+                          <div className="grid grid-cols-2 gap-2 pt-2">
+                            <div className={`min-w-0 rounded-lg border p-2.5 ${s.isDark ? 'border-white/10 bg-black/10' : 'border-black/10 bg-white'}`}>
+                              <p className={`text-[11px] ${s.muted}`}>Hourly rate</p>
+                              <p className="mt-0.5 truncate text-sm font-semibold">
+                                {currency(detail.hourly_rental_rate || 0, detail.currency)} / hour
+                              </p>
+                            </div>
+                            <div className={`min-w-0 rounded-lg border p-2.5 ${s.isDark ? 'border-white/10 bg-black/10' : 'border-black/10 bg-white'}`}>
+                              <p className={`text-[11px] ${s.muted}`}>Daily rate</p>
+                              <p className="mt-0.5 truncate text-sm font-semibold">
+                                {currency(detail.daily_rental_rate || 0, detail.currency)} / day
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-xs font-medium text-emerald-500">{checkingAvailability ? 'Checking dates…' : `${selectedAvailability} units available for these dates`}</p>
                         </div>
 
-                        <div className="space-y-3 pt-2">
-                          <label className="block text-xs font-semibold">Select Quantity</label>
-                          <div className="flex items-center gap-3">
-                            <button
-                              type="button"
-                              className={`h-10 w-10 flex items-center justify-center rounded-xl border ${s.secondary}`}
-                              onClick={() => setQty(n => Math.max(1, n - 1))}
-                            >
-                              <Minus size={16} />
-                            </button>
-                            <input
-                              aria-label="Item quantity"
-                              type="number"
-                              min={1}
-                              max={available(detail)}
-                              value={qty}
-                              onChange={e => setQty(Number(e.target.value))}
-                              className={`h-10 w-20 rounded-xl text-center font-bold border ${s.field}`}
-                            />
-                            <button
-                              type="button"
-                              className={`h-10 w-10 flex items-center justify-center rounded-xl border ${s.secondary}`}
-                              onClick={() => setQty(n => Math.min(available(detail), n + 1))}
-                            >
-                              <Plus size={16} />
-                            </button>
+                        <div className="space-y-3">
+                          <div className="grid min-w-0 gap-5 sm:grid-cols-2">
+                            <section className="min-w-0 space-y-2">
+                              <p className="text-sm font-semibold">Pickup</p>
+                              <div className="space-y-2">
+                                <div className="min-w-0">
+                                  <label className={`mb-1 block text-[11px] ${s.muted}`}>Date</label>
+                                  <DatePicker
+                                    label=""
+                                    value={pickupDateTime}
+                                    onChange={date =>
+                                      setPickupAt(current =>
+                                        combineLocalDateTime(date, parseLocalDateTime(current)),
+                                      )
+                                    }
+                                    isDark={s.isDark}
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <label className={`mb-1 block text-[11px] ${s.muted}`}>Time</label>
+                                  <TimePicker
+                                    label=""
+                                    value={pickupDateTime}
+                                    onChange={time =>
+                                      setPickupAt(current =>
+                                        combineLocalDateTime(parseLocalDateTime(current), time),
+                                      )
+                                    }
+                                    isDark={s.isDark}
+                                    height="42px"
+                                    fontSize="13px"
+                                  />
+                                </div>
+                              </div>
+                            </section>
+                            <section className="min-w-0 space-y-2">
+                              <p className="text-sm font-semibold">Expected Return</p>
+                              <div className="space-y-2">
+                                <div className="min-w-0">
+                                  <label className={`mb-1 block text-[11px] ${s.muted}`}>Date</label>
+                                  <DatePicker
+                                    label=""
+                                    value={returnDateTime}
+                                    minDate={minReturnDate}
+                                    onChange={date =>
+                                      setReturnAt(current =>
+                                        combineLocalDateTime(date, parseLocalDateTime(current)),
+                                      )
+                                    }
+                                    isDark={s.isDark}
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <label className={`mb-1 block text-[11px] ${s.muted}`}>Time</label>
+                                  <TimePicker
+                                    label=""
+                                    value={returnDateTime}
+                                    minTime={minReturnTime}
+                                    onChange={time =>
+                                      setReturnAt(current =>
+                                        combineLocalDateTime(parseLocalDateTime(current), time),
+                                      )
+                                    }
+                                    isDark={s.isDark}
+                                    height="42px"
+                                    fontSize="13px"
+                                  />
+                                </div>
+                              </div>
+                            </section>
                           </div>
-                          <div className="flex items-center justify-between text-sm font-bold pt-1">
+                          <div className="grid min-w-0 gap-3">
+                            <div className="block min-w-0 text-xs font-semibold"><label htmlFor="inventory-billing-rate">Billing rate</label>
+                              <Select value={billingUnit} onValueChange={value => setBillingUnit(value as 'hour' | 'day')}>
+                                <SelectTrigger
+                                  id="inventory-billing-rate"
+                                  className={`mt-1 h-11 w-full rounded-xl px-3 ${s.field}`}
+                                >
+                                  <SelectValue placeholder="Choose billing rate" />
+                                </SelectTrigger>
+                                <SelectContent
+                                  position="popper"
+                                  sideOffset={6}
+                                  className={`z-[100] max-h-56 w-[var(--radix-select-trigger-width)] rounded-xl shadow-xl ${s.isDark ? 'border-[#3D3D3D] bg-[#1A1A1A] text-white' : 'border-[#E5E5E5] bg-white text-[#202020]'}`}
+                                  viewportClassName="h-auto p-1.5"
+                                >
+                                  <SelectItem
+                                    className="rounded-lg py-2 focus:bg-[#E8D1AB] focus:text-black"
+                                    value="hour"
+                                    disabled={!detail.hourly_rental_rate}
+                                  >
+                                    Hourly
+                                  </SelectItem>
+                                  <SelectItem
+                                    className="rounded-lg py-2 focus:bg-[#E8D1AB] focus:text-black"
+                                    value="day"
+                                    disabled={!detail.daily_rental_rate}
+                                  >
+                                    Daily
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="min-w-0">
+                              <label className="mb-1 block text-xs font-semibold">Quantity</label>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  className={`flex h-9 w-9 items-center justify-center rounded-lg border ${s.secondary}`}
+                                  onClick={() => setQty(n => Math.max(1, n - 1))}
+                                >
+                                  <Minus size={16} />
+                                </button>
+                                <input
+                                  aria-label="Item quantity"
+                                  type="number"
+                                  min={1}
+                                  max={selectedAvailability}
+                                  value={qty}
+                                  onChange={event => setQty(Number(event.target.value))}
+                                  className={`h-9 w-16 rounded-lg border text-center font-bold ${s.field}`}
+                                />
+                                <button
+                                  type="button"
+                                  className={`flex h-9 w-9 items-center justify-center rounded-lg border ${s.secondary}`}
+                                  onClick={() =>
+                                    setQty(quantity =>
+                                      Math.min(selectedAvailability, quantity + 1),
+                                    )
+                                  }
+                                >
+                                  <Plus size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between text-sm font-bold">
                             <span>Line Total:</span>
-                            <span className="text-base">{currency(detail.unit_price * qty, detail.currency)}</span>
+                            <span className="text-base">{currency(rentalEstimate, detail.currency)}</span>
                           </div>
                           <InventoryButton
                             variant="beige"
-                            disabled={qty < 1 || qty > available(detail)}
+                            disabled={qty < 1 || checkingAvailability || qty > selectedAvailability}
                             className="h-11 w-full rounded-xl font-semibold text-black shadow-xs hover:opacity-90"
                             onClick={addItem}
                           >
@@ -332,6 +488,75 @@ export default function InventoryRequestWizard({
                           </InventoryButton>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                ) : selectedGroup ? (
+                  <div className="space-y-4">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedGroup(null)}
+                      className={`flex items-center gap-1.5 text-xs font-semibold hover:underline ${s.muted}`}
+                    >
+                      <ArrowLeft size={14} /> Back to all equipment
+                    </button>
+                    <div>
+                      <h3 className="text-lg font-bold">{selectedGroup.name} Models</h3>
+                      {selectedGroup.description && (
+                        <p className={`mt-1 text-sm ${s.muted}`}>
+                          {selectedGroup.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="mx-auto grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
+                      {selectedGroup.models.map(model => (
+                        <section
+                          key={model.inventory_model_id || model.id}
+                          className={`flex min-w-0 flex-col rounded-xl border p-2.5 ${
+                            s.isDark
+                              ? 'border-[#262626] bg-[#121212]'
+                              : 'border-[#EAEAEA] bg-white'
+                          }`}
+                        >
+                          <InventoryModelImageGallery
+                            images={model.model_images || []}
+                            alt={`${selectedGroup.name} ${model.model_name || model.name}`}
+                            compact
+                          />
+                          <div className="flex flex-1 flex-col pt-3">
+                            <p className={`text-[11px] font-semibold uppercase tracking-wide ${s.muted}`}>
+                              {selectedGroup.name}
+                            </p>
+                            <h4 className="mt-1 truncate text-base font-bold">
+                              {model.model_name || model.name}
+                            </h4>
+                            <p className={`mt-1 line-clamp-2 min-h-10 text-xs ${s.muted}`}>
+                              {model.description || 'No description available.'}
+                            </p>
+                            <div className="mt-auto pt-3">
+                              <div className="flex items-center justify-between border-t border-current/10 py-3 text-sm">
+                                <span className="font-semibold">
+                                  {model.hourly_rental_rate > 0 && <>{currency(model.hourly_rental_rate, model.currency)} / hour</>}
+                                  {model.hourly_rental_rate > 0 && model.daily_rental_rate > 0 && ' · '}
+                                  {model.daily_rental_rate > 0 && <>{currency(model.daily_rental_rate, model.currency)} / day</>}
+                                </span>
+                                <span className="text-xs font-medium text-emerald-500">
+                                  {available(model)} available
+                                </span>
+                              </div>
+                              <InventoryButton
+                                variant="beige"
+                                className="w-full"
+                                onClick={() => {
+                                  setDetail(model);
+                                  setQty(1);
+                                }}
+                              >
+                                Choose model
+                              </InventoryButton>
+                            </div>
+                          </div>
+                        </section>
+                      ))}
                     </div>
                   </div>
                 ) : (
@@ -349,21 +574,11 @@ export default function InventoryRequestWizard({
                       <span className={`text-xs font-semibold shrink-0 ${s.muted}`}>{items.length} items in cart</span>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5 max-h-[460px] overflow-y-auto pr-1">
-                      {filteredCatalog.map(item => (
-                        <InventoryCard
-                          key={item.id}
-                          item={item}
-                          selected={items.some(x => x.inventory_item_id === item.id)}
-                          onClick={() => {
-                            setDetail(item);
-                            setQty(1);
-                          }}
-                        />
-                      ))}
+                    <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+                      {filteredGroups.map(group => <InventoryGroupCard key={group.id} name={group.name} description={group.description} models={group.models} onClick={() => { setDetail(null); setSelectedGroup(group); }} />)}
                     </div>
 
-                    {filteredCatalog.length === 0 && (
+                    {filteredGroups.length === 0 && (
                       <div className="py-12 text-center">
                         <p className={s.muted}>No matching available inventory items found.</p>
                       </div>
@@ -373,75 +588,7 @@ export default function InventoryRequestWizard({
               </div>
             )}
 
-            {/* Step 2: Selected Items List */}
-            {step === 2 && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold">Selected Request Items</h3>
-                  <button onClick={() => setStep(1)} className={`text-xs font-semibold text-[#E8D1AB] hover:underline`}>
-                    + Add More Items
-                  </button>
-                </div>
-
-                {items.length === 0 ? (
-                  <div className={`p-12 text-center rounded-2xl border ${s.isDark ? 'border-[#262626] bg-[#161616]' : 'border-[#EAEAEA] bg-[#FAFAFA]'}`}>
-                    <Package size={36} className={`mx-auto mb-3 ${s.muted}`} />
-                    <p className="font-semibold">No items added to request</p>
-                    <p className={`mt-1 text-xs ${s.muted}`}>Please browse inventory to select equipment items.</p>
-                    <button onClick={() => setStep(1)} className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl bg-[#E8D1AB] text-black">
-                      Browse Inventory
-                    </button>
-                  </div>
-                ) : (
-                  <div className="max-h-[420px] overflow-y-auto pr-1">
-                    {/* Column header (same grid as the rows below) */}
-                    <div className={`${CART_GRID} px-3.5 pb-2 text-[11px] font-semibold uppercase tracking-wide ${s.muted}`}>
-                      <span aria-hidden="true" />
-                      <span className="text-left">Item</span>
-                      <span className="text-center">Qty</span>
-                      <span className="text-right">Total</span>
-                      <span aria-hidden="true" />
-                    </div>
-                    <div className="space-y-3">
-                      {items.map(line => (
-                        <div
-                          key={line.inventory_item_id}
-                          className={`${CART_GRID} rounded-xl border p-3.5 ${
-                            s.isDark ? 'border-[#262626] bg-[#161616]' : 'border-[#EAEAEA] bg-white'
-                          }`}
-                        >
-                          <InventoryImage src={line.item_image_snapshot} alt={line.item_name_snapshot} className="h-16 w-16 shrink-0 rounded-lg" />
-                          <div className="min-w-0 text-left">
-                            <p className="font-bold text-sm truncate">{line.item_name_snapshot}</p>
-                            <p className={`text-xs ${s.muted}`}>{currency(line.unit_price_snapshot)} per unit</p>
-                          </div>
-                          <div className="flex justify-center">
-                            <input
-                              aria-label={`Quantity for ${line.item_name_snapshot}`}
-                              type="number"
-                              min={1}
-                              value={line.quantity}
-                              className={`w-16 h-9 p-1 rounded-lg border text-center font-bold text-sm ${s.field}`}
-                              onChange={e => changeQuantity(line.inventory_item_id, Number(e.target.value))}
-                            />
-                          </div>
-                          <p className="text-right text-sm font-bold whitespace-nowrap tabular-nums">{currency(line.unit_price_snapshot * line.quantity)}</p>
-                          <div className="flex justify-end">
-                            <button
-                              aria-label={`Remove ${line.item_name_snapshot}`}
-                              onClick={() => setItems(prev => prev.filter(x => x.inventory_item_id !== line.inventory_item_id))}
-                              className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {step === 2 && <InventoryRequestCartStep items={items} maxQuantity={maxQuantity} onQuantityChange={changeQuantity} onRemove={id => setItems(current => current.filter(item => item.inventory_item_id !== id))} onBrowse={() => setStep(1)} />}
 
             {/* Step 3: Review */}
             {step === 3 && (
@@ -480,9 +627,9 @@ export default function InventoryRequestWizard({
                         <InventoryImage src={line.item_image_snapshot} alt={line.item_name_snapshot} className="h-10 w-10 rounded" />
                         <div className="min-w-0 text-left">
                           <p className="font-semibold truncate">{line.item_name_snapshot}</p>
-                          <p className={`text-xs ${s.muted}`}>Qty: {line.quantity}</p>
+                          <p className={`text-xs ${s.muted}`}>Qty: {line.quantity} · {line.billing_unit === 'hour' ? 'Hourly' : 'Daily'} rental</p>
                         </div>
-                        <span className="text-right font-bold whitespace-nowrap tabular-nums">{currency(line.quantity * line.unit_price_snapshot)}</span>
+                        <span className="text-right font-bold whitespace-nowrap tabular-nums">{currency(line.base_rent || line.line_total)}</span>
                       </div>
                     ))}
                   </div>

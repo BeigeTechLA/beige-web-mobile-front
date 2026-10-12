@@ -3,12 +3,31 @@ import { inventoryHttpApi } from '@/lib/api';
 export type RequestStatus = 'pending' | 'accepted' | 'rejected';
 export type RequestType = 'personal' | 'shoot';
 
+export type InventoryModel = {
+  id?: string;
+  name: string;
+  description?: string;
+  price: number;
+  hourly_rental_rate: number;
+  daily_rental_rate: number;
+  total_quantity: number;
+  available_quantity: number;
+  requested_quantity: number;
+  assigned_quantity: number;
+  is_active: number;
+  unit_ids: number[];
+  images: { id?: number; url: string; file_path?: string }[];
+  image_urls: string[];
+};
+
 export type InventoryItem = {
   id: string;
   name: string;
   description?: string;
   image_url?: string;
   unit_price: number;
+  hourly_rental_rate?: number;
+  daily_rental_rate?: number;
   currency?: string;
   total_quantity: number;
   requested_quantity: number;
@@ -16,15 +35,37 @@ export type InventoryItem = {
   status: 'active' | 'inactive';
   created_at?: string;
   updated_at?: string;
+  models?: InventoryModel[];
+  inventory_item_id?: string;
+  model_name?: string;
+  inventory_name?: string;
+  inventory_description?: string;
+  inventory_model_id?: string;
+  model_images?: { id?: number; url: string }[];
 };
 
 export type RequestLine = {
+  request_item_id?: string;
   inventory_item_id: string;
+  inventory_model_id: string;
   item_name_snapshot: string;
   item_image_snapshot?: string;
   unit_price_snapshot: number;
   quantity: number;
   line_total: number;
+  available_for_dates?: number;
+  unit_ids?: string;
+  expected_pickup_at?: string;
+  expected_return_at?: string;
+  billing_unit?: 'hour' | 'day';
+  base_rent?: number;
+  late_charge?: number;
+  total_rent?: number;
+  issued_at?: string;
+  returned_at?: string;
+  fulfillment_status?: 'pending_issue' | 'issued' | 'returned' | 'overdue';
+  handover_images?: { file_path?: string; url: string }[];
+  return_images?: { file_path?: string; url: string }[];
 };
 
 export type ShootOption = { id: string; name: string; date?: string; location?: string };
@@ -47,6 +88,11 @@ export type InventoryRequest = {
   created_at: string;
 };
 
+export const fulfillmentStatusFor = (requestStatus: RequestStatus, line: RequestLine): string => {
+  if (requestStatus !== 'accepted') return '—';
+  return line.fulfillment_status || (line.returned_at ? 'returned' : line.issued_at ? 'issued' : 'pending_issue');
+};
+
 export type ListResponse<T> = { data: T[]; total: number; page: number; limit: number };
 export type ListParams = {
   page?: number;
@@ -61,7 +107,7 @@ export type ListParams = {
 export type RequestPayload = {
   request_type: RequestType;
   shoot_id: string | null;
-  items: { inventory_item_id: string; quantity: number }[];
+  items: { inventory_item_id: string; inventory_model_id?: string; quantity: number; expected_pickup_at?: string; expected_return_at?: string; billing_unit?: 'hour' | 'day' }[];
 };
 
 type ApiRow = Record<string, unknown>;
@@ -86,18 +132,45 @@ const normalizeItem = (row: ApiRow): InventoryItem => ({
   status: Number(row.is_active ?? (row.status === 'active' ? 1 : 0)) === 1 ? 'active' : 'inactive',
   created_at: stringValue(row.created_at) || undefined,
   updated_at: stringValue(row.updated_at) || undefined,
+  models: asRows(row.models).map(model => ({
+    id: stringValue(model.id),
+    name: stringValue(model.name),
+    description: stringValue(model.description),
+    price: numberValue(model.price),
+    hourly_rental_rate: numberValue(model.hourly_rental_rate),
+    daily_rental_rate: numberValue(model.daily_rental_rate),
+    total_quantity: numberValue(model.total_quantity),
+    available_quantity: numberValue(model.available_quantity),
+    requested_quantity: numberValue(model.requested_quantity),
+    assigned_quantity: numberValue(model.assigned_quantity),
+    is_active: numberValue(model.is_active, 1),
+    unit_ids: asRows(model.units).map(unit => numberValue(unit.id)),
+    images: asRows(model.images).map(image => ({ url: stringValue(image.url ?? image.file_path), file_path: stringValue(image.file_path) })),
+    image_urls: asRows(model.image_urls).map(image => stringValue(image)),
+  })),
 });
 
 const normalizeRequestLine = (row: ApiRow): RequestLine => {
   const quantity = numberValue(row.quantity);
   const unitPrice = numberValue(row.unit_price ?? row.unit_price_snapshot);
   return {
-    inventory_item_id: stringValue(row.inventory_item_id),
+    inventory_item_id: stringValue(row.inventory_model_id ?? row.inventory_item_id),
+    inventory_model_id: stringValue(row.inventory_model_id ?? row.inventory_item_id),
     item_name_snapshot: stringValue(row.item_name_snapshot ?? row.item_name, 'Inventory item'),
     item_image_snapshot: stringValue(row.item_image_snapshot ?? row.image_url) || undefined,
     unit_price_snapshot: unitPrice,
     quantity,
-    line_total: numberValue(row.line_total, unitPrice * quantity),
+    line_total: numberValue(row.line_total ?? row.total_rent ?? row.base_rent, unitPrice * quantity),
+    unit_ids: stringValue(row.unit_ids) || undefined,
+    request_item_id: stringValue(row.request_item_id) || undefined,
+    expected_pickup_at: stringValue(row.expected_pickup_at) || undefined,
+    expected_return_at: stringValue(row.expected_return_at) || undefined,
+    billing_unit: row.billing_unit === 'hour' || row.billing_unit === 'day' ? row.billing_unit : undefined,
+    base_rent: numberValue(row.base_rent), late_charge: numberValue(row.late_charge), total_rent: numberValue(row.total_rent),
+    issued_at: stringValue(row.issued_at) || undefined, returned_at: stringValue(row.returned_at) || undefined,
+    fulfillment_status: ['pending_issue', 'issued', 'returned', 'overdue'].includes(String(row.fulfillment_status)) ? row.fulfillment_status as RequestLine['fulfillment_status'] : undefined,
+    handover_images: asRows(row.handover_images).map(image => ({ file_path: stringValue(image.file_path), url: stringValue(image.url) })),
+    return_images: asRows(row.return_images).map(image => ({ file_path: stringValue(image.file_path), url: stringValue(image.url) })),
   };
 };
 
@@ -139,7 +212,7 @@ const groupRequests = (rows: ApiRow[]): InventoryRequest[] => {
     ...request,
     total_items: request.items.length,
     total_quantity: request.items.reduce((total, item) => total + item.quantity, 0),
-    total_amount: request.items.reduce((total, item) => total + item.line_total, 0),
+    total_amount: request.items.reduce((total, item) => total + (item.total_rent || item.base_rent || item.line_total), 0),
   })).sort((a, b) => b.created_at.localeCompare(a.created_at));
 };
 
@@ -168,7 +241,7 @@ export const formatInventoryDate = (value?: string | null) => {
 export const requestTotals = (lines: RequestLine[]) => ({
   total_items: lines.length,
   total_quantity: lines.reduce((total, item) => total + item.quantity, 0),
-  total_amount: lines.reduce((total, item) => total + item.unit_price_snapshot * item.quantity, 0),
+  total_amount: lines.reduce((total, item) => total + (item.base_rent || item.unit_price_snapshot * item.quantity), 0),
 });
 
 const REQUEST_CACHE_TTL_MS = 20_000;
@@ -217,26 +290,22 @@ const getAdminItemsWithStock = async (params: ListParams) => {
     limit: params.limit || 20,
   });
   const rows = asRows(response?.data);
-  const requestRows = await getGroupedRequests('admin');
-  const stockByItem = new Map<string, { requested: number; assigned: number }>();
-
-  requestRows.forEach(request => request.items.forEach(line => {
-    const stock = stockByItem.get(line.inventory_item_id) || { requested: 0, assigned: 0 };
-    if (request.status === 'pending') stock.requested += line.quantity;
-    if (request.status === 'accepted') stock.assigned += line.quantity;
-    stockByItem.set(line.inventory_item_id, stock);
-  }));
-
   const pagination = response?.pagination || {};
   const page = numberValue(pagination.page, numberValue(params.page, 1));
   const limit = numberValue(pagination.limit, numberValue(params.limit, 20));
   const total = numberValue(pagination.total, rows.length);
   return {
-    data: rows.map(row => {
-      const item = normalizeItem(row);
-      const stock = stockByItem.get(item.id) || { requested: 0, assigned: 0 };
-      return { ...item, requested_quantity: stock.requested, assigned_quantity: stock.assigned };
-    }),
+      data: rows.map(row => {
+        const item = normalizeItem(row);
+        const models = item.models || [];
+        return { ...item,
+          unit_price: models[0]?.price || 0,
+          image_url: models[0]?.images?.[0]?.url,
+          total_quantity: models.reduce((sum, model) => sum + model.total_quantity, 0),
+          requested_quantity: models.reduce((sum, model) => sum + model.requested_quantity, 0),
+          assigned_quantity: models.reduce((sum, model) => sum + model.assigned_quantity, 0),
+        };
+      }),
     total,
     page,
     limit,
@@ -284,50 +353,33 @@ export const inventoryApi = {
       assigned_quantity: stock.assigned_quantity + item.assigned_quantity,
     }), { total_items: 0, total_quantity: 0, available_quantity: 0, requested_quantity: 0, assigned_quantity: 0 });
   },
-  saveItem: async (values: Partial<InventoryItem> & { image?: File | null; removeImage?: boolean }, id?: string) => {
-    const itemName = String(values.name || '').trim();
-    const itemPrice = Number(values.unit_price);
-    const itemQuantity = Number(values.total_quantity);
-    if (!itemName || !Number.isFinite(itemPrice) || itemPrice <= 0 || !Number.isSafeInteger(itemQuantity) || itemQuantity <= 0) {
-      throw new Error('Item name, price greater than 0, and a whole-number quantity greater than 0 are required.');
-    }
+  saveItem: async (values: { name: string; description?: string; models: (Omit<InventoryModel, 'available_quantity' | 'requested_quantity' | 'assigned_quantity' | 'images' | 'unit_ids'>)[]; status: InventoryItem['status'] }, id?: string) => {
     const payload = {
-      name: values.name,
-      description: values.description,
-      price: values.unit_price,
-      total_quantity: values.total_quantity,
+      name: values.name.trim(), is_active: values.status === 'active' ? 1 : 0,
+      models: values.models.map(model => ({ id: model.id ? Number(model.id) : undefined, name: model.name, description: model.description || '', price: 0, is_active: model.is_active === 0 ? 0 : 1, hourly_rental_rate: Number(model.hourly_rental_rate || 0), daily_rental_rate: Number(model.daily_rental_rate || 0), total_quantity: Number(model.total_quantity), image_urls: model.image_urls })),
     };
-    let response: ApiRow;
-
-    if (id) {
-      response = await inventoryHttpApi.updateAdminItem(id, payload);
-      if (values.image) await inventoryHttpApi.uploadAdminItemImage(id, values.image);
-      else if (values.removeImage) await inventoryHttpApi.deleteAdminItemImage(id);
-      await inventoryHttpApi.updateAdminItemStatus(id, values.status === 'active' ? 1 : 0);
-      const refreshed = await inventoryHttpApi.getAdminItem(id);
-      return normalizeItem(refreshed?.data || response?.data || {});
-    }
-
-    const form = new FormData();
-    form.append('name', String(values.name || ''));
-    form.append('description', String(values.description || ''));
-    form.append('price', String(values.unit_price ?? 0));
-    form.append('total_quantity', String(values.total_quantity ?? 0));
-    if (values.image) form.append('image', values.image);
-    response = await inventoryHttpApi.createAdminItem(form);
-    const created = response?.data || {};
-    if (values.status === 'inactive' && created.id != null) await inventoryHttpApi.updateAdminItemStatus(String(created.id), 0);
-    return normalizeItem(created);
+    const response = id ? await inventoryHttpApi.updateAdminItem(id, payload) : await inventoryHttpApi.createAdminItem(payload);
+    return normalizeItem(response?.data || {});
   },
   setStatus: async (id: string, status: InventoryItem['status']) => inventoryHttpApi.updateAdminItemStatus(id, status === 'active' ? 1 : 0),
   catalog: async (params: ListParams = {}) => {
     const response = await inventoryHttpApi.listCreatorItems();
-    let rows = asRows(response?.data).map(normalizeItem).filter(item => item.status === 'active');
+    let rows = asRows(response?.data).map(normalizeItem).flatMap(item => (item.models || []).filter(model => model.is_active === 1).map(model => ({
+      ...item,
+      id: model.id || '', inventory_model_id: model.id || '', inventory_item_id: item.id, inventory_name: item.name, inventory_description: undefined, model_name: model.name,
+      name: `${item.name} — ${model.name}`, description: model.description || '', unit_price: model.price, hourly_rental_rate: model.hourly_rental_rate, daily_rental_rate: model.daily_rental_rate, total_quantity: model.total_quantity,
+      requested_quantity: model.requested_quantity, assigned_quantity: model.assigned_quantity, image_url: model.images[0]?.url,
+      model_images: model.images.map(image => ({ id: image.id, url: image.url })),
+    })));
     if (params.search) {
       const query = params.search.toLowerCase();
-      rows = rows.filter(item => `${item.name} ${item.description || ''}`.toLowerCase().includes(query));
+      rows = rows.filter(item => `${item.name} ${item.inventory_name || ''} ${item.model_name || ''} ${item.description || ''}`.toLowerCase().includes(query));
     }
     return listResult(rows, params);
+  },
+  modelAvailability: async (modelId: string, pickupAt: string, returnAt: string) => {
+    const result = await inventoryHttpApi.getCreatorModelAvailability(modelId, pickupAt, returnAt);
+    return numberValue(result?.data?.available_quantity);
   },
   shoots: async () => {
     const response = await inventoryHttpApi.listAssignedShoots();
@@ -348,8 +400,8 @@ export const inventoryApi = {
     if (id) throw new Error('Editing a submitted request is not supported by the backend.');
     const result = await inventoryHttpApi.submitCreatorRequest({
       purpose: payload.request_type,
-      shoot_id: payload.shoot_id ? Number(payload.shoot_id) : null,
-      items: payload.items.map(item => ({ inventory_item_id: Number(item.inventory_item_id), quantity: item.quantity })),
+      shoot_id: payload.shoot_id || null,
+      items: payload.items.map(item => ({ inventory_model_id: Number(item.inventory_model_id || item.inventory_item_id), quantity: item.quantity, expected_pickup_at: item.expected_pickup_at, expected_return_at: item.expected_return_at, billing_unit: item.billing_unit })),
     });
     invalidateRequestCache();
     return result;

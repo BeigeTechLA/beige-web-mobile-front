@@ -1,15 +1,18 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, Check, Eye, MoreVertical, Package, Pencil, Plus, Power, RotateCcw, Search, Trash2, UploadCloud, X } from 'lucide-react';
+import { ArrowLeft, Check, Eye, MoreVertical, Package, Pencil, Plus, Power, RotateCcw, Search, X } from 'lucide-react';
 import Topbar from '@/components/admin/Topbar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InventoryItem, InventoryRequest, inventoryApi, available, currency, formatInventoryDate, ListParams } from '@/components/common/inventory/inventory';
-import { InventoryButton, InventoryImage, StatusBadge, useInventoryStyle } from '@/components/common/inventory/InventoryUI';
+import { InventoryItem, InventoryRequest, inventoryApi, available, currency, formatInventoryDate, fulfillmentStatusFor, ListParams } from '@/components/common/inventory/inventory';
+import InventoryConditionImagePicker from '@/components/common/inventory/InventoryConditionImagePicker';
+import AdminInventoryItemForm from '@/components/admin/inventory/AdminInventoryItemForm';
+import { inventoryHttpApi } from '@/lib/api';
+import { InventoryButton, InventoryImage, InventoryModelImageGallery, StatusBadge, useInventoryStyle } from '@/components/common/inventory/InventoryUI';
 
 const PAGE_SIZE = 10;
 
@@ -25,16 +28,17 @@ const ALIGN_CLASS: Record<Align, string> = {
 // Header and body cells share the same alignment + width so columns always line up.
 const REQUEST_COLUMNS: Column[] = [
   { label: 'Request ID', align: 'left', width: '12%' },
-  { label: 'Creative Partner', align: 'left', width: '18%' },
-  { label: 'Purpose / Shoot', align: 'left', width: '20%' },
-  { label: 'Requested Equipment', align: 'left', width: '26%' },
-  { label: 'Submitted Date', align: 'left', width: '12%' },
-  { label: 'Status / Actions', align: 'center', width: '12%' },
+  { label: 'Creative Partner', align: 'left', width: '16%' },
+  { label: 'Purpose / Shoot', align: 'left', width: '17%' },
+  { label: 'Requested Equipment', align: 'left', width: '20%' },
+  { label: 'Submitted Date', align: 'left', width: '11%' },
+  { label: 'Fulfillment Status', align: 'left', width: '14%' },
+  { label: 'Request Status / Actions', align: 'center', width: '10%' },
 ];
 
 const ITEM_COLUMNS: Column[] = [
-  { label: 'Inventory Item', align: 'left', width: '30%' },
-  { label: 'Price', align: 'center', width: '10%' },
+  { label: 'Inventory Item', align: 'left', width: '24%' },
+  { label: 'Model', align: 'left', width: '16%' },
   { label: 'Total', align: 'center', width: '8%' },
   { label: 'Available', align: 'center', width: '10%' },
   { label: 'Requested', align: 'center', width: '10%' },
@@ -72,10 +76,13 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
   const [selectedRequest, setSelectedRequest] = useState<InventoryRequest | null>(null);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [itemDetails, setItemDetails] = useState<InventoryItem | null>(null);
+  const [editModelId, setEditModelId] = useState<string | undefined>();
   const [showForm, setShowForm] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'accept' | 'reject' | null>(null);
   const [adminNote, setAdminNote] = useState('');
   const [statusItem, setStatusItem] = useState<InventoryItem | null>(null);
+  const [issueTarget, setIssueTarget] = useState<{ request: InventoryRequest; item: InventoryRequest['items'][number] } | null>(null);
+  const [conditionFiles, setConditionFiles] = useState<File[]>([]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
@@ -90,10 +97,12 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
         setRequests(result.data || []);
         setTotal(result.total || 0);
       } else {
-        const params: ListParams = { page, limit: PAGE_SIZE, search: debouncedSearch, status };
-        const result = await inventoryApi.adminItems(params);
-        setItems(result.data || []);
-        setTotal(result.total || 0);
+        const params: ListParams = { page: 1, limit: 100, status: 'all' };
+        const firstPage = await inventoryApi.adminItems(params);
+        const pageCount = Math.ceil((firstPage.total || 0) / 100);
+        const remainingPages = await Promise.all(Array.from({ length: Math.max(0, pageCount - 1) }, (_, index) => inventoryApi.adminItems({ ...params, page: index + 2 })));
+        setItems([...(firstPage.data || []), ...remainingPages.flatMap(result => result.data || [])]);
+        setTotal(firstPage.total || 0);
       }
     } catch {
       toast.error(mode === 'requests'
@@ -103,6 +112,22 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
       setBusy(false);
     }
   }, [mode, page, debouncedSearch, status]);
+
+  const filteredModelRows = useMemo(() => items.flatMap(item => (item.models || []).map(model => ({
+    ...item,
+    id: model.id || `${item.id}-${model.name}`,
+    inventory_item_id: item.id,
+    inventory_model_id: model.id,
+    model_name: model.name,
+    image_url: model.images?.[0]?.url || item.image_url,
+    models: [model],
+    total_quantity: model.total_quantity,
+    requested_quantity: model.requested_quantity,
+    assigned_quantity: model.assigned_quantity,
+    status: model.is_active === 1 ? 'active' as const : 'inactive' as const,
+  }))).filter(row => (status === 'all' || row.status === status) && (!debouncedSearch || `${row.name} ${row.model_name} ${row.models?.[0]?.description || ''}`.toLowerCase().includes(debouncedSearch.toLowerCase()))), [items, status, debouncedSearch]);
+  const visibleModelRows = filteredModelRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const entryTotal = mode === 'requests' ? total : filteredModelRows.length;
 
   const refresh = () => {
     inventoryApi.invalidateRequests('admin');
@@ -131,13 +156,28 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
     }
   };
 
+  const issueRequest = async () => {
+    if (!issueTarget || !conditionFiles.length) return toast.error('Add handover condition photos first.');
+    setWorking(true);
+    try {
+      const uploaded = await inventoryHttpApi.uploadInventoryConditionImages('admin', conditionFiles);
+      const paths = (uploaded?.data || []).map((image: { file_path: string }) => image.file_path);
+      await inventoryHttpApi.issueAdminInventoryItem(issueTarget.request.id, issueTarget.item.request_item_id || '', paths);
+      toast.success('Inventory model issued'); setIssueTarget(null); setConditionFiles([]);
+      inventoryApi.invalidateRequests('admin');
+      await load();
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'Unable to issue inventory model.');
+    } finally { setWorking(false); }
+  };
+
   const changeItemStatus = async () => {
     if (!statusItem) return;
     setWorking(true);
     try {
       const next = statusItem.status === 'active' ? 'inactive' : 'active';
-      await inventoryApi.setStatus(statusItem.id, next);
-      toast.success(`Inventory item ${next === 'active' ? 'activated' : 'deactivated'}`);
+      await inventoryApi.setStatus(statusItem.inventory_model_id || statusItem.id, next);
+      toast.success(`Model ${next === 'active' ? 'activated' : 'deactivated'}`);
       setStatusItem(null);
       await load();
     } catch (cause) {
@@ -147,10 +187,12 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
     }
   };
 
-  const openForm = (item: InventoryItem | null = null) => {
+  const openForm = (item: InventoryItem | null = null, modelId?: string) => {
     setSelectedItem(item);
+    setEditModelId(modelId);
     setShowForm(true);
   };
+  const parentItem = (row: InventoryItem) => items.find(item => item.id === row.inventory_item_id) || row;
   const title = mode === 'requests' ? 'Inventory Requests' : 'Manage Inventory';
   const headRowClass = `text-sm font-medium border-b ${s.isDark ? 'bg-[#101010] text-[#E8D1AB] border-b-[#3D3D3D]' : 'bg-[#FFFCF6] text-black border-b-[#E5E5E5]'}`;
   const bodyRowClass = `border-t transition-colors ${s.isDark ? 'border-[#222] hover:bg-white/[0.02]' : 'border-[#EAEAEA] hover:bg-black/[0.015]'}`;
@@ -205,7 +247,7 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
 
         <section className={`overflow-hidden rounded-2xl border ${s.isDark ? 'border-[#333333] bg-[#111111]' : 'border-[#E5E5E5] bg-white'}`}>
           <div className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center lg:p-6 border-b border-current/10">
-            <h2 className="text-base font-semibold">{mode === 'requests' ? 'Submitted Requests' : 'Inventory Items Catalog'}</h2>
+            <h2 className="text-base font-semibold">{mode === 'requests' ? 'Submitted Requests' : 'Inventory Models Catalog'}</h2>
             <div className="flex flex-wrap items-center gap-3">
               {mode === 'items' && (
                 <label className="relative w-full sm:w-[280px]">
@@ -281,7 +323,7 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
                                 { label: 'Reject request', icon: <X size={16} />, danger: true, onSelect: () => { setSelectedRequest(request); setConfirmAction('reject'); } },
                               ]}
                             />
-                          ) : <StatusBadge status={request.status} />}
+                          ) : request.status === 'accepted' && request.items.some(line => line.request_item_id && !line.issued_at) ? <InventoryActionMenu isDark={s.isDark} disabled={working} actions={[{ label: 'Issue model & record condition', icon: <Package size={16} />, onSelect: () => { const line = request.items.find(value => value.request_item_id && !value.issued_at); if (line) setIssueTarget({ request, item: line }); } }]} /> : <StatusBadge status={request.status} />}
                         </div>
                         <div className={`my-3 border-t ${s.isDark ? 'border-[#2A2A2A]' : 'border-[#EAEAEA]'}`} />
                         <p className="text-sm font-medium">
@@ -291,6 +333,7 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
                         <div className="mt-2">
                           <RequestItems request={request} muted={s.muted} />
                         </div>
+                        <div className={`mt-3 border-t pt-3 ${s.isDark ? 'border-[#2A2A2A]' : 'border-[#EAEAEA]'}`}><p className={`mb-2 text-xs font-semibold ${s.muted}`}>Fulfillment Status</p><div className="space-y-1.5">{request.items.map(line => { const value = fulfillmentStatusFor(request.status, line); const tone = value === 'overdue' ? 'text-red-500' : value === 'issued' || value === 'returned' ? 'text-emerald-500' : value === 'pending_issue' ? 'text-amber-500' : ''; return <p key={line.request_item_id || line.inventory_model_id} className={`text-xs font-medium capitalize ${tone}`}>{value.replaceAll('_', ' ')}</p>; })}</div></div>
                         <p className={`mt-3 text-xs ${s.muted}`}>Submitted {formatInventoryDate(request.created_at)}</p>
                       </article>
                     ))}
@@ -323,6 +366,7 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
                               <RequestItems request={request} muted={s.muted} />
                             </td>
                             <td className={tdClass('left', `whitespace-nowrap ${s.muted}`)}>{formatInventoryDate(request.created_at)}</td>
+                            <td className={tdClass('left')}><div className="space-y-1.5">{request.items.map(line => { const value = fulfillmentStatusFor(request.status, line); const tone = value === 'overdue' ? 'text-red-500' : value === 'issued' || value === 'returned' ? 'text-emerald-500' : value === 'pending_issue' ? 'text-amber-500' : ''; return <p key={line.request_item_id || line.inventory_model_id} className={`text-xs font-medium capitalize ${tone}`}>{value.replaceAll('_', ' ')}</p>; })}</div></td>
                             <td className={tdClass('center')}>
                               {request.status === 'pending' ? (
                                 <InventoryActionMenu
@@ -333,7 +377,7 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
                                     { label: 'Reject request', icon: <X size={16} />, danger: true, onSelect: () => { setSelectedRequest(request); setConfirmAction('reject'); } },
                                   ]}
                                 />
-                              ) : <StatusBadge status={request.status} />}
+                              ) : request.status === 'accepted' && request.items.some(line => line.request_item_id && !line.issued_at) ? <InventoryActionMenu isDark={s.isDark} disabled={working} actions={[{ label: 'Issue model & record condition', icon: <Package size={16} />, onSelect: () => { const line = request.items.find(value => value.request_item_id && !value.issued_at); if (line) setIssueTarget({ request, item: line }); } }]} /> : <StatusBadge status={request.status} />}
                             </td>
                           </tr>
                         ))}
@@ -346,17 +390,16 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
                 <>
                   {/* Mobile Items View */}
                   <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:hidden">
-                    {items.map(item => (
-                      <article key={item.id} className={`rounded-xl border p-4 ${s.isDark ? 'border-[#2A2A2A] bg-[#161616]' : 'border-[#EAEAEA] bg-[#FAFAFA]'}`}>
+                    {visibleModelRows.map(item => (
+                      <article key={`${item.inventory_item_id}-${item.inventory_model_id}`} className={`rounded-xl border p-4 ${s.isDark ? 'border-[#2A2A2A] bg-[#161616]' : 'border-[#EAEAEA] bg-[#FAFAFA]'}`}>
                         <div className="flex gap-3">
                           <InventoryImage src={item.image_url} alt={item.name} className="h-20 w-20 shrink-0 rounded-lg" />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-start justify-between gap-2">
-                              <p className="font-bold text-sm">{item.name}</p>
+                              <div><p className="font-bold text-sm">{item.name}</p><p className={`text-xs ${s.muted}`}>{item.model_name}</p></div>
                               <StatusBadge status={item.status} />
                             </div>
-                            <p className={`mt-1 line-clamp-2 text-xs ${s.muted}`}>{item.description || 'No description'}</p>
-                            <p className="mt-2 text-sm font-bold">{currency(item.unit_price, item.currency)}</p>
+                            <p className={`mt-2 line-clamp-2 text-xs ${s.muted}`}>{item.models?.[0]?.description || 'No model description'}</p>
                           </div>
                         </div>
                         <div className={`my-3 border-t ${s.isDark ? 'border-[#2A2A2A]' : 'border-[#EAEAEA]'}`} />
@@ -371,15 +414,15 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
                             isDark={s.isDark}
                             disabled={working}
                             actions={[
-                              { label: 'View details', icon: <Eye size={16} />, onSelect: () => setItemDetails(item) },
-                              { label: 'Edit item', icon: <Pencil size={16} />, onSelect: () => openForm(item) },
-                              { label: item.status === 'active' ? 'Deactivate item' : 'Activate item', icon: <Power size={16} />, danger: item.status === 'active', onSelect: () => setStatusItem(item) },
+                              { label: 'View model details', icon: <Eye size={16} />, onSelect: () => setItemDetails(item) },
+                              { label: 'Edit model', icon: <Pencil size={16} />, onSelect: () => openForm(parentItem(item), item.inventory_model_id) },
+                              { label: item.status === 'active' ? 'Deactivate model' : 'Activate model', icon: <Power size={16} />, danger: item.status === 'active', onSelect: () => setStatusItem(item) },
                             ]}
                           />
                         </div>
                       </article>
                     ))}
-                    {items.length === 0 && <p className={`py-12 text-center ${s.muted}`}>No inventory items found.</p>}
+                    {visibleModelRows.length === 0 && <p className={`py-12 text-center ${s.muted}`}>No inventory models found.</p>}
                   </div>
 
                   {/* Desktop Items Table */}
@@ -396,18 +439,17 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
                         </tr>
                       </thead>
                       <tbody>
-                        {items.map(item => (
-                          <tr key={item.id} className={bodyRowClass}>
+                        {visibleModelRows.map(item => (
+                          <tr key={`${item.inventory_item_id}-${item.inventory_model_id}`} className={bodyRowClass}>
                             <td className={tdClass('left')}>
                               <div className="flex items-center gap-3">
                                 <InventoryImage src={item.image_url} alt={item.name} className="h-12 w-12 shrink-0 rounded-lg" />
                                 <div className="min-w-0">
                                   <p className="truncate font-bold text-sm">{item.name}</p>
-                                  <p className={`truncate text-xs ${s.muted}`}>{item.description || 'No description'}</p>
                                 </div>
                               </div>
                             </td>
-                            <td className={tdClass('center', 'font-semibold whitespace-nowrap tabular-nums')}>{currency(item.unit_price, item.currency)}</td>
+                            <td className={tdClass('left', 'font-semibold')}>{item.model_name}</td>
                             <td className={tdClass('center', 'font-medium tabular-nums')}>{item.total_quantity}</td>
                             <td className={tdClass('center', 'font-bold text-emerald-500 tabular-nums')}>{available(item)}</td>
                             <td className={tdClass('center', 'font-medium tabular-nums')}>{item.requested_quantity}</td>
@@ -420,15 +462,15 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
                                 isDark={s.isDark}
                                 disabled={working}
                                 actions={[
-                                  { label: 'View details', icon: <Eye size={16} />, onSelect: () => setItemDetails(item) },
-                                  { label: 'Edit item', icon: <Pencil size={16} />, onSelect: () => openForm(item) },
-                                  { label: item.status === 'active' ? 'Deactivate item' : 'Activate item', icon: <Power size={16} />, danger: item.status === 'active', onSelect: () => setStatusItem(item) },
+                                  { label: 'View model details', icon: <Eye size={16} />, onSelect: () => setItemDetails(item) },
+                                  { label: 'Edit model', icon: <Pencil size={16} />, onSelect: () => openForm(parentItem(item), item.inventory_model_id) },
+                                  { label: item.status === 'active' ? 'Deactivate model' : 'Activate model', icon: <Power size={16} />, danger: item.status === 'active', onSelect: () => setStatusItem(item) },
                                 ]}
                               />
                             </td>
                           </tr>
                         ))}
-                        {items.length === 0 && <EmptyRow columns={ITEM_COLUMNS.length} text="No inventory items found." muted={s.muted} />}
+                        {visibleModelRows.length === 0 && <EmptyRow columns={ITEM_COLUMNS.length} text="No inventory models found." muted={s.muted} />}
                       </tbody>
                     </table>
                   </div>
@@ -439,7 +481,7 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
 
           <div className={`flex flex-col items-center justify-between gap-4 border-t p-4 lg:flex-row lg:px-6 ${s.isDark ? 'border-[#333333]' : 'border-[#E5E5E5]'}`}>
             <span className={`hidden whitespace-nowrap text-xs font-medium lg:block ${s.muted}`}>
-              Showing {(mode === 'requests' ? requests.length : items.length) ? (page - 1) * PAGE_SIZE + 1 : 0} to {Math.min(page * PAGE_SIZE, total)} of {total} entries
+              Showing {(mode === 'requests' ? requests.length : filteredModelRows.length) ? (page - 1) * PAGE_SIZE + 1 : 0} to {Math.min(page * PAGE_SIZE, entryTotal)} of {entryTotal} entries
             </span>
             <div className="flex items-center gap-2">
               <InventoryButton
@@ -452,13 +494,13 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
                 Previous
               </InventoryButton>
               <span className={`px-3 text-xs font-semibold ${s.muted}`}>
-                Page {page} of {Math.max(1, Math.ceil(total / PAGE_SIZE))}
+                Page {page} of {Math.max(1, Math.ceil(entryTotal / PAGE_SIZE))}
               </span>
               <InventoryButton
                 variant="outline"
                 className={`h-9 rounded-lg border px-4 shadow-none disabled:opacity-30 ${s.isDark ? 'border-[#333333] bg-[#202020] text-white/70' : 'border-[#E5E5E5] bg-white text-[#666]'}`}
                 size="sm"
-                disabled={busy || page * PAGE_SIZE >= total}
+                disabled={busy || page * PAGE_SIZE >= entryTotal}
                 onClick={() => setPage(value => value + 1)}
               >
                 Next
@@ -509,15 +551,24 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!issueTarget} onOpenChange={open => { if (!open) { setIssueTarget(null); setConditionFiles([]); } }}>
+        <DialogContent className={`max-w-lg rounded-2xl border p-6 ${s.surface}`}>
+          <DialogHeader><DialogTitle className="text-lg font-bold">Issue {issueTarget?.item.item_name_snapshot}</DialogTitle></DialogHeader>
+          <p className={`text-sm ${s.muted}`}>Take condition photos at handover (up to 8). The issue time is recorded when you confirm.</p>
+          <InventoryConditionImagePicker files={conditionFiles} onChange={setConditionFiles} disabled={working} label="Handover condition photos" />
+          <div className="flex justify-end gap-2"><InventoryButton variant="outline" onClick={() => setIssueTarget(null)}>Cancel</InventoryButton><InventoryButton variant="beige" disabled={working || !conditionFiles.length} onClick={() => void issueRequest()}>{working ? 'Uploading and recording…' : 'Confirm Issue'}</InventoryButton></div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!statusItem} onOpenChange={open => !open && setStatusItem(null)}>
         <DialogContent className={`max-w-md rounded-2xl border p-6 ${s.surface}`}>
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">{statusItem?.status === 'active' ? 'Deactivate equipment item?' : 'Activate equipment item?'}</DialogTitle>
+            <DialogTitle className="text-lg font-bold">{statusItem?.status === 'active' ? 'Deactivate model?' : 'Activate model?'}</DialogTitle>
           </DialogHeader>
           <p className={`text-sm ${s.muted}`}>
             {statusItem?.status === 'active'
-              ? 'This item will be hidden from the CP catalog for new requests. Existing request records remain unaffected.'
-              : 'This item will become active and visible in the CP catalog for requests.'}
+              ? `${statusItem?.name} — ${statusItem?.model_name} will be hidden from the CP catalog for new requests. Existing request records remain unaffected.`
+              : `${statusItem?.name} — ${statusItem?.model_name} will become visible in the CP catalog for requests.`}
           </p>
           <div className="flex justify-end gap-3 pt-2">
             <InventoryButton variant="outline" className="rounded-xl px-4" onClick={() => setStatusItem(null)}>
@@ -531,44 +582,46 @@ export default function AdminInventory({ mode }: { mode: 'requests' | 'items' })
       </Dialog>
 
       <Dialog open={!!itemDetails} onOpenChange={open => !open && setItemDetails(null)}>
-        <DialogContent className={`max-h-[90vh] max-w-2xl overflow-y-auto rounded-2xl border p-6 ${s.surface}`}>
+        <DialogContent className={`max-h-[90vh] max-w-4xl overflow-y-auto rounded-2xl border p-6 ${s.surface}`}>
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Inventory Item Details</DialogTitle>
+            <DialogTitle className="text-xl font-bold">Inventory Model Details</DialogTitle>
           </DialogHeader>
           {itemDetails && (
-            <div className="mt-2 grid gap-5 sm:grid-cols-2">
-              <InventoryImage src={itemDetails.image_url} alt={itemDetails.name} className="h-56 w-full rounded-xl" />
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-bold">{itemDetails.name}</h3>
-                    <p className={`mt-1 text-sm ${s.muted}`}>{itemDetails.description || 'No description provided.'}</p>
-                  </div>
-                  <StatusBadge status={itemDetails.status} />
-                </div>
-                <div className={`grid grid-cols-2 gap-3 rounded-xl border p-4 ${s.isDark ? 'border-[#262626] bg-[#161616]' : 'border-[#EAEAEA] bg-[#FAFAFA]'}`}>
-                  <StockValue label="Price / Unit" value={currency(itemDetails.unit_price, itemDetails.currency)} muted={s.muted} />
-                  <StockValue label="Total Quantity" value={itemDetails.total_quantity} muted={s.muted} />
-                  <StockValue label="Available" value={available(itemDetails)} muted={s.muted} />
-                  <StockValue label="Requested" value={itemDetails.requested_quantity} muted={s.muted} />
-                  <StockValue label="Assigned" value={itemDetails.assigned_quantity} muted={s.muted} />
-                </div>
-                <p className={`text-xs ${s.muted}`}>Item ID: {itemDetails.id}</p>
+            <div className="mt-2 space-y-5">
+              <div className="flex items-start justify-between gap-3">
+                <div><h3 className="text-lg font-bold">{itemDetails.name}</h3></div>
+                <StatusBadge status={itemDetails.status} />
               </div>
-              <div className="flex justify-end gap-2 sm:col-span-2">
+              <div className={`grid grid-cols-2 gap-3 rounded-xl border p-4 sm:grid-cols-4 ${s.isDark ? 'border-[#262626] bg-[#161616]' : 'border-[#EAEAEA] bg-[#FAFAFA]'}`}>
+                <StockValue label="Total Quantity" value={itemDetails.total_quantity} muted={s.muted} />
+                <StockValue label="Available" value={available(itemDetails)} muted={s.muted} />
+                <StockValue label="Requested" value={itemDetails.requested_quantity} muted={s.muted} />
+                <StockValue label="Assigned" value={itemDetails.assigned_quantity} muted={s.muted} />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {itemDetails.models?.map(model => <section key={model.id} className={`space-y-3 rounded-xl border p-4 ${s.isDark ? 'border-[#303030] bg-[#151515]' : 'border-[#EAEAEA] bg-white'}`}>
+                  <div><p className={`text-[11px] font-semibold uppercase tracking-wide ${s.muted}`}>Model</p><h4 className="font-bold">{model.name}</h4></div>
+                  <p className={`text-xs ${s.muted}`}>{model.description || 'No model description'} </p>
+                  <p className={`text-xs ${s.muted}`}>{currency(model.hourly_rental_rate, itemDetails.currency)} / hour · {currency(model.daily_rental_rate, itemDetails.currency)} / day</p>
+                  <p className={`text-xs ${s.muted}`}>{model.total_quantity} units · {model.available_quantity} available · {model.requested_quantity} requested · {model.assigned_quantity} assigned</p>
+                  <InventoryModelImageGallery images={model.images} alt={`${itemDetails.name} ${model.name}`} />
+                </section>)}
+              </div>
+              <p className={`text-xs ${s.muted}`}>Inventory Item ID: {itemDetails.inventory_item_id || itemDetails.id}</p>
+              <div className="flex justify-end gap-2">
                 <InventoryButton variant="outline" onClick={() => setItemDetails(null)}>Close</InventoryButton>
                 <InventoryButton variant="beige" className="font-bold text-black" onClick={() => {
                   const itemToEdit = itemDetails;
                   setItemDetails(null);
-                  openForm(itemToEdit);
-                }}>Edit Item</InventoryButton>
+                  openForm(parentItem(itemToEdit), itemToEdit.inventory_model_id);
+                }}>Edit Model</InventoryButton>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      <ItemFormModal open={showForm} item={selectedItem} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); void load(); }} />
+      <AdminInventoryItemForm open={showForm} item={selectedItem} modelId={editModelId} onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); void load(); }} />
     </>
   );
 }
@@ -631,9 +684,10 @@ function RequestItems({ request, muted }: { request: InventoryRequest; muted: st
   return (
     <div className="space-y-1">
       {request.items.map(line => (
-        <p key={line.inventory_item_id} className="text-sm font-medium">
-          {line.item_name_snapshot} <span className={`font-normal ${muted}`}>× {line.quantity}</span>
-        </p>
+        <div key={line.inventory_item_id} className="text-sm font-medium">
+          <p>{line.item_name_snapshot} <span className={`font-normal ${muted}`}>× {line.quantity}</span></p>
+          {line.unit_ids && <p className={`mt-0.5 break-all text-xs font-normal ${muted}`}>Unit IDs: {line.unit_ids}</p>}
+        </div>
       ))}
     </div>
   );
@@ -645,189 +699,5 @@ function StockValue({ label, value, muted }: { label: string; value: number | st
       <p className={`text-[11px] ${muted}`}>{label}</p>
       <p className="mt-0.5 font-bold text-sm">{value}</p>
     </div>
-  );
-}
-
-function ItemFormModal({ open, item, onClose, onSaved }: { open: boolean; item: InventoryItem | null; onClose: () => void; onSaved: () => void }) {
-  const s = useInventoryStyle();
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [status, setStatus] = useState<'active' | 'inactive'>('active');
-  const [image, setImage] = useState<File | null>(null);
-  const [preview, setPreview] = useState('');
-  const [removeImage, setRemoveImage] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [showValidation, setShowValidation] = useState(false);
-  const imageInputId = 'inventory-item-image-upload';
-
-  const numericPrice = Number(price);
-  const numericQuantity = Number(quantity);
-  const imageHasError = Boolean(
-    (!image && (removeImage || !item?.image_url)) ||
-    (image && (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(image.type) || image.size > 5 * 1024 * 1024))
-  );
-  const fieldErrors = showValidation ? {
-    name: !name.trim(),
-    price: !Number.isFinite(numericPrice) || numericPrice <= 0,
-    quantity: !Number.isSafeInteger(numericQuantity) || numericQuantity <= 0,
-    image: imageHasError,
-  } : { name: false, price: false, quantity: false, image: false };
-
-  useEffect(() => {
-    setName(item?.name || '');
-    setDescription(item?.description || '');
-    setPrice(item ? String(item.unit_price) : '');
-    setQuantity(item ? String(item.total_quantity) : '');
-    setStatus(item?.status || 'active');
-    setImage(null);
-    setPreview(item?.image_url || '');
-    setRemoveImage(false);
-    setShowValidation(false);
-  }, [item, open]);
-
-  useEffect(() => () => { if (preview.startsWith('blob:')) URL.revokeObjectURL(preview); }, [preview]);
-
-  const selectImage = (file: File | undefined) => {
-    if (!file) return;
-    setImage(file);
-    setRemoveImage(false);
-    setPreview(URL.createObjectURL(file));
-  };
-
-  const save = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setShowValidation(true);
-    if (!name.trim() || !Number.isFinite(numericPrice) || numericPrice <= 0 || !Number.isSafeInteger(numericQuantity) || numericQuantity <= 0 || imageHasError)
-      return;
-    if (item && numericQuantity < item.requested_quantity + item.assigned_quantity)
-      return toast.error('Total stock cannot be below requested and assigned quantities.');
-    setSaving(true);
-    try {
-      await inventoryApi.saveItem({ name: name.trim(), description, unit_price: numericPrice, total_quantity: numericQuantity, status, image, removeImage }, item?.id);
-      toast.success(item ? 'Inventory item updated' : 'Inventory item created');
-      onSaved();
-    } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : 'Unable to save item.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={value => !value && onClose()}>
-      <DialogContent className={`max-h-[90vh] max-w-lg overflow-y-auto rounded-2xl border p-6 ${s.surface}`}>
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">{item ? 'Edit Inventory Item' : 'Add New Inventory Item'}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={event => void save(event)} className="space-y-4 mt-2">
-          <Field label="Item Name" value={name} onChange={setName} invalid={fieldErrors.name} errorMessage="Item name is required." s={s} placeholder="e.g. Sony A7IV Camera Body" />
-          <Field label="Description" value={description} onChange={setDescription} s={s} placeholder="Equipment specs or package details" />
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Price ($)" value={price} onChange={setPrice} invalid={fieldErrors.price} errorMessage="Price must be greater than 0." type="number" step="any" s={s} />
-            <Field label="Total Stock Quantity" value={quantity} onChange={setQuantity} invalid={fieldErrors.quantity} errorMessage="Quantity must be a whole number greater than 0." type="number" step="any" s={s} />
-          </div>
-          
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold">Equipment Image <span className="text-red-500">*</span></label>
-            <input
-              id={imageInputId}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={event => selectImage(event.target.files?.[0])}
-            />
-            {preview ? (
-              <div className={`relative overflow-hidden rounded-xl border ${fieldErrors.image ? 'border-red-500' : s.isDark ? 'border-white/10 bg-[#0A0A0A]' : 'border-black/10 bg-[#F9F9F9]'}`}>
-                <InventoryImage src={preview} alt={`${name || 'Inventory item'} preview`} className="h-44 w-full rounded-none" />
-                <label htmlFor={imageInputId} className="absolute inset-x-0 bottom-0 flex cursor-pointer items-center justify-center gap-2 bg-black/65 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-black/75">
-                  <UploadCloud size={16} /> Change Image
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImage(null);
-                    setPreview('');
-                    setRemoveImage(Boolean(item?.image_url));
-                    const input = document.getElementById(imageInputId) as HTMLInputElement | null;
-                    if (input) input.value = '';
-                  }}
-                  aria-label="Remove equipment image"
-                  title="Remove image"
-                  className="absolute right-3 top-3 rounded-lg bg-black/70 p-2 text-white transition hover:bg-red-600"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ) : (
-              <label
-                htmlFor={imageInputId}
-                onDragOver={event => event.preventDefault()}
-                onDrop={event => { event.preventDefault(); selectImage(event.dataTransfer.files?.[0]); }}
-                className={`flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-4 py-6 text-center transition-colors ${fieldErrors.image ? 'border-red-500 text-red-500' : s.isDark ? 'border-white/20 bg-white/[0.02] hover:bg-white/[0.05]' : 'border-black/20 bg-[#FAFAFA] hover:bg-[#F5F1E9]'}`}
-              >
-                <UploadCloud className="mb-2 text-[#E8D1AB]" size={28} />
-                <span className="text-sm">Drag &amp; Drop Or <span className="font-semibold text-[#BFA780] underline">Upload</span></span>
-                <span className={`mt-1 text-xs ${s.muted}`}>Required · JPG, PNG, WebP or GIF · Up to 5MB</span>
-              </label>
-            )}
-            {fieldErrors.image && <p className="text-xs text-red-500">{image ? 'Choose a JPG, PNG, WebP or GIF image under 5MB.' : 'Please upload an equipment image.'}</p>}
-          </div>
-
-          <label className="block text-sm font-semibold">
-            Status
-            <select
-              value={status}
-              onChange={event => setStatus(event.target.value as 'active' | 'inactive')}
-              className={`mt-1.5 block w-full rounded-xl border p-2.5 text-sm font-medium ${s.field}`}
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </label>
-
-          <div className="flex justify-end gap-3 pt-3">
-            <InventoryButton type="button" variant="outline" className="rounded-xl px-4" onClick={onClose}>
-              Cancel
-            </InventoryButton>
-            <InventoryButton type="submit" variant="beige" className="rounded-xl px-6 font-bold text-black" disabled={saving}>
-              {saving ? 'Saving…' : item ? 'Save Changes' : 'Create Item'}
-            </InventoryButton>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  s,
-  invalid = false,
-  errorMessage,
-  ...inputProps
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  s: ReturnType<typeof useInventoryStyle>;
-  invalid?: boolean;
-  errorMessage?: string;
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
-  return (
-    <label className="block text-sm font-semibold">
-      {label}
-      <input
-        {...inputProps}
-        value={value}
-        onChange={event => onChange(event.target.value)}
-        aria-invalid={invalid}
-        className={`mt-1.5 block w-full rounded-xl border p-2.5 text-sm font-medium ${s.field} ${invalid ? 'border-red-500 focus:border-red-500' : ''}`}
-      />
-      {invalid && errorMessage && <span className="mt-1 block text-xs font-normal text-red-500">{errorMessage}</span>}
-    </label>
   );
 }
