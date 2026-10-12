@@ -627,7 +627,9 @@ export default function AdminRoleEditDetailsRoute() {
   const deleteDescription =
     mode === "role"
       ? `Are you sure you want to delete ${roleName}? This action cannot be undone.`
-      : `Are you sure you want to delete ${userName}? This action cannot be undone.`;
+      : openLeadsCount === 0 && openQuotesCount === 0
+        ? "This Sales Rep has no open leads or quotes assigned to them. You can deactivate this user."
+        : `Are you sure you want to delete ${userName}? This action cannot be undone.`;
   const deleteLabel = mode === "role" ? "Delete Role" : "Delete User";
   const primaryActionLabel = useMemo(() => {
     if (isSaving) return "Updating...";

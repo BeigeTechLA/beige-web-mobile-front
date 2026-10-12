@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { adminApi, type AdminUserRoleRecord } from "@/lib/api";
+import { adminApi, salesApi, type AdminUserRoleRecord } from "@/lib/api";
 import {
   PermissionStatus,
   PermissionUser,
@@ -198,6 +198,7 @@ export function PermissionUsersTable({
   const { isDark } = useResolvedTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [salesRepStatusFilter, setSalesRepStatusFilter] = useState("all");
   const [monthFilter, setMonthFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
@@ -276,14 +277,60 @@ export function PermissionUsersTable({
 
       const response = await adminApi.getUsersWithRoles(queryParams);
 
+      // Load both sales rep statuses only when the dedicated filter is selected.
+      const salesRepsResponse = salesRepStatusFilter === "all"
+        ? null
+        : await salesApi.getSalesReps({ includeInactive: true });
+
       if (!mounted) return;
 
       if (response?.success && Array.isArray(response.data)) {
-        setServerUsers(
-          response.data.map((user: AdminUserRoleRecord, index: number) =>
-            mapApiUserToPermissionUser(user, index),
-          ),
-        );
+        if (salesRepStatusFilter !== "all" && !Array.isArray(salesRepsResponse?.data)) {
+          setServerUsers([]);
+          setServerError(salesRepsResponse?.error || salesRepsResponse?.message || "Failed to load sales reps");
+          setServerLoading(false);
+          return;
+        }
+
+        const usersById = new Map<number, PermissionUser>();
+        if (salesRepStatusFilter === "all") {
+          response.data.forEach((user: AdminUserRoleRecord, index: number) => {
+            const mappedUser = mapApiUserToPermissionUser(user, index);
+            usersById.set(mappedUser.id, mappedUser);
+          });
+        }
+
+        if (Array.isArray(salesRepsResponse?.data)) {
+          salesRepsResponse.data.forEach((rep: any, index: number) => {
+            const id = Number(rep?.user_id ?? rep?.id ?? rep?.sales_rep_id);
+            const name = String(rep?.name ?? rep?.sales_rep_name ?? "").trim();
+            if (!Number.isFinite(id) || !name) return;
+
+            const active = rep?.is_active === 0 || rep?.is_active === false
+              ? false
+              : rep?.is_active === 1 || rep?.is_active === true
+                ? true
+                : String(rep?.status ?? rep?.status_label ?? "").toLowerCase() === "active";
+            const status: PermissionStatus = active ? "Active" : "In-Active";
+            if (salesRepStatusFilter === "active" && !active) return;
+            if (salesRepStatusFilter === "inactive" && active) return;
+
+            usersById.set(id, {
+              id,
+              name,
+              subtitle: String(rep?.email ?? ""),
+              role_id: rep?.role_id == null ? null : Number(rep.role_id),
+              role: String(rep?.role_name ?? rep?.role ?? "Sales Rep"),
+              created: String(rep?.created_at ?? ""),
+              updated: String(rep?.updated_at ?? rep?.created_at ?? ""),
+              status,
+              badge: name.split(" ").filter(Boolean).slice(0, 2).map((part: string) => part[0]?.toUpperCase() ?? "").join("") || "NA",
+              badgeTone: USER_BADGE_TONES[(response.data.length + index) % USER_BADGE_TONES.length],
+            });
+          });
+        }
+
+        setServerUsers(Array.from(usersById.values()));
       } else {
         setServerUsers([]);
         setServerError(response?.error || response?.message || "Failed to load users");
@@ -297,16 +344,16 @@ export function PermissionUsersTable({
     return () => {
       mounted = false;
     };
-  }, [queryParams]);
+  }, [queryParams, salesRepStatusFilter]);
 
   useEffect(() => {
     const hasActiveFilters =
       debouncedSearchQuery || statusFilter !== "all" || monthFilter !== "all" || roleFilter !== "all";
 
-    if (!hasActiveFilters) {
+    if (!hasActiveFilters && salesRepStatusFilter === "all") {
       setServerUsers(users);
     }
-  }, [debouncedSearchQuery, monthFilter, roleFilter, statusFilter, users]);
+  }, [debouncedSearchQuery, monthFilter, roleFilter, salesRepStatusFilter, statusFilter, users]);
 
   const filteredUsers = useMemo(() => {
     return serverUsers.filter((user) => {
@@ -539,6 +586,27 @@ export function PermissionUsersTable({
                   <SelectItem value="all">Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="in-active">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={salesRepStatusFilter} onValueChange={setSalesRepStatusFilter}>
+                <SelectTrigger className={`w-fit h-7 lg:h-9 min-w-[110px] rounded-full px-4 text-xs lg:text-sm transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
+                  <SelectValue placeholder="Sales Rep" />
+                </SelectTrigger>
+                <SelectContent className={selectContentClass}>
+                  <SelectItem value="all">Sales Rep</SelectItem>
+                  <SelectItem value="active" onSelect={(event) => {
+                    if (salesRepStatusFilter === "active") {
+                      event.preventDefault();
+                      setSalesRepStatusFilter("all");
+                    }
+                  }}>Active</SelectItem>
+                  <SelectItem value="inactive" onSelect={(event) => {
+                    if (salesRepStatusFilter === "inactive") {
+                      event.preventDefault();
+                      setSalesRepStatusFilter("all");
+                    }
+                  }}>Inactive</SelectItem>
                 </SelectContent>
               </Select>
 

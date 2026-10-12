@@ -248,9 +248,9 @@ export function ReassignRecordsPage({
   const successRecordSummary = successAssignments
     .map((assignment) => `${assignment.recordId} to ${repName(assignment.repId)}`)
     .join(", ");
-  const successSubtext = `${successRecordSummary} ${successAssignments.length === 1 ? "has" : "have"} been successfully reassigned from ${user.name}.${canDeactivate
-    ? ` You can now deactivate ${user.name}.`
-    : ` Reassign the remaining records before deactivating ${user.name}.`}`;
+  const successSubtext = canDeactivate
+    ? "All open leads and quotes have been reassigned. You can now deactivate this Sales Rep."
+    : `${successRecordSummary} ${successAssignments.length === 1 ? "has" : "have"} been successfully reassigned from ${user.name}. Reassign the remaining records before deactivating ${user.name}.`;
   const checkboxClass = `h-5 w-5 rounded-md border transition-all duration-150 hover:scale-105 focus-visible:ring-2 focus-visible:ring-offset-0 ${
     isDark
       ? "border-white/20 bg-[#101010] hover:border-[#E5D5B8]/70 focus-visible:ring-[#E5D5B8]/35 data-[state=checked]:border-[#E5D5B8] data-[state=checked]:bg-[#E5D5B8] data-[state=checked]:text-black data-[state=indeterminate]:border-[#E5D5B8] data-[state=indeterminate]:bg-[#E5D5B8] data-[state=indeterminate]:text-black"
