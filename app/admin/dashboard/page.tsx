@@ -17,6 +17,7 @@ import ShootStatusChart from "@/components/admin/ShootStatusChart";
 import StackedDashboard from "@/components/admin/StatsModule";
 import Topbar from "@/components/admin/Topbar";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import NotificationHeaderActions from "@/components/admin/notifications/NotificationHeaderActions";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -41,8 +42,11 @@ export default function AdminDashboardPage() {
   return (
     <>
       <Topbar pathname={pathname}
+        hideDashboardUtilities
         actions={
           <div className="flex gap-2">
+            <NotificationHeaderActions showMarkAll={false} />
+
             {/* <Button onClick={() => router.push("/admin/internal-credentials")} className="bg-white text-black hover:bg-white/90">
               Internal Credentials
             </Button> */}
@@ -50,7 +54,7 @@ export default function AdminDashboardPage() {
               onClick={() => router.push("/book-a-shoot")}
               disabled={!canCreate}
               title={canCreate ? "Book a Shoot" : "Create permission not allowed"}
-              className="bg-[#E5D5B8] text-black"
+              className="hidden h-12 bg-[#E5D5B8] px-5 text-black hover:bg-[#d4c3a3] xl:inline-flex"
             >
               Book a Shoot
             </Button>
