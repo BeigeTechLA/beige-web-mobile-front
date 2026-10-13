@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { ShootsTable } from "@/components/admin/ShootsTable";
+import { ProducerShootsTable, DUMMY_PRODUCER_SHOOTS } from "@/components/admin/ProducerShootsTable";
 import { ShootsCalendarView } from "@/components/admin/ShootsCalendarView";
 import { ShootsGlobeView } from "@/components/admin/ShootsGlobeView";
 
@@ -94,7 +95,8 @@ const normalizeRangeFilter = (value: string) => {
 };
 
 const tabs: { label: string; value: TabType; count: number }[] = [
-  { label: "My Producer Shoots", value: "My Producer Shoots", count: 8 },
+  // Count follows the dummy producer shoots until the API is wired up
+  { label: "My Producer Shoots", value: "My Producer Shoots", count: DUMMY_PRODUCER_SHOOTS.length },
   { label: "All Shoots", value: "All Shoots", count: 12 },
 ];
 
@@ -1689,6 +1691,13 @@ export default function ShootsPage() {
               setCalendarOpenDate(date);
               setViewMode("calendar");
             }}
+          />
+        ) : activeTab === "My Producer Shoots" ? (
+          // Producer workspace: producer-specific table (dummy data for now)
+          <ProducerShootsTable
+            isDark={isDark}
+            searchQuery={searchQuery}
+            viewMode={viewMode === "grid" ? "grid" : "list"}
           />
         ) : (
           <ShootsTable
