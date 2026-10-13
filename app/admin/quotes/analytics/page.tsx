@@ -233,10 +233,15 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
             {/* Date */}
            <DateFilter
             isDark={isDark}
+            value={selectedDate}
+            selectedRange={{
+              startDate: selectedDate === "custom" ? selectedStartDate : null,
+              endDate: selectedDate === "custom" ? selectedEndDate : null,
+            }}
             onChange={(preset, dateRange) => {
               setSelectedDate(preset);
-              setSelectedStartDate(dateRange.startDate);
-              setSelectedEndDate(dateRange.endDate);
+              setSelectedStartDate(preset === "custom" ? dateRange.startDate : null);
+              setSelectedEndDate(preset === "custom" ? dateRange.endDate : null);
             }}
           />
 
