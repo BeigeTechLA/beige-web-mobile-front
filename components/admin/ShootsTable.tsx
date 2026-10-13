@@ -103,6 +103,7 @@ interface ShootRecord {
   hasAssignedCp: boolean;
   notesCount: number;
   isActive: boolean;
+  producerName: string; 
   needsAttention?: {
     required: boolean;
     missing_fields: string[];
@@ -723,6 +724,16 @@ export const ShootsTable = ({
               : [];
           const hasAssignedCp = assignedCrews.length > 0 || selectedCrewIds.length > 0;
           const notesCount = Number(project.notes_count || 0);
+          const postProductionMembers = Array.isArray(item?.assignedPostProductionMembers)
+            ? item.assignedPostProductionMembers
+            : [];
+          const producerName = postProductionMembers
+            .filter((m: any) => Number(m?.is_active ?? 1) !== 0)
+            .map((m: any) =>
+              `${m?.post_production_member?.first_name || ""} ${m?.post_production_member?.last_name || ""}`.trim()
+            )
+            .filter(Boolean)
+            .join(", ");
 
           return {
             id: `#${project.stream_project_booking_id}`,
@@ -748,6 +759,7 @@ export const ShootsTable = ({
             status: statusLabel,
             hasAssignedCp,
             notesCount: Number.isFinite(notesCount) ? notesCount : 0,
+            producerName,
             isActive: Number(project.is_active) !== 0,
             needsAttention: project.needs_attention ? {
               required: missingFields.length > 0,
@@ -1589,6 +1601,11 @@ export const ShootsTable = ({
                                     <p className={`mt-1 text-sm font-medium ${isDark ? "text-white/40" : "text-black/40"}`}>
                                       {shoot.date}
                                     </p>
+                                    {shoot.producerName && (
+                                      <p className="mt-1 text-xs font-medium text-[#E8D1AB] break-words">
+                                        Producer:- {shoot.producerName}
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="relative shrink-0" data-card-actions>
@@ -1939,6 +1956,11 @@ export const ShootsTable = ({
                             </div>
                             <div>
                               <p className={`font-medium text-base leading-none tracking-normal ${isDark ? "text-[#E0E0E0]" : "text-[#000000]"}`}>{shoot.customerName}</p>
+                              {shoot.producerName && (
+                                <p className="mt-1 text-xs font-medium text-[#E8D1AB]">
+                                  Producer : {shoot.producerName}
+                                </p>
+                              )}
                               <div className="flex items-center gap-2 mt-1.5 ">
                                 <p className={`text-xs ${isDark ? "text-[#666666]" : "text-[#999]"}`}>{shoot.date}</p>
                               </div>

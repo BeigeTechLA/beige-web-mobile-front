@@ -259,7 +259,7 @@ export default function SubFolderDetailsPage() {
   }, [currentPhase, folderPath, projectId]);
 
   const folderTitle = useMemo(() => {
-    if (nestedSlug === "raw-footage") return "Raw Footages";
+    if (nestedSlug === "raw-footage") return "Raw Footage";
     if (nestedSlug === "edits" || nestedSlug === "edited-footage") return "Edits";
     if (nestedSlug === "final-deliverables") return "Final Deliverables";
     return folderName || "Files";

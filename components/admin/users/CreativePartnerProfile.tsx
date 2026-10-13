@@ -157,6 +157,7 @@ export const CreativePartnerProfile = ({ id, hideActions = false, isDark = true,
   const [sortBy, setSortBy] = useState('All');
   const [activeImages, setActiveImages] = useState<string[]>([]);
 const [isVerifying, setIsVerifying] = useState(false);
+const [copiedField, setCopiedField] = useState<string | null>(null);
 const [isGeneratingLink, setIsGeneratingLink] = useState(false);
 const [isSendingProfileReminder, setIsSendingProfileReminder] = useState(false);
 const [manualResetLink, setManualResetLink] = useState<string | null>(null);
@@ -731,6 +732,21 @@ const formatExternalUrl = (url: string) => {
     }
   };
 
+  const handleCopyValue = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(label);
+      setTimeout(() => {
+        setCopiedField((current) => (current === label ? null : current));
+      }, 2000);
+      toast.success(`${label} copied to clipboard`);
+    } catch (error) {
+      console.error(`Copy ${label} error:`, error);
+      toast.error(`Failed to copy ${label.toLowerCase()}`);
+    }
+  };
+
+  const COPY_BTN_STYLE = `shrink-0 flex items-center justify-center p-1 transition-all active:scale-90 ${isDark ? "text-white/50 hover:text-[#E8D1AB]" : "text-gray-400 hover:text-black"}`;
   const SECTION_TITLE_STYLE = `lg:text-xl font-medium p-5 lg:p-8 ${isDark ? "text-white" : "text-black"}`;
   const LABEL_STYLE = `text-sm font-medium mb-1 block ${isDark ? "text-[#CFCCCC]" : "text-[#313131]"}`;
   const VALUE_STYLE = `text-sm block ${isDark ? "text-[#999696]" : "text-[#595959]"}`;
@@ -1220,13 +1236,28 @@ return (
                   <div>
                     <span className={LABEL_STYLE}>Email Address</span>
                     {partner.email ? (
-                      <a
-                        href={`mailto:${partner.email}`}
-                        title="Email ID"
-                        className={`${VALUE_STYLE} transition-colors hover:opacity-80`}
-                      >
-                        {partner.email}
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`mailto:${partner.email}`}
+                          title="Email ID"
+                          className={`${VALUE_STYLE} min-w-0 break-all transition-colors hover:opacity-80`}
+                        >
+                          {partner.email}
+                        </a>
+                        <button
+                          type="button"
+                          title="Copy email"
+                          aria-label="Copy email"
+                          onClick={() => void handleCopyValue(partner.email, "Email")}
+                          className={COPY_BTN_STYLE}
+                        >
+                          {copiedField === "Email" ? (
+                            <Check size={14} strokeWidth={3} className="text-[#E8D1AB] animate-in zoom-in-50 duration-200" />
+                          ) : (
+                            <Copy size={14} />
+                          )}
+                        </button>
+                      </div>
                     ) : (
                       <span className={VALUE_STYLE}>N/A</span>
                     )}
@@ -1234,14 +1265,34 @@ return (
                   <div>
                     <span className={LABEL_STYLE}>Contact Phone</span>
                     {partner.phone_number || partner.contact_phone ? (
-                      <a
-                        href={`tel:${String(partner.phone_number || partner.contact_phone).replace(/[^\d+]/g, "")}`}
-                        title="Phone Number"
-                        className={`flex items-center gap-2 text-sm font-medium transition-colors hover:opacity-80 ${isDark ? "text-[#E0E0E0]" : "text-[#595959]"}`}
-                      >
-                        <Phone size={18} />
-                        <span>{partner.phone_number || partner.contact_phone}</span>
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`tel:${String(partner.phone_number || partner.contact_phone).replace(/[^\d+]/g, "")}`}
+                          title="Phone Number"
+                          className={`flex items-center gap-2 text-sm font-medium transition-colors hover:opacity-80 ${isDark ? "text-[#E0E0E0]" : "text-[#595959]"}`}
+                        >
+                          <Phone size={18} />
+                          <span>{partner.phone_number || partner.contact_phone}</span>
+                        </a>
+                        <button
+                          type="button"
+                          title="Copy phone number"
+                          aria-label="Copy phone number"
+                          onClick={() =>
+                            void handleCopyValue(
+                              String(partner.phone_number || partner.contact_phone),
+                              "Phone number"
+                            )
+                          }
+                          className={COPY_BTN_STYLE}
+                        >
+                          {copiedField === "Phone number" ? (
+                            <Check size={14} strokeWidth={3} className="text-[#E8D1AB] animate-in zoom-in-50 duration-200" />
+                          ) : (
+                            <Copy size={14} />
+                          )}
+                        </button>
+                      </div>
                     ) : (
                       <div className={`flex items-center gap-2 text-sm font-medium ${isDark ? "text-[#E0E0E0]" : "text-[#595959]"}`}>
                         <Phone size={18} />

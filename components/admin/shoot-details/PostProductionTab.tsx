@@ -16,6 +16,7 @@ import {
   List,
   Loader2,
   ExternalLink,
+  MoreVertical,
   Play,
   Presentation,
   FolderOpen,
@@ -24,6 +25,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
 import EmptyFileState from "@/components/admin/file-manager/EmptyFileState";
+import FileActionMenu from "@/components/admin/file-manager/FileActionMenu";
+import DeleteConfirmModal from "@/components/admin/file-manager/DeleteConfirmModal";
+import ShareResourceModal from "@/components/admin/file-manager/ShareResourceModal";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { toast } from "sonner";
 import {
   fileManagerApi,
   mapExternalFilesToUi,
@@ -99,6 +105,19 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+  const [menuState, setMenuState] = useState<{ folder: any; anchor: { x: number; y: number } } | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<any | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareResource, setShareResource] = useState<{
+    resourceType: "folder";
+    externalId: string;
+    phase: string;
+    path?: string;
+    label?: string;
+  } | null>(null);
+  const { canDelete } = usePermissions("file_manager");
   const isDark = !mounted || resolvedTheme === "dark" || theme === "dark";
 
   useEffect(() => {
@@ -177,6 +196,76 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
   }, [files]);
 
   const toggleDropdown = () => setIsOpen((prev) => !prev);
+
+  const openFolderMenu = (event: React.MouseEvent<HTMLButtonElement>, folder: any) => {
+    event.stopPropagation();
+    setSelectedFolder(folder);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const nearRight = window.innerWidth - rect.right < 250;
+    const nearBottom = window.innerHeight - rect.bottom < 150;
+    setMenuState({
+      folder,
+      anchor: {
+        x: nearRight ? rect.left - 210 : rect.right - 10,
+        y: nearBottom ? rect.top - 230 : rect.top - 20,
+      },
+    });
+  };
+
+  const downloadFolder = async () => {
+    if (!selectedFolder) return;
+    try {
+      const result = await fileManagerApi.getExternalFolderDownloadUrl(projectId, {
+        phase: "post",
+        path: getFolderPath(selectedFolder),
+      });
+      if (result?.url) fileManagerApi.downloadUrl(result.url, `${selectedFolder.title || "folder"}.zip`);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to download folder");
+    }
+  };
+
+  const deleteFolder = async () => {
+    if (!canDelete) {
+      toast.error("You do not have permission to delete folders");
+      return;
+    }
+    if (!selectedFolder?.resourcePath) return;
+    try {
+      setIsDeleting(true);
+      await fileManagerApi.deleteExternalEntry(selectedFolder.resourcePath);
+      toast.success("Folder deleted");
+      setIsDeleteModalOpen(false);
+      setMenuState(null);
+      setSelectedFolder(null);
+      await loadPostProduction();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete folder");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const getFolderPath = (folder: any) => {
+    const segments = String(folder?.resourcePath || "").replace(/\\/g, "/").split("/").filter(Boolean);
+    const phaseIndex = segments.findIndex((segment) => segment.toLowerCase() === "post-production");
+    if (phaseIndex >= 0 && segments.slice(phaseIndex + 1).length) {
+      return segments.slice(phaseIndex + 1).join("/");
+    }
+    return folder?.rawName || folder?.title;
+  };
+
+  const openFolderShare = () => {
+    if (!selectedFolder) return;
+    setShareResource({
+      resourceType: "folder",
+      externalId: String(projectId || ""),
+      phase: "post",
+      path: getFolderPath(selectedFolder),
+      label: selectedFolder.title,
+    });
+    setIsShareModalOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -278,10 +367,10 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
             {folders.length > 0 ? (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {folders.map((folder) => (
-                  <button
+                  <div
                     key={folder.id}
                     onClick={() => router.push(folder.href)}
-                    className={`text-left cursor-pointer border rounded-2xl overflow-hidden group transition-colors ${isDark ? "bg-[#202020] border-[#222222] hover:border-[#333333]" : "bg-[#F4F5F7] border-[#F4F5F7] hover:border-[#F0F0F0] shadow-sm"}`}
+                    className={`relative text-left cursor-pointer border rounded-2xl overflow-hidden group transition-colors ${isDark ? "bg-[#202020] border-[#222222] hover:border-[#333333]" : "bg-[#F4F5F7] border-[#F4F5F7] hover:border-[#F0F0F0] shadow-sm"}`}
                   >
                     <div className="p-6">
                       <div className="flex items-start justify-between mb-4">
@@ -296,7 +385,14 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                             </p>
                           </div>
                         </div>
-                        <ExternalLink className={isDark ? "text-white" : "text-black/40"} size={16} />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className={`h-9 w-9 rounded-full p-0 ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"}`}
+                          onClick={(event) => openFolderMenu(event, folder)}
+                        >
+                          <MoreVertical size={20} />
+                        </Button>
                       </div>
 
                       <div className="flex items-center gap-3 mt-6">
@@ -312,7 +408,7 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                       </div>
                       <span className={`text-sm ${isDark ? "text-[#999999]" : "text-black/50"}`}>Updated {folder.lastOpened}</span>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             ) : null}
@@ -428,7 +524,14 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
                       <span className={isDark ? "text-white text-sm" : "text-black text-sm"}>{folder.lastOpened}</span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <ExternalLink className={`inline-block ${isDark ? "text-white" : "text-black"}`} size={16} strokeWidth={1.5} />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={`h-9 w-9 rounded-full p-0 ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"}`}
+                        onClick={(event) => openFolderMenu(event, folder)}
+                      >
+                        <MoreVertical size={20} />
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -486,19 +589,29 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
           {/* List View - Mobile Mode Viewports */}
           <div className="lg:hidden p-4 space-y-3">
             {folders.length > 0 ? folders.map((folder) => (
-              <button
+              <div
                 key={folder.id}
                 onClick={() => router.push(folder.href)}
-                className={`w-full text-left rounded-xl border px-4 py-4 ${isDark ? "border-[#222222] bg-[#0A0A0A]" : "border-[#E3E3E3] bg-[#F9F9F9]"}`}
+                className={`w-full text-left rounded-xl border px-4 py-4 cursor-pointer ${isDark ? "border-[#222222] bg-[#0A0A0A]" : "border-[#E3E3E3] bg-[#F9F9F9]"}`}
               >
                 <div className="flex items-center justify-between">
                   <div>
                     <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{folder.title}</div>
                     <div className={`text-xs mt-1 ${isDark ? "text-[#888]" : "text-black/50"}`}>{folder.fileCount} Items</div>
                   </div>
-                  <ExternalLink className={isDark ? "text-white/40" : "text-black/40"} size={16} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className={`h-9 w-9 rounded-full p-0 ${isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openFolderMenu(event, folder);
+                    }}
+                  >
+                    <MoreVertical size={20} />
+                  </Button>
                 </div>
-              </button>
+              </div>
             )) : null}
 
             {files.length > 0 ? files.map((file) => (
@@ -533,6 +646,36 @@ export default function PostProductionTab({ projectId }: { projectId: string }) 
           </div>
         </div>
       )}
+      {menuState ? (
+        <FileActionMenu
+          folderName={menuState.folder.title}
+          isOpen
+          onClose={() => setMenuState(null)}
+          onOpenLinkModal={() => undefined}
+          anchor={menuState.anchor}
+          href={menuState.folder.href}
+          onDownload={downloadFolder}
+          onShare={openFolderShare}
+          onDelete={() => setIsDeleteModalOpen(true)}
+          deleteDisabled={!canDelete}
+          onRename={() => toast.info("Folder rename is the next safe step.")}
+          isDark={isDark}
+        />
+      ) : null}
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={deleteFolder}
+        itemName={selectedFolder?.title || "folder"}
+        itemType="folder"
+        isDeleting={isDeleting}
+        isDark={isDark}
+      />
+      <ShareResourceModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        resource={shareResource}
+      />
     </div>
   );
 }

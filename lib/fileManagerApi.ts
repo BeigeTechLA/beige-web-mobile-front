@@ -713,7 +713,7 @@ const prettifyExternalFolderName = (name?: string) => {
   if (!normalized) return "Folder";
   if (normalized === "Pre-Production") return "Pre Production";
   if (normalized === "Post-Production") return "Post Production";
-  if (normalized === "Raw Footage") return "Raw Footages";
+  if (normalized === "Raw Footage") return "Raw Footage";
   if (normalized === "Revisions") return "Revision";
   return normalized.replace(/-/g, " ");
 };
@@ -1687,7 +1687,7 @@ export const buildPostProductionFolders = (
   return [
     {
       id: `${projectId}-raw`,
-      title: "Raw Footages",
+      title: "Raw Footage",
       fileCount: byCategories(files, RAW_FOOTAGE_CATEGORIES).length,
       lastOpened,
       userInitials,

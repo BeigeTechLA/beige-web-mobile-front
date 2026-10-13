@@ -3487,13 +3487,10 @@ function CreateQuotePageContent() {
       : normalizedDiscountValue;
   const discountAmount = Math.min(rawDiscountAmount, quoteSubtotal);
   const discountedSubtotal = Math.max(quoteSubtotal - discountAmount, 0);
-  // Tax controls are hidden for now, but the step remains for pre-production details.
-  // const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
-  // const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
-  // const totalAfterTax = discountedSubtotal + taxAmount;
-  const normalizedTaxRate = 0;
-  const taxAmount = 0;
-  const totalAfterTax = discountedSubtotal;
+  const configuredTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
+  const normalizedTaxRate = configuredTaxRate + 4;
+  const taxAmount = Math.round(discountedSubtotal * normalizedTaxRate) / 100;
+  const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
   const leadPricingPaid = Number(linkedLeadDetails?.pricing_breakdown?.total_paid);
   const leadPricingTotal = Number(linkedLeadDetails?.pricing_breakdown?.total_amount);
@@ -3539,9 +3536,12 @@ function CreateQuotePageContent() {
   }, [discountValue, maxDiscountValue]);
 
   // const taxLabel = taxType.trim() || "Sales Tax";
-  const taxLabel = (selectedTax === -1 && taxType.trim())
+  const configuredTaxLabel = (selectedTax === -1 && taxType.trim())
     ? taxType.trim()
     : "Sales Tax";
+  const taxLabel = configuredTaxRate > 0
+    ? `${configuredTaxLabel} (${configuredTaxRate}%) + Card Payment Charges (4%)`
+    : "Card Payment Charges (4%)";
   const canOpenQuoteSummary = hasQuoteSummaryContent({
     selectedClient,
     clientName,
@@ -8065,28 +8065,17 @@ function CreateQuotePageContent() {
                     </span>
                   </div>
 
-                  {/* Calculated Tax Amount - hidden while tax controls are disabled. */}
-                  {false ? (
-                    <>
-                  <div className="flex justify-between items-center">
+                  <>
+                  {normalizedTaxRate > 0 ? <div className="flex justify-between items-center">
                     <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
-                      {`${taxLabel} (${normalizedTaxRate}%)`}
+                      {taxLabel}
                     </span>
                     <span className={`text-sm lg:text-base tracking-tight ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
                       {formatCurrency(taxAmount)}
                     </span>
-                  </div>
+                  </div> : null}
 
-                  <div className="flex justify-between items-center mt-2 mb-2">
-                    <span className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                      Amount After Tax
-                    </span>
-                    <span className={`text-sm lg:text-base font-medium tracking-tight ${isDark ? "text-white" : "text-black"}`}>
-                      {formatCurrency(totalAfterTax)}
-                    </span>
-                  </div>
-                    </>
-                  ) : null}
+                  </>
 
                   {/* Revision Multi-Layer Summary */}
                   {showQuoteRevisionSummary ? (
