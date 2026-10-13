@@ -4,13 +4,16 @@ import React from "react";
 import { Bell, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { notificationPortalPaths, type NotificationPortal } from "@/lib/notificationCenterApi";
 
 export default function NotificationSettingsModal({
   open,
   onClose,
+  portal = "admin",
 }: {
   open: boolean;
   onClose: () => void;
+  portal?: NotificationPortal;
 }) {
   const router = useRouter();
   const { theme } = useTheme();
@@ -44,7 +47,7 @@ export default function NotificationSettingsModal({
         <div className="space-y-2 px-6 py-5">
           <button
             type="button"
-            onClick={() => navigate("/admin/settings")}
+            onClick={() => navigate(portal === "creator" ? "/creator/dashboard/profile" : portal === "client" ? "/affiliate/profile" : "/admin/settings")}
             className={`flex w-full items-center gap-4 rounded-xl px-3 py-3 text-left transition-colors ${isDark ? "hover:bg-white/[0.05]" : "hover:bg-black/[0.04]"}`}
           >
             <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${isDark ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#F7F0E4] text-[#8D6F3F]"}`}>
@@ -53,17 +56,17 @@ export default function NotificationSettingsModal({
 
             <span className="min-w-0">
               <span className={`block text-[19px] font-semibold leading-6 ${isDark ? "text-white" : "text-[#171717]"}`}>
-                General Settings
+                {portal === "admin" ? "General Settings" : "Profile Settings"}
               </span>
               <span className={`mt-1 block text-[14px] leading-5 ${isDark ? "text-white/45" : "text-black/50"}`}>
-                Manage Language, Time Zone and other Personal Preferences
+                {portal === "admin" ? "Manage Language, Time Zone and other Personal Preferences" : "Manage your profile and account details"}
               </span>
             </span>
           </button>
 
           <button
             type="button"
-            onClick={() => navigate("/admin/notifications/preferences")}
+            onClick={() => navigate(`${notificationPortalPaths[portal]}/preferences`)}
             className={`flex w-full items-center gap-4 rounded-xl px-3 py-3 text-left transition-colors ${isDark ? "hover:bg-white/[0.05]" : "hover:bg-black/[0.04]"}`}
           >
             <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${isDark ? "bg-[#101010] text-[#E8D1AB]" : "bg-[#F7F0E4] text-[#8D6F3F]"}`}>

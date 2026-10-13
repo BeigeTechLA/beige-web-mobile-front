@@ -161,6 +161,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     const publicCreatorPaths = new Set([
       "/creator/dashboard",
       "/creator/dashboard/profile",
+      "/creator/dashboard/notifications",
+      "/creator/dashboard/notifications/preferences",
     ]);
 
     if (publicCreatorPaths.has(pathname)) return;
@@ -178,6 +180,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const publicCreatorPaths = new Set([
     "/creator/dashboard",
     "/creator/dashboard/profile",
+    "/creator/dashboard/notifications",
+    "/creator/dashboard/notifications/preferences",
   ]);
   const isPublicCreatorPath = publicCreatorPaths.has(pathname);
   const isRegistrationComplete =

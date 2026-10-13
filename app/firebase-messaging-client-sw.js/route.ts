@@ -14,11 +14,13 @@ export function GET() {
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const roomId = String(event.notification.data?.roomId || event.notification.data?.chatRoomId || "").trim();
+  const notificationId = String(event.notification.data?.notification_id || "").trim();
+  const roomId = String(event.notification.data?.room_id || event.notification.data?.chat_room_id || event.notification.data?.roomId || event.notification.data?.chatRoomId || "").trim();
   const meetingId = String(event.notification.data?.meetingId || event.notification.data?.meeting_id || "").trim();
+  const topic = String(event.notification.data?.topic || event.notification.data?.category || "").toLowerCase();
   event.waitUntil((async () => {
-    const targetPath = meetingId ? "/affiliate/meetings" : "/affiliate/messages";
-    const openUrl = targetPath + (meetingId ? "?meetingId=" + encodeURIComponent(meetingId) : roomId ? "?roomId=" + encodeURIComponent(roomId) : "");
+    const targetPath = notificationId ? "/affiliate/notifications" : topic === "files" ? "/affiliate/file-manager" : topic === "shoots" ? "/affiliate/shoots" : meetingId ? "/affiliate/meetings" : roomId ? "/affiliate/messages" : "/affiliate/notifications";
+    const openUrl = targetPath + (notificationId ? "?notificationId=" + encodeURIComponent(notificationId) : meetingId && targetPath.endsWith("/meetings") ? "?meetingId=" + encodeURIComponent(meetingId) : roomId && targetPath.endsWith("/messages") ? "?roomId=" + encodeURIComponent(roomId) : "");
     const clientWindows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const targetWindow = clientWindows.find((client) => new URL(client.url).pathname === targetPath);
     if (targetWindow) {

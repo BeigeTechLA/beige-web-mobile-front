@@ -27,6 +27,7 @@ type NotificationDetailsModalProps = {
   onPrimaryAction: (notification: AdminNotification) => void;
   onMarkUnread: (notification: AdminNotification) => void;
   onMuteSimilar: (notification: AdminNotification) => void;
+  archived?: boolean;
 };
 
 const getSenderName = (notification: ExtendedNotification) => {
@@ -68,6 +69,7 @@ export default function NotificationDetailsModal({
   onPrimaryAction,
   onMarkUnread,
   onMuteSimilar,
+  archived = false,
 }: NotificationDetailsModalProps) {
   const { theme } = useTheme();
   const isDark = theme !== "light";
@@ -76,7 +78,7 @@ export default function NotificationDetailsModal({
 
   const item = notification as ExtendedNotification;
   const senderName = getSenderName(item);
-  const senderRole = item.senderRole || "Creative Partner";
+  const senderRole = item.senderRole;
   const notificationType = getType(item);
   const isCritical = notification.priority === "Critical";
 
@@ -119,7 +121,7 @@ export default function NotificationDetailsModal({
               <div className="min-w-0">
                 <p className={`truncate text-[17px] font-semibold ${isDark ? "text-white" : "text-[#171717]"}`}>
                   {senderName}
-                  <span className={`font-normal ${isDark ? "text-white/70" : "text-black/55"}`}> ({senderRole})</span>
+                  {senderRole ? <span className={`font-normal ${isDark ? "text-white/70" : "text-black/55"}`}> ({senderRole})</span> : null}
                 </p>
               </div>
             </div>
@@ -151,16 +153,16 @@ export default function NotificationDetailsModal({
             </div>
           </div>
 
-          <button
+          {!archived ? <button
             type="button"
             onClick={() => onPrimaryAction(notification)}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#E8D1AB] text-sm font-medium text-black transition-colors hover:bg-[#D9C19A]"
           >
             <ExternalLink size={16} />
             {notification.actionLabel}
-          </button>
+          </button> : null}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {!archived ? <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => onMarkUnread(notification)}
@@ -177,7 +179,7 @@ export default function NotificationDetailsModal({
               <BellOff size={16} />
               Mute Similar
             </button>
-          </div>
+          </div> : null}
 
           <div className={`border-t pt-4 ${isDark ? "border-[#2D2D2D]" : "border-[#E7E7E7]"}`}>
             <p className={`text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#7B5B2D]"}`}>Timeline</p>

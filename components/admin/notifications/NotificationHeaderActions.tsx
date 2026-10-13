@@ -8,12 +8,15 @@ import { useTheme } from "next-themes";
 import { ModeToggle } from "@/components/generic/ModeToggle";
 import { useAuth } from "@/lib/hooks/useAuth";
 import NotificationSettingsModal from "./NotificationSettingsModal";
-import { readNotifications, writeNotifications } from "./notificationStore";
+import { notificationCenterApi, notificationPortalPaths, notifyNotificationsChanged, NOTIFICATIONS_UPDATED_EVENT, type NotificationPortal } from "@/lib/notificationCenterApi";
+import { toast } from "sonner";
 
 export default function NotificationHeaderActions({
   showMarkAll = true,
+  portal = "admin",
 }: {
   showMarkAll?: boolean;
+  portal?: NotificationPortal;
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -23,24 +26,35 @@ export default function NotificationHeaderActions({
   const [unreadCount, setUnreadCount] = useState(0);
   const [profileImageError, setProfileImageError] = useState(false);
 
-  const syncUnread = () => setUnreadCount(readNotifications().filter((item) => item.unread).length);
+  const syncUnread = () => {
+    void notificationCenterApi.counts()
+      .then((response) => setUnreadCount(response.data.unread))
+      .catch(() => setUnreadCount(0));
+  };
 
   useEffect(() => setMounted(true), []);
   const isDark = !mounted || theme === "dark";
 
   useEffect(() => {
     syncUnread();
-    window.addEventListener("beige-admin-notifications-updated", syncUnread);
-    window.addEventListener("storage", syncUnread);
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, syncUnread);
+    window.addEventListener("focus", syncUnread);
+    const timer = window.setInterval(syncUnread, 30000);
     return () => {
-      window.removeEventListener("beige-admin-notifications-updated", syncUnread);
-      window.removeEventListener("storage", syncUnread);
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, syncUnread);
+      window.removeEventListener("focus", syncUnread);
+      window.clearInterval(timer);
     };
   }, []);
 
-  const markAllRead = () => {
-    writeNotifications(readNotifications().map((item) => ({ ...item, unread: false })));
-    setUnreadCount(0);
+  const markAllRead = async () => {
+    try {
+      await notificationCenterApi.markAllRead();
+      setUnreadCount(0);
+      notifyNotificationsChanged();
+    } catch {
+      toast.error("Could not mark notifications as read.");
+    }
   };
 
   const profileImageSrc = !profileImageError && user?.profile_image ? user.profile_image : "/images/avatar.png";
@@ -50,7 +64,7 @@ export default function NotificationHeaderActions({
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => router.push("/admin/notifications")}
+          onClick={() => router.push(notificationPortalPaths[portal])}
           className={`relative flex h-12 w-12 cursor-pointer items-center justify-center overflow-visible rounded-full border text-black transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] ${isDark ? "border-[#303030] bg-[#E8D1AB] hover:bg-[#DCC39A]" : "border-[#D7C29E] bg-[#E8D1AB] hover:bg-[#D9C19A]"}`}
           aria-label="Notifications"
         >
@@ -99,7 +113,7 @@ export default function NotificationHeaderActions({
 
         <button
           type="button"
-          onClick={() => router.push("/admin/profile")}
+          onClick={() => router.push(portal === "creator" ? "/creator/dashboard/profile" : portal === "client" ? "/affiliate/profile" : "/admin/profile")}
           className={`h-12 w-12 overflow-hidden rounded-full border ${isDark ? "border-[#303030] bg-[#101010]" : "border-[#DEDEDE] bg-white"}`}
           aria-label="Profile"
         >
@@ -117,7 +131,7 @@ export default function NotificationHeaderActions({
         {showMarkAll ? (
           <button
             type="button"
-            onClick={markAllRead}
+            onClick={() => { void markAllRead(); }}
             className="hidden h-12 items-center gap-2 rounded-lg bg-[#E8D1AB] px-5 text-sm font-medium text-black transition hover:bg-[#D9C19A] md:flex"
           >
             <CheckCheck size={17} />
@@ -126,7 +140,7 @@ export default function NotificationHeaderActions({
         ) : null}
       </div>
 
-      <NotificationSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <NotificationSettingsModal portal={portal} open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 }

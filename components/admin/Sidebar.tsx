@@ -8,6 +8,7 @@ import {
   FolderOpen,
   CalendarClock,
   MessageCircle,
+  Bell,
   Users,
   ChevronDown,
   CircleDollarSign,
@@ -79,6 +80,7 @@ const menuItems: MenuItem[] = [
   { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['file_manager'] },
   { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['meetings'] },
   { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['messages'] },
+  { name: 'Notifications', icon: Bell, link: '/admin/notifications' },
   { name: 'Availability', icon: CalendarClock, link: '/admin/availability', permissionKeys: ['availability'] },
   {
     name: "Sales Representative",

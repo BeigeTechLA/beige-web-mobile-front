@@ -25,6 +25,7 @@ import { toast } from "sonner"; // Using sonner for the high-end look of the fir
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useGetCurrentUserQuery, useGetOnboardingStatusQuery } from "@/lib/redux/features/auth/authApi";
 import Topbar from "@/components/admin/Topbar";
+import NotificationHeaderActions from "@/components/admin/notifications/NotificationHeaderActions";
 
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -1228,7 +1229,7 @@ export default function CreatorDashboardPage() {
   // ----------------------
   return (
     <>
-      <Topbar pathname={pathname} />
+      <Topbar pathname={pathname} hideDashboardUtilities actions={<NotificationHeaderActions portal="creator" showMarkAll={false} />} />
       <div
         className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 
         ${isDark

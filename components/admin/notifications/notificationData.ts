@@ -1,4 +1,4 @@
-export type NotificationCategory = "Files" | "Payments" | "Messages" | "Shoots" | "Proposals" | "System";
+export type NotificationCategory = "Files" | "Payments" | "Messages" | "Shoots" | "Meetings" | "Proposals" | "Projects" | "System";
 export type NotificationPriority = "Critical" | "High" | "Medium" | "Low";
 
 export type AdminNotification = {
@@ -14,6 +14,12 @@ export type AdminNotification = {
   initials: string;
   avatarClass: string;
   mention?: boolean;
+  senderName?: string;
+  type?: string;
+  createdAt?: string;
+  referenceId?: string | null;
+  referenceType?: string | null;
+  payload?: Record<string, unknown> | null;
 };
 
 export const defaultAdminNotifications: AdminNotification[] = [

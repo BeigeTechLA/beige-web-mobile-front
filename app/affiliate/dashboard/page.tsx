@@ -7,6 +7,7 @@ import Cookies from "js-cookie";
 import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
+import NotificationHeaderActions from "@/components/admin/notifications/NotificationHeaderActions";
 import { SortDateButton } from "@/components/admin/SortDateButton";
 import AffiliateOverviewChart from "@/components/affiliate/AffiliateOverviewChart";
 import { AffiliateOverallShootsTable } from "@/components/affiliate/AffiliateOverallShootsTable";
@@ -64,7 +65,7 @@ export default function AffiliateDashboardPage() {
 
   return (
     <>
-      <Topbar pathname={pathname} />
+      <Topbar pathname={pathname} hideDashboardUtilities actions={<NotificationHeaderActions portal="client" showMarkAll={false} />} />
 
       <div
         className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8"

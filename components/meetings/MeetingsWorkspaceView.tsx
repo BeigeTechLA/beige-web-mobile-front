@@ -11,6 +11,7 @@ import MeetingDetailsModal from "@/components/meetings/MeetingDetailsModal";
 import EditMeetingModal from "@/components/meetings/EditMeetingModal";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { meetingsApi, type MeetingItem } from "@/lib/meetingsApi";
+import { notificationCenterApi, notifyNotificationsChanged } from "@/lib/notificationCenterApi";
 import { formatMeetingStatusLabel, getEffectiveMeetingStatus, getMeetingStatusClasses } from "@/lib/meetingStatus";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -129,6 +130,13 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
   const [error, setError] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<MeetingItem | null>(null);
+
+  useEffect(() => {
+    if (!selectedMeeting?.id) return;
+    void notificationCenterApi.markReadByReference("meeting", String(selectedMeeting.id))
+      .then(() => notifyNotificationsChanged())
+      .catch(() => undefined);
+  }, [role, selectedMeeting?.id]);
   const [meetingPendingDelete, setMeetingPendingDelete] = useState<MeetingItem | null>(null);
   const [isDeletingMeeting, setIsDeletingMeeting] = useState(false);
   const [search, setSearch] = useState("");

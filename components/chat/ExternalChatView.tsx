@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { notificationCenterApi, notifyNotificationsChanged } from "@/lib/notificationCenterApi";
 import {
   externalChatApi,
   type ExternalChatMessage,
@@ -1307,6 +1308,9 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       syncRoomSnapshot(refreshedRoom, sortedMessages);
       const latestSeenTimestamp = getLatestSeenTimestamp(sortedMessages);
       await externalChatApi.markRoomAsRead(roomId, currentSender).catch(() => undefined);
+      void notificationCenterApi.markReadByReference("chat_room", roomId)
+        .then(() => notifyNotificationsChanged())
+        .catch(() => undefined);
       if (latestSeenTimestamp) {
         const nextRoomLastSeenAt = {
           ...roomLastSeenAtRef.current,
