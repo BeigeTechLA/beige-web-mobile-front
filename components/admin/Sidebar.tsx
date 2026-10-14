@@ -18,6 +18,7 @@ import {
   Settings,
   SquareArrowOutUpRight,
   User,
+  ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
