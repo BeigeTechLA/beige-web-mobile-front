@@ -273,6 +273,75 @@ export const mapCreatorRow = (row: RawCpRow): ShootCPRow => ({
   dueDate: asString(row.due_date, ""),
 });
 
+export type CpCalendarItem = {
+  id: string;
+  bookingId: number;
+  creatorEarningId: number;
+  creatorId: number;
+  creatorName: string;
+  creatorRoles: string[];
+  shootName: string;
+  customerName: string;
+  amount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  status: ShootCPRow["status"];
+  category: ShootCPRow["category"];
+  dueDate: string; // YYYY-MM-DD
+  isDefaultDueDate: boolean; // true when calculated as event date + 15 days
+};
+
+const toDateKey = (value?: string | null) => String(value || "").slice(0, 10);
+
+const addDaysToDateKey = (dateKey: string, days: number) => {
+  const date = new Date(`${dateKey}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() + days);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+export const mapCalendarItem = (
+  row: ShootCPRow,
+  rawRow?: RawCpRow,
+): CpCalendarItem | null => {
+  // Fully paid compensation has no due date
+  if (row.status === "Fully Paid") return null;
+
+  const explicitDue = toDateKey(row.dueDate);
+  const defaultDue = addDaysToDateKey(toDateKey(row.date), 15);
+  const dueDate = explicitDue || defaultDue;
+  if (!dueDate) return null;
+    const paidAmount = asNumber(
+    rawRow?.paid_total ?? rawRow?.advance_paid,
+  );
+
+  const remainingAmount = Math.max(
+    0,
+    asNumber(rawRow?.remaining_balance, row.cpPayout - paidAmount),
+  );
+
+  return {
+    id: row.id,
+    bookingId: row.bookingId || Number(row.shootId) || 0,
+    creatorEarningId: row.creatorEarningId || 0,
+    creatorId: row.creatorId || 0,
+    creatorName: row.creatorName || "Unknown Creator",
+    creatorRoles: row.creatorRoles || [],
+    shootName: row.shootName || "Untitled Shoot",
+    customerName: row.customerName,
+    amount: row.cpPayout,
+    paidAmount,
+    remainingAmount,
+    status: row.status,
+    category: row.category,
+    dueDate,
+    isDefaultDueDate: !explicitDue,
+  };
+};
+
 export const cpCompensationApi = {
   async list(view: "shoots" | "creators") {
     const response = await apiClient.get<ApiEnvelope<{ rows: RawCpRow[] }>>("finance/cp-compensation", {
@@ -281,6 +350,20 @@ export const cpCompensationApi = {
       view,
     });
     return (response.data.rows || []).map(view === "shoots" ? mapShootRow : mapCreatorRow);
+  },
+
+  async calendarItems(range: { start: string; end: string }) {
+    const response = await apiClient.get<ApiEnvelope<{ rows: RawCpRow[] }>>(
+      "finance/cp-compensation/calendar",
+      { start_date: range.start, end_date: range.end }
+    );
+     return (response.data.rows || [])
+      .map((rawRow) => ({
+        rawRow,
+        creatorRow: mapCreatorRow(rawRow),
+      }))
+      .map(({ rawRow, creatorRow }) => mapCalendarItem(creatorRow, rawRow))
+      .filter((item): item is CpCalendarItem => item !== null);
   },
 
   async details(bookingId: number) {

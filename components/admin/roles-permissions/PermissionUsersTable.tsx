@@ -710,8 +710,8 @@ export function PermissionUsersTable({
         {!showLoading && !showError && filteredUsers.length > 0 && (
           <>
             {/* DESKTOP TABLE VIEW (≥ 1024px) */}
-            <div className="hidden lg:block w-full">
-              <table className={`w-full table-fixed border-collapse border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E3E3E3]"}`}>
+            <div className="hidden lg:block w-full overflow-x-auto">
+              <table className={`w-full min-w-[1100px] table-auto border-collapse border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E3E3E3]"}`}>
                 <thead>
                   <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
                     <th className="w-[5%] px-4 py-4 rounded-bl-xl">
