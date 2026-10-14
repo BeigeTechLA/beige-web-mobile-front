@@ -352,10 +352,14 @@ export const cpCompensationApi = {
     return (response.data.rows || []).map(view === "shoots" ? mapShootRow : mapCreatorRow);
   },
 
-  async calendarItems(range: { start: string; end: string }) {
+  async calendarItems(range: { start: string; end: string; status?: string }) {
     const response = await apiClient.get<ApiEnvelope<{ rows: RawCpRow[] }>>(
       "finance/cp-compensation/calendar",
-      { start_date: range.start, end_date: range.end }
+      {
+        start_date: range.start,
+        end_date: range.end,
+        ...(range.status ? { status: range.status } : {}),
+      }
     );
      return (response.data.rows || [])
       .map((rawRow) => ({

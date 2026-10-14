@@ -227,7 +227,7 @@ export default function AdminFinancesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [calendarItems, setCalendarItems] = useState<CpCalendarItem[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
-  const [calendarRange, setCalendarRange] = useState<{ start: string; end: string } | null>(null);
+  const [calendarRange, setCalendarRange] = useState<{ start: string; end: string; status?: string } | null>(null);
   const [selectedRow, setSelectedRow] = useState<ShootCPRow | null>(null);
   const [selectedPaymentEarningId, setSelectedPaymentEarningId] = useState<number | null>(null);
   const [selectedPaymentScope, setSelectedPaymentScope] = useState<"advance" | "final" | null>(null);
@@ -335,7 +335,7 @@ export default function AdminFinancesPage() {
     }
   }, []);
 
-  const loadCalendar = useCallback(async (range: { start: string; end: string }) => {
+  const loadCalendar = useCallback(async (range: { start: string; end: string; status?: string }) => {
     setCalendarLoading(true);
     try {
       const items = await cpCompensationApi.calendarItems(range);
