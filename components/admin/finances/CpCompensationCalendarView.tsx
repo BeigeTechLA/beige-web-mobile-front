@@ -12,6 +12,13 @@ import {
   X,
 } from "lucide-react";
 import type { CpCalendarItem } from "@/lib/api/cpCompensation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type CalendarView = "month" | "week" | "day";
 
@@ -20,10 +27,18 @@ type CpCompensationCalendarViewProps = {
   items: CpCalendarItem[];
   loading?: boolean;
   onItemClick?: (item: CpCalendarItem) => void;
-  onRangeChange?: (range: { start: string; end: string }) => void;
+  onRangeChange?: (range: { start: string; end: string; status?: string }) => void;
 };
 
 const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+const STATUS_OPTIONS = [
+  "Pending",
+  "Approval Pending",
+  "Approved",
+  "Partially Paid",
+  "Rejected",
+] as const;
 
 const dateKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
@@ -75,8 +90,8 @@ const statusColors = (status: CpCalendarItem["status"], isDark: boolean) => {
         : { text: "#D64545", border: "#F1BABA", bg: "#FFF0F0", dot: "#FF7B83" };
     default: // Pending
       return isDark
-        ? { text: "#E8D1AB", border: "#716550", bg: "#2D2A25", dot: "#DDBE7A" }
-        : { text: "#8B6B36", border: "#E6D2AD", bg: "#FFF8EC", dot: "#DDBE7A" };
+        ? { text: "#C4A6FF", border: "#5B4A86", bg: "#241D33", dot: "#A98BFF" }
+        : { text: "#6D4BC7", border: "#D6C8F5", bg: "#F5F0FF", dot: "#8F6CF0" };
   }
 };
 
@@ -102,6 +117,8 @@ export const CpCompensationCalendarView = ({
   const [view, setView] = useState<CalendarView>("month");
   const [focusDate, setFocusDate] = useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  // "All" = no status sent to backend
+  const [statusFilter, setStatusFilter] = useState<string>("All");
 
   const itemsByDate = useMemo(
     () =>
@@ -143,9 +160,13 @@ export const CpCompensationCalendarView = ({
         : dateKey(focusDate);
 
   useEffect(() => {
-    onRangeChange?.({ start: rangeStart, end: rangeEnd });
+    onRangeChange?.({
+      start: rangeStart,
+      end: rangeEnd,
+      status: statusFilter === "All" ? undefined : statusFilter,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rangeStart, rangeEnd]);
+  }, [rangeStart, rangeEnd, statusFilter]);
 
   const selectedItems = selectedDate
     ? itemsByDate[dateKey(selectedDate)] || []
@@ -201,14 +222,32 @@ export const CpCompensationCalendarView = ({
       </div>
 
       <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:shrink-0 sm:gap-5">
+
         <div className={`hidden items-center gap-4 text-sm xl:flex ${isDark ? "text-white/65" : "text-black/60"}`}>
-          {(["Pending", "Approval Pending", "Approved", "Partially Paid", "Rejected"] as const).map((s) => (
+          {STATUS_OPTIONS.map((s) => (
             <span key={s} className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: statusColors(s, isDark).dot }} />
               {s}
             </span>
           ))}
         </div>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+          <SelectTrigger
+            className={`h-10 w-[150px] rounded-full text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}
+          >
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent
+            className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}
+          >
+            <SelectItem value="All">All Status</SelectItem>
+            {STATUS_OPTIONS.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className={`flex h-10 overflow-hidden rounded-lg border ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
           {(["month", "week", "day"] as CalendarView[]).map((item) => (
             <button
@@ -228,6 +267,71 @@ export const CpCompensationCalendarView = ({
           ))}
         </div>
       </div>
+    </div>
+  );
+
+  /* ---------- Status filter ---------- */
+  const renderStatusFilter = () => (
+    <div
+      className={`flex flex-wrap items-center gap-2 border-b px-3 py-3 sm:px-4 lg:px-6 ${border} ${isDark ? "bg-[#111111]" : "bg-white"}`}
+    >
+      <span className={`mr-1 text-xs font-medium ${isDark ? "text-white/50" : "text-black/50"}`}>
+        Status:
+      </span>
+
+      <button
+        type="button"
+        onClick={() => setStatusFilter([])}
+        aria-pressed={statusFilter.length === 0}
+        className={`h-8 rounded-full border px-3 text-xs font-medium transition-colors ${
+          statusFilter.length === 0
+            ? "border-[#E5D5B8] bg-[#E5D5B8] text-black"
+            : isDark
+              ? "border-[#333333] bg-[#202020] text-white/60 hover:text-white"
+              : "border-[#E5E5E5] bg-white text-black/60 hover:text-black"
+        }`}
+      >
+        All ({items.length})
+      </button>
+
+      {STATUS_OPTIONS.map((status) => {
+        const colors = statusColors(status, isDark);
+        const active = statusFilter.includes(status);
+        return (
+          <button
+            key={status}
+            type="button"
+            onClick={() => toggleStatus(status)}
+            aria-pressed={active}
+            className={`inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors ${
+              active
+                ? ""
+                : isDark
+                  ? "border-[#333333] bg-[#202020] text-white/60 hover:text-white"
+                  : "border-[#E5E5E5] bg-white text-black/60 hover:text-black"
+            }`}
+            style={
+              active
+                ? { borderColor: colors.border, backgroundColor: colors.bg, color: colors.text }
+                : undefined
+            }
+          >
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: colors.dot }} />
+            {status}
+            <span className="opacity-60">{statusCounts[status] || 0}</span>
+          </button>
+        );
+      })}
+
+      {statusFilter.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setStatusFilter([])}
+          className={`ml-1 text-xs underline-offset-2 hover:underline ${isDark ? "text-white/50" : "text-black/50"}`}
+        >
+          Clear
+        </button>
+      )}
     </div>
   );
 
