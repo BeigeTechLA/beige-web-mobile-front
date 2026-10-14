@@ -376,6 +376,8 @@ export default function SelectCreativesPage() {
         lead_id: Number(leadId),
         crew_member_ids: selectedCreativeIds,
         allow_pending_compensation_assignment: true,
+        // CPs are notified by the sent agreement, never by the raw assignment.
+        defer_new_shoot_request_email: true,
       }).unwrap();
 
       if (!response.success) {
@@ -386,7 +388,9 @@ export default function SelectCreativesPage() {
       await cpCompensationApi.submitForApproval(payload);
       toast.success("CP assigned and compensation sent for finance approval");
       setIsAddCompOpen(false);
-      router.back();
+      // Assignment is committed above; continue to the agreement bound to
+      // those newly-created assigned_crew records.
+      router.push(`/admin/shoots/${payload.booking_id}/shoot-agreement`);
     } catch (error: unknown) {
       console.error("Failed to submit CP compensation", error);
       const data = typeof error === "object" && error !== null && "data" in error

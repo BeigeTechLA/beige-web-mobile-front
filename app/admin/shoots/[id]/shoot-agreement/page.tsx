@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useParams, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -20,35 +21,15 @@ import {
   ClauseSection,
 } from "@/components/admin/shoot-details/Step2AgreementDetails";
 import { Step3ReviewAgreement } from "@/components/admin/shoot-details/Step3ReviewAgreement";
-
-const CP_LIST: CPDetail[] = [
-  {
-    id: "cp-1",
-    name: "Ethan Cole",
-    role: "Lead Photographer",
-    assignCode: "ASSIGN-004",
-    initials: "EC",
-    compensation: "$6,250 (Fixed)",
-    projectName: "Wedding Videography",
-    projectId: "SHOOT-2026-087",
-    assignmentId: "ASSIGN-004",
-  },
-  {
-    id: "cp-2",
-    name: "Michael Chen",
-    role: "Lead Videographer",
-    assignCode: "ASSIGN-005",
-    initials: "MC",
-    compensation: "$5,500 (Fixed)",
-    projectName: "Wedding Videography",
-    projectId: "SHOOT-2026-087",
-    assignmentId: "ASSIGN-005",
-  },
-];
+import { getProject } from "@/lib/api";
+import { agreementApi } from "@/lib/api/agreements";
+import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 
 export default function AdminAgreementDetailsPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -70,6 +51,8 @@ export default function AdminAgreementDetailsPage() {
   // Modal States
   const [isSendDialogOpen, setIsSendDialogOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [cpList, setCpList] = useState<CPDetail[]>([]);
+  const [isSending, setIsSending] = useState(false);
 
   // Editable Clause Sections State
   const [sections, setSections] = useState<ClauseSection[]>([
@@ -127,10 +110,47 @@ export default function AdminAgreementDetailsPage() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    const loadShoot = async () => {
+      const bookingId = Number(params.id);
+      const requestedAssignmentId = Number(searchParams.get("assignment_id") || 0);
+      if (!bookingId) return;
+      try {
+        const response: any = await getProject(bookingId);
+        const payload = response?.data?.data ?? response?.data ?? response;
+        const booking = payload?.project ?? payload;
+        const assignments = Array.isArray(payload?.assignedCrew)
+          ? payload.assignedCrew
+          : Array.isArray(payload?.assigned_crews) ? payload.assigned_crews : [];
+        const pending = assignments.filter((assignment: any) =>
+          Number(assignment?.crew_accept ?? 0) === 0 &&
+          Number(assignment?.is_active ?? 1) === 1 &&
+          (!requestedAssignmentId || Number(assignment?.id) === requestedAssignmentId),
+        )
+          .map((assignment: any) => {
+            const cp = assignment.crew_member ?? assignment.creator ?? assignment;
+            const name = [cp.first_name, cp.last_name].filter(Boolean).join(" ") || cp.name || `CP #${assignment.crew_member_id}`;
+            return {
+              id: String(assignment.id), name,
+              role: getPrimaryRoleLabel(cp.primary_role ?? cp.role, cp.role_name),
+              assignCode: String(assignment.id), initials: name.split(" ").map((part: string) => part[0]).join("").slice(0, 2),
+              compensation: "Set in CP compensation", projectName: booking?.project_name || `Shoot #${bookingId}`,
+              projectId: String(bookingId), assignmentId: String(assignment.id),
+            } as CPDetail;
+          });
+        setCpList(pending);
+        if (!pending.length) toast.info("No pending Creative Partner assignments are available for an agreement.");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Unable to load assigned Creative Partners");
+      }
+    };
+    void loadShoot();
+  }, [params.id, searchParams]);
+
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   if (!mounted) return null;
 
-  const currentCP = CP_LIST[activeCpIndex];
+  const currentCP = cpList[activeCpIndex];
 
   // Accordion Section Handlers
   const toggleSection = (id: string) => {
@@ -159,7 +179,7 @@ export default function AdminAgreementDetailsPage() {
       setCurrentStep(2);
       setActiveCpIndex(0);
     } else if (currentStep === 2) {
-      if (selectedMode === "individual" && activeCpIndex < CP_LIST.length - 1) {
+      if (selectedMode === "individual" && activeCpIndex < cpList.length - 1) {
         setActiveCpIndex((prev) => prev + 1);
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
@@ -173,7 +193,7 @@ export default function AdminAgreementDetailsPage() {
   const handlePreviousStep = () => {
     if (currentStep === 3) {
       setCurrentStep(2);
-      setActiveCpIndex(CP_LIST.length - 1);
+      setActiveCpIndex(Math.max(cpList.length - 1, 0));
     } else if (currentStep === 2) {
       if (selectedMode === "individual" && activeCpIndex > 0) {
         setActiveCpIndex((prev) => prev - 1);
@@ -185,6 +205,40 @@ export default function AdminAgreementDetailsPage() {
       router.back();
     }
   };
+
+  const buildAgreementHtml = () => sections.map((section) =>
+    `<section><h2>${section.title}</h2><p>${section.content.replace(/\n/g, "<br />")}</p></section>`
+  ).join("\n");
+
+  const sendAgreements = async () => {
+    const bookingId = Number(params.id);
+    if (!bookingId || !cpList.length) return;
+    try {
+      setIsSending(true);
+      const html = buildAgreementHtml();
+      const targets = selectedMode === "individual" ? cpList : cpList;
+      await Promise.all(targets.map(async (cp) => {
+        const created = await agreementApi.createShootAgreement(bookingId, Number(cp.assignmentId), {
+          title: `Shoot Agreement — ${cp.projectName}`,
+          content_html: html,
+          content_json: { sections, production_date: productionDate?.toISOString() || null, location, call_time: callTime, end_time: endTime },
+          snapshot_overrides: { production_date: productionDate?.toISOString() || null, location, call_time: callTime, end_time: endTime },
+        });
+        await agreementApi.sendShootAgreement(created.data.agreement_document_id);
+      }));
+      setIsSendDialogOpen(false);
+      setIsSuccessOpen(true);
+      toast.success(`${targets.length} shoot agreement${targets.length === 1 ? "" : "s"} sent`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to create and send shoot agreements");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  if (!cpList.length) {
+    return <><Topbar pathname={pathname} /><div className={`min-h-screen p-10 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}><p>No pending CP assignment is ready for a shoot agreement.</p><Button className="mt-4" onClick={() => router.back()}>Back</Button></div></>;
+  }
 
   return (
     <>
@@ -234,7 +288,7 @@ export default function AdminAgreementDetailsPage() {
             isDark={isDark}
             selectedMode={selectedMode}
             setSelectedMode={setSelectedMode}
-            cpList={CP_LIST}
+            cpList={cpList}
             onNext={handleNextStep}
             onPrevious={handlePreviousStep}
           />
@@ -268,7 +322,7 @@ export default function AdminAgreementDetailsPage() {
           <Step3ReviewAgreement
             isDark={isDark}
             selectedMode={selectedMode}
-            cpList={CP_LIST}
+            cpList={cpList}
             reviewCpIndex={reviewCpIndex}
             setReviewCpIndex={setReviewCpIndex}
             productionDate={productionDate}
@@ -307,7 +361,7 @@ export default function AdminAgreementDetailsPage() {
               ? "Continue to Add Agreement"
               : currentStep === 2 &&
                 selectedMode === "individual" &&
-                activeCpIndex < CP_LIST.length - 1
+                activeCpIndex < cpList.length - 1
                 ? "Next CP"
                 : currentStep === 2
                   ? "Review"
@@ -319,11 +373,8 @@ export default function AdminAgreementDetailsPage() {
       <SendAgreementModal
         isOpen={isSendDialogOpen}
         onClose={() => setIsSendDialogOpen(false)}
-        onSubmit={() => {
-          setIsSendDialogOpen(false);
-          setIsSuccessOpen(true);
-        }}
-        cps={CP_LIST}
+        onSubmit={sendAgreements}
+        cps={cpList}
         mode={selectedMode}
       />
 
@@ -332,7 +383,7 @@ export default function AdminAgreementDetailsPage() {
         onClose={() => setIsSuccessOpen(false)}
         onBackToShoots={() => router.push("/admin/shoots")}
         onViewAgreement={() => router.push("/admin/agreements")}
-        count={CP_LIST.length}
+        count={cpList.length}
         mode={selectedMode}
       />
     </>

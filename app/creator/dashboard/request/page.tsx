@@ -39,7 +39,8 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { getStatusCount, getPendingProjects, GetUpcomingShoots, acceptOrDeclineProject } from "@/lib/api";
+import { getStatusCount, getPendingProjects, GetUpcomingShoots } from "@/lib/api";
+import { agreementApi } from "@/lib/api/agreements";
 // import ProjectDetailsModal from "@/Crew/ProfileDetailsModal";
 import ProjectDetailsContainer from "@/Crew/ProjectDetailsContainer";
 import { getProject } from "@/lib/api";
@@ -298,47 +299,16 @@ export default function RequestsShootsPage() {
   };
 
   /* ---------------- ACTIONS ---------------- */
-  const handleAcceptProject = async (projectId: number, accept: boolean) => {
-    const crew_member_id = getCrewMemberId();
-    if (!crew_member_id) {
-      toast.error("Invalid user session");
-      return;
-    }
-
+  const openProjectAgreement = async (projectId: number) => {
     try {
-      const response = await acceptOrDeclineProject({
-        project_id: projectId,
-        crew_member_id,
-        crew_accept: accept ? 1 : 2,
-      });
-
-      if (response && response.error === false) {
-        toast.success(accept ? "Shoot request accepted" : "Shoot request declined");
-        const acceptedItem = acceptShootEvent;
-        setAcceptShootEvent(null);
-        setDeclineShootEvent(null);
-        setDeclineReason("Schedule conflict");
-        setDeclineComments("");
-        if (accept && acceptedItem) {
-          setProjects((current) => current.filter((item) => item.project_id !== projectId));
-          setShoots((current) => {
-            const nextShoot = {
-              ...acceptedItem,
-              status: isCompletedFlag(acceptedItem) ? "Completed" : "Confirmed",
-              project_id: acceptedItem.project_id || acceptedItem.id,
-            };
-            const withoutDuplicate = current.filter((item) => item.project_id !== projectId);
-            return [nextShoot, ...withoutDuplicate];
-          });
-          handleTabChange("shoots");
-        }
-        await fetchData();
-      } else {
-        toast.error(response?.message || "Failed to update project status");
-      }
-    } catch (err) {
-      console.error("Action Error:", err);
-      toast.error("An unexpected error occurred");
+      const response = await agreementApi.listCreatorAgreements({ type: "shoot", status: "pending_acceptance", booking_id: projectId, limit: 1 });
+      const agreement = response.data[0];
+      if (!agreement) throw new Error("A shoot agreement has not been sent yet");
+      setAcceptShootEvent(null);
+      setDeclineShootEvent(null);
+      router.push(`/creator/dashboard/request/review-agreement?agreement_id=${agreement.agreement_document_id}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to open shoot agreement");
     }
   };
 
@@ -693,6 +663,7 @@ export default function RequestsShootsPage() {
                         </Button>
                         <Link
                           href={"/creator/dashboard/request/review-agreement"}
+                          onClick={(event) => { event.preventDefault(); void openProjectAgreement(item.project_id); }}
                           className={`h-10 rounded-md text-sm flex items-center text-black px-6 bg-[#E8D1AB] font-semibold hover:bg-[#E5D5B8]`}
                         >
                           Review Agreement →
@@ -875,9 +846,7 @@ export default function RequestsShootsPage() {
                                   }}
                                   leadId={item.project_id ?? item.id ?? ""}
                                   onViewDetails={() => handleOpenProjectDetails(item.project_id)}
-                                  onReview={() => {
-                                    window.location.href = "/creator/dashboard/request/review-agreement";
-                                  }}
+                                  onReview={() => { void openProjectAgreement(item.project_id); }}
                                   onApprove={() => {
                                     setAcceptShootEvent(item);
                                     setMenuAnchor(null);
@@ -962,9 +931,9 @@ export default function RequestsShootsPage() {
 
                 <Button
                   className={`flex-1 font-semibold transition-all bg-[#E8D1AB] text-black hover:bg-[#d4be9a]`}
-                  onClick={() => handleAcceptProject(acceptShootEvent.project_id, true)}
+                  onClick={() => openProjectAgreement(acceptShootEvent.project_id)}
                 >
-                  Confirm
+                  Review Agreement
                 </Button>
               </div>
             </div>
@@ -1060,9 +1029,9 @@ export default function RequestsShootsPage() {
                 </Button>
                 <Button
                   className="flex-1 bg-red-600 text-white hover:bg-red-700 font-semibold transition-colors shadow-sm"
-                  onClick={() => handleAcceptProject(declineShootEvent.project_id, false)}
+                  onClick={() => openProjectAgreement(declineShootEvent.project_id)}
                 >
-                  Decline Shoot
+                  Review Agreement
                 </Button>
               </div>
             </div>

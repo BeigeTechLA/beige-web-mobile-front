@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
-import { MoreVertical } from "lucide-react";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import {
   Select,
@@ -15,37 +13,17 @@ import { getInitials } from "@/lib/utils";
 
 export interface CPAgreementItem {
   id: string;
+  assignmentId: number;
+  agreementId?: number;
   name: string;
   role: string;
   avatarUrl: string;
   agreementType: string;
   version: string;
   compensation: string;
-  status: "Accepted" | "Pending" | "Rejected" | "Draft";
+  status: "Accepted" | "Pending" | "Rejected" | "Draft" | "Not Sent" | "Cancelled";
+  actionLabel: string;
 }
-
-const DEFAULT_AGREEMENTS: CPAgreementItem[] = [
-  {
-    id: "1",
-    name: "Ethan Cole",
-    role: "Lead Photographer",
-    avatarUrl: "/images/avatars/ethan.jpg",
-    agreementType: "Individual",
-    version: "v1.0",
-    compensation: "$6,250.00",
-    status: "Accepted",
-  },
-  {
-    id: "2",
-    name: "Michael Chen",
-    role: "Videographer",
-    avatarUrl: "/images/avatars/michael.jpg",
-    agreementType: "Individual",
-    version: "v1.0",
-    compensation: "$6,250.00",
-    status: "Pending",
-  },
-];
 
 interface CpAgreementsTableProps {
   agreements?: CPAgreementItem[];
@@ -53,13 +31,13 @@ interface CpAgreementsTableProps {
 }
 
 export default function CpAgreementsTable({
-  agreements = DEFAULT_AGREEMENTS,
+  agreements = [],
   onActionClick,
 }: CpAgreementsTableProps) {
   const { isDark } = useResolvedTheme();
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const availableStatuses = ["all", "Accepted", "Pending", "Rejected", "Draft"];
+  const availableStatuses = ["all", "Not Sent", "Draft", "Pending", "Accepted", "Rejected", "Cancelled"];
 
   // Filter agreements based on selected status
   const filteredAgreements = statusFilter && statusFilter !== "all"
@@ -205,6 +183,16 @@ export default function CpAgreementsTable({
                       Draft
                     </span>
                   )}
+                  {item.status === "Not Sent" && (
+                    <span className={`inline-flex items-center justify-center px-5 py-1.5 rounded-full text-sm lg:text-base font-medium ${isDark ? "bg-[#262626] text-[#D0D0D0]" : "bg-[#E5E7EB] text-[#4B5563]"}`}>
+                      Not Sent
+                    </span>
+                  )}
+                  {item.status === "Cancelled" && (
+                    <span className="inline-flex items-center justify-center px-5 py-1.5 rounded-full text-sm lg:text-base font-medium bg-[#FEE2E2] text-[#991B1B]">
+                      Cancelled
+                    </span>
+                  )}
                 </td>
 
                 {/* Action Column */}
@@ -212,18 +200,23 @@ export default function CpAgreementsTable({
                   <button
                     onClick={() => onActionClick?.(item)}
                     type="button"
-                    className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${isDark
+                    className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors inline-flex items-center justify-center ${isDark
                         ? "text-white hover:text-white/80"
                         : "text-black hover:text-black/80"
                       }`}
                   >
-                    <MoreVertical size={30} />
+                    {item.actionLabel}
                   </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {filteredAgreements.length === 0 && (
+          <p className={`px-5 py-8 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+            No Creative Partners are assigned to this shoot yet.
+          </p>
+        )}
       </div>
     </div>
   );

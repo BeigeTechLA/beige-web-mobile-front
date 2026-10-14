@@ -30,7 +30,9 @@ import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFi
 import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 import CpAgreementsTable from "@/components/admin/shoot-details/CpAgreementsTable";
+import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
 import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
+import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 
 type SkillOption = {
   id?: number | string;
@@ -181,6 +183,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { canEdit, canDelete } = usePermissions("shoots");
+  const { canCreate: canCreateAgreement } = usePermissions("agreements");
   // const [activeTab, setActiveTab] = useState("Overview");
   const activeTab = searchParams.get("tab") || "Overview";
 
@@ -198,6 +201,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const [quotePreviewData, setQuotePreviewData] = useState<SalesQuoteDetailData | null>(null);
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [shootAgreements, setShootAgreements] = useState<AgreementDocument[]>([]);
 
   // State to show/hide CP Agreements table
   const [isCPAgreementAvailable, setIsCPAgreementAvailable] = useState(true);
@@ -214,6 +218,22 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    agreementApi
+      .listAdminAgreements({ type: "shoot", booking_id: Number(id), limit: 100 })
+      .then((response) => {
+        if (active) setShootAgreements(response.data);
+      })
+      .catch(() => {
+        if (active) setShootAgreements([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
@@ -528,6 +548,48 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     );
   }
 
+  const assignedCrewFromResponse = asArray(project?.assignedCrew);
+  const assignedCreativePartners = assignedCrewFromResponse.length
+    ? assignedCrewFromResponse
+    : asArray(project?.assigned_crews);
+  const currentAgreementByAssignmentId = new Map<number, AgreementDocument>();
+  shootAgreements
+    .filter((agreement) => agreement.is_current && agreement.assignment_id)
+    .forEach((agreement) => currentAgreementByAssignmentId.set(Number(agreement.assignment_id), agreement));
+  const cpAgreementRows = assignedCreativePartners.map((assignment: any) => {
+    const assignmentId = Number(assignment?.id || 0);
+    const creator = assignment?.crew_member || assignment?.creator || {};
+    const name = [creator.first_name, creator.last_name].filter(Boolean).join(" ") || creator.name || `CP #${assignment?.crew_member_id || assignmentId}`;
+    const agreement = currentAgreementByAssignmentId.get(assignmentId);
+    const statusMap: Record<string, "Accepted" | "Pending" | "Rejected" | "Draft" | "Cancelled"> = {
+      accepted: "Accepted",
+      pending_acceptance: "Pending",
+      rejected: "Rejected",
+      draft: "Draft",
+      cancelled: "Cancelled",
+    };
+
+    return {
+      id: String(assignmentId),
+      assignmentId,
+      agreementId: agreement?.agreement_document_id,
+      name,
+      role: getPrimaryRoleLabel(creator.primary_role ?? creator.role, creator.role_name),
+      avatarUrl: "",
+      agreementType: "Individual",
+      version: agreement?.display_version || "—",
+      compensation: agreement?.compensation_amount != null
+        ? `${agreement.currency || "USD"} ${Number(agreement.compensation_amount).toFixed(2)}`
+        : assignment?.total_compensation != null
+          ? `USD ${Number(assignment.total_compensation).toFixed(2)}`
+          : "Not configured",
+      status: agreement ? statusMap[agreement.status] || "Draft" : "Not Sent",
+      actionLabel: agreement ? "Manage" : "Create Agreement",
+    };
+  });
+  const canOpenShootAgreement =
+    canCreateAgreement && assignedCreativePartners.length > 0;
+
   return (
     <>
       <Topbar pathname={pathname}
@@ -563,6 +625,21 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             >
               <MessageCirclePlus className="w-4 h-4" />
               {notesButtonText}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => router.push(`${shootBasePath}/${id}/shoot-agreement`)}
+              disabled={!canOpenShootAgreement}
+              title={
+                !canCreateAgreement
+                  ? "Create agreement permission not allowed"
+                  : assignedCreativePartners.length === 0
+                    ? "Assign a Creative Partner before creating a shoot agreement"
+                    : "Create or manage shoot agreements"
+              }
+              className="h-12 shrink-0 whitespace-nowrap rounded-lg bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Shoot Agreement
             </Button>
             <Button
               className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
@@ -748,9 +825,13 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                     isCPAgreementAvailable &&
                     <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                       <CpAgreementsTable
-                        // agreements={agreements}
+                        agreements={cpAgreementRows}
                         onActionClick={(agreement) => {
-                          console.log("Action menu clicked for:", agreement.name);
+                          if (agreement.agreementId) {
+                            router.push(`/admin/agreements/agreement-details?agreement_id=${agreement.agreementId}`);
+                            return;
+                          }
+                          router.push(`${shootBasePath}/${id}/shoot-agreement?assignment_id=${agreement.assignmentId}`);
                         }}
                       />
                     </div>

@@ -1,71 +1,144 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check } from "lucide-react";
 import { useTheme } from "next-themes";
 import Topbar from "@/components/admin/Topbar";
 import SuccessModal from "@/components/creator-profile/AgreementAcceptedSuccess";
+import { toast } from "sonner";
+import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
+import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+
+type AgreementSection = { id?: string; num?: string; title?: string; content?: string };
+
+const formatDate = (value?: string | null) => value
+  ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value))
+  : "—";
+
+const getAgreementSections = (content: unknown): AgreementSection[] => {
+  const parsed = typeof content === "string" ? (() => {
+    try { return JSON.parse(content); } catch { return null; }
+  })() : content;
+  if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as { sections?: unknown }).sections)) return [];
+  return (parsed as { sections: AgreementSection[] }).sections.filter((section) =>
+    section && typeof section.title === "string" && typeof section.content === "string" && section.content.trim(),
+  );
+};
+
+const SectionContent = ({ content }: { content: string }) => /<[/!]?\w[\s\S]*>/i.test(content)
+  ? <div className="agreement-content" dangerouslySetInnerHTML={{ __html: content }} />
+  : <p className="whitespace-pre-wrap">{content}</p>;
 
 export default function AgreementReviewPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [agreement, setAgreement] = useState<AgreementDocument | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form Metadata State
+  const snapshot = agreement?.snapshot;
   const agreementType = "SHOOT ASSIGNMENT AGREEMENT";
-  const agreementTitle = "ABC Corporate Shoot";
-  const version = "v1.0";
-  const status = "Pending Acceptance";
+  const agreementTitle = snapshot?.shoot?.name || agreement?.title || "Shoot Agreement";
+  const version = agreement?.display_version || "v1";
+  const status = agreement?.status === "pending_acceptance" ? "Pending Acceptance" : (agreement?.status || "Pending Acceptance").replace(/_/g, " ");
 
   // Project Information
   const projectInfo = {
-    projectName: "ABC Corporate Shoot",
-    projectId: "PRJ-1024",
-    assignmentId: "ASN-2012",
-    creativePartner: "John Doe",
-    role: "Photographer",
+    projectName: snapshot?.shoot?.name || agreementTitle,
+    projectId: String(snapshot?.booking_id || agreement?.booking_id || "—"),
+    assignmentId: String(snapshot?.assignment_id || agreement?.assignment_id || "—"),
+    creativePartner: snapshot?.creative_partner?.name || "—",
+    role: getPrimaryRoleLabel(snapshot?.creative_partner?.role),
   };
 
   // Production Details
   const productionDetails = {
-    productionDate: "15 September, 2026",
-    location: "Los Angeles",
-    callTime: "8:00 AM",
-    expectedEndTime: "6:00 PM",
+    productionDate: formatDate(snapshot?.shoot?.date),
+    location: snapshot?.shoot?.location || "—",
+    callTime: snapshot?.shoot?.start_time || "—",
+    expectedEndTime: snapshot?.shoot?.end_time || "—",
   };
 
   // Compensation
-  const totalCompensation = "$2000.00";
+  const totalCompensation = `${snapshot?.compensation?.currency || agreement?.currency || "USD"} ${Number(snapshot?.compensation?.amount ?? agreement?.compensation_amount ?? 0).toFixed(2)}`;
 
   // Detailed Specifications
-  const scopeOfServices =
-    "Capture photography coverage for the corporate event, including event highlights and speaker sessions.";
-
-  const equipmentRequirements =
-    "Sony FX3 or equivalent cinema camera, prime lenses (24mm, 50mm, 85mm), tripod, gimbal stabilizer, audio recording equipment.";
-
-  const deliverablesMediaTransfer =
-    "Upload all raw media to the designated Beige folder within 24 hours of shoot completion.";
-
-  const approvedExpensesTravel =
-    "Travel to and from shoot location (up to $75 round trip). Parking at venue. No additional expenses without prior written approval.";
-
-  const specialInstructions =
-    "Client requires all crew to sign NDA upon arrival. Business casual attire. Shoot brief will be provided 48 hours before the production date.";
+  const asText = (value: unknown) => Array.isArray(value) ? value.join(", ") : String(value || "—");
+  const fallbackSections = [
+    { title: "Scope of Services", content: asText(snapshot?.shoot?.scope) },
+    { title: "Equipment Requirements", content: asText(snapshot?.shoot?.equipment) },
+    { title: "Deliverables / Media Transfer", content: asText(snapshot?.shoot?.deliverables) },
+    { title: "Approved Expenses / Travel", content: asText(snapshot?.extras?.expenses) },
+    { title: "Special Instructions", content: asText(snapshot?.shoot?.special_instructions) },
+  ].filter((section) => section.content !== "—");
+  const agreementSections = getAgreementSections(agreement?.content_json);
+  const visibleSections = agreementSections.length ? agreementSections : fallbackSections;
 
   const metaFooter = {
-    beigeSheetVersion: "v1.0",
-    createdDate: "15 Sep 2026, 12:20 PM",
+    beigeSheetVersion: version,
+    createdDate: formatDate(agreement?.created_at),
   };
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadAgreement = async () => {
+      try {
+        const suppliedId = Number(searchParams.get("agreement_id"));
+        const agreementId = Number.isFinite(suppliedId) && suppliedId > 0
+          ? suppliedId
+          : (await agreementApi.listCreatorAgreements({ type: "shoot", status: "pending_acceptance", limit: 1 })).data[0]?.agreement_document_id;
+        if (!agreementId) throw new Error("No shoot agreement is awaiting your response");
+        const response = await agreementApi.getCreatorAgreement(agreementId);
+        if (active) setAgreement(response.data.agreement);
+      } catch (error) {
+        if (active) toast.error(error instanceof Error ? error.message : "Unable to load shoot agreement");
+      }
+    };
+    void loadAgreement();
+    return () => { active = false; };
+  }, [searchParams]);
+
+  const handleAccept = async () => {
+    if (!agreement) return;
+    try {
+      setIsSubmitting(true);
+      await agreementApi.acceptShootAgreement(agreement.agreement_document_id);
+      setAgreement({ ...agreement, status: "accepted" });
+      setIsModalOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to accept the shoot agreement");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!agreement) return;
+    const rejectionReason = window.prompt("Why are you rejecting this agreement?");
+    if (!rejectionReason?.trim()) return;
+    try {
+      setIsSubmitting(true);
+      await agreementApi.rejectShootAgreement(agreement.agreement_document_id, rejectionReason.trim());
+      setAgreement({ ...agreement, status: "rejected" });
+      toast.success("Shoot agreement rejected");
+      router.push("/creator/dashboard/request");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to reject the shoot agreement");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
@@ -224,88 +297,28 @@ export default function AgreementReviewPage() {
 
             <hr className={`border-[0.5px] ${isDark ? "border-white/50" : "border-black/40"}`} />
 
-            {/* Scope of Services */}
-            <div className="p-5 lg:p-9 space-y-3">
-              <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-                Scope of Services
-              </h2>
-              <div
-                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
-                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
-                    : "bg-gray-50 border-gray-200 text-gray-700"
-                  }`}
-              >
-                {scopeOfServices}
-              </div>
-            </div>
+            {visibleSections.map((section, index) => (
+              <React.Fragment key={section.id || `${section.title}-${index}`}>
+                <hr className={`border-[0.5px] ${isDark ? "border-white/50" : "border-black/40"}`} />
+                <section className="p-5 lg:p-9 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-semibold ${isDark ? "text-[#E8D1AB]" : "text-gray-400"}`}>{section.num || String(index + 1).padStart(2, "0")}</span>
+                    <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>{section.title}</h2>
+                  </div>
+                  <div className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
+                      ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
+                      : "bg-gray-50 border-gray-200 text-gray-700"
+                    }`}>
+                    <SectionContent content={section.content || ""} />
+                  </div>
+                </section>
+              </React.Fragment>
+            ))}
 
             <hr className={`border-[0.5px] ${isDark ? "border-white/50" : "border-black/40"}`} />
 
-            {/* Equipment Requirements */}
-            <div className="p-5 lg:p-9 space-y-3">
-              <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-                Equipment Requirements
-              </h2>
-              <div
-                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
-                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
-                    : "bg-gray-50 border-gray-200 text-gray-700"
-                  }`}
-              >
-                {equipmentRequirements}
-              </div>
-            </div>
-
-            <hr className={`border-[0.5px] ${isDark ? "border-white/50" : "border-black/40"}`} />
-
-            {/* Deliverables / Media Transfer */}
-            <div className="p-5 lg:p-9 space-y-3">
-              <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-                Deliverables / Media Transfer
-              </h2>
-              <div
-                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
-                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
-                    : "bg-gray-50 border-gray-200 text-gray-700"
-                  }`}
-              >
-                {deliverablesMediaTransfer}
-              </div>
-            </div>
-
-            <hr className={`border-[0.5px] ${isDark ? "border-white/50" : "border-black/40"}`} />
-
-            {/* Approved Expenses / Travel */}
-            <div className="p-5 lg:p-9 space-y-3">
-              <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-                Approved Expenses / Travel
-              </h2>
-              <div
-                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
-                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
-                    : "bg-gray-50 border-gray-200 text-gray-700"
-                  }`}
-              >
-                {approvedExpensesTravel}
-              </div>
-            </div>
-
-            <hr className={`border-[0.5px] ${isDark ? "border-white/50" : "border-black/40"}`} />
-
-            {/* Special Instructions & Meta Footer */}
+            {/* Agreement footer */}
             <div className="p-5 lg:p-9 space-y-4">
-              <h2 className={`lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-                Special Instructions
-              </h2>
-              <div
-                className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm leading-relaxed ${isDark
-                    ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70"
-                    : "bg-gray-50 border-gray-200 text-gray-700"
-                  }`}
-              >
-                {specialInstructions}
-              </div>
-
               <p className={`text-xs lg:text-sm leading-relaxed pt-2 ${isDark ? "text-[#9E9690]" : "text-gray-600"}`}>
                 This Shoot Assignment Agreement is issued under the Beige Creative
                 Partner Agreement. By accepting, the Creative Partner confirms their
@@ -339,7 +352,7 @@ export default function AgreementReviewPage() {
 
         {/* Bottom Assignment Acceptance Action Card */}
         <div
-          className={`border rounded-2xl max-w-6xl mx-auto p-6 space-y-4 ${isDark
+          className={`border rounded-2xl p-6 space-y-4 ${isDark
               ? "bg-[#171717] border-[#3d3d3d]"
               : "bg-white border-[#E2E8F0]"
             }`}
@@ -361,24 +374,26 @@ export default function AgreementReviewPage() {
               {isChecked && <Check size={14} strokeWidth={3} />}
             </div>
             <p className={`text-xs lg:text-sm leading-relaxed ${isDark ? "text-white" : "text-gray-700"}`}>
-              By selecting 'Accept Assignment,' I confirm that I have reviewed this Beige Sheet and agree to perform this Assignment according to its terms and the Beige Creative Partner Agreement. I understand that accepting this Assignment creates a binding project commitment.
+              By selecting &apos;Accept Assignment,&apos; I confirm that I have reviewed this Beige Sheet and agree to perform this Assignment according to its terms and the Beige Creative Partner Agreement. I understand that accepting this Assignment creates a binding project commitment.
             </p>
           </label>
 
           <div className="flex flex-col lg:flex-row lg:items-center gap-3 pt-2">
             <button
-              disabled={!isChecked}
+              disabled={!isChecked || !agreement || agreement.status !== "pending_acceptance" || isSubmitting}
               className={`flex-1 rounded-lg py-3 text-sm font-medium transition-all ${isChecked
                   ? "bg-[#10B981] text-white hover:bg-[#0E6C38] active:scale-[0.99]"
                   : isDark
                     ? "bg-[#123E28] text-[#3D7C5D] cursor-not-allowed"
                     : "bg-gray-200 text-gray-400 cursor-not-allowed"
                 }`}
-              onClick={() => { setIsModalOpen(true) }}
+              onClick={handleAccept}
             >
-              Accept Assignment
+              {isSubmitting ? "Submitting..." : "Accept Assignment"}
             </button>
             <button
+              disabled={!agreement || agreement.status !== "pending_acceptance" || isSubmitting}
+              onClick={handleReject}
               className={`px-8 py-3 rounded-lg text-sm font-medium transition-all ${isDark
                   ? "bg-[#EF4444] text-white hover:bg-[#8F2B2B]"
                   : "bg-red-600 text-white hover:bg-red-700"

@@ -158,12 +158,12 @@ const menuItems: MenuItem[] = [
       { name: "Quote Analytics", link: "/admin/quotes/analytics" },
     ],
   },
-  // {
-  //   name: "Agreements",
-  //   icon: ClipboardList,
-  //   link: "/admin/agreements",
-  //   permissionKeys: ["agreements"],
-  // },
+  {
+    name: "Agreements",
+    icon: ClipboardList,
+    link: "/admin/agreements",
+    permissionKeys: ["agreements"],
+  },
   {
     name: "Invoices",
     icon: Receipt,
@@ -481,15 +481,33 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
                     {item
                       .children!.filter((child, childIndex) => {
-                        const childPermissionKeys = child.permissionKeys ??
+                        const childPermissionKeys =
+                          child.permissionKeys ??
                           (hierarchyEntry
                             ? [hierarchyEntry[1].children[childIndex]]
                             : []);
 
                         if (!childPermissionKeys.length) return true;
 
-                        return Boolean(
-                          hasModulePermission(permissions, childPermissionKeys, "view"),
+                        // Quote submenu permissions were introduced after the
+                        // existing admin/sales quote permissions. Keep those
+                        // valid legacy permissions usable until every role has
+                        // been migrated to the per-submenu permission keys.
+                        const canUseLegacyQuoteAccess =
+                          item.name === "Quotes" &&
+                          hasModulePermission(permissions, ["quotes"], "view");
+                        const canUseLegacyFinanceAccess =
+                          item.name === "Finances" &&
+                          hasModulePermission(permissions, ["finances"], "view");
+
+                        return (
+                          canUseLegacyQuoteAccess ||
+                          canUseLegacyFinanceAccess ||
+                          hasModulePermission(
+                            permissions,
+                            childPermissionKeys,
+                            "view",
+                          )
                         );
                       })
                       .map((child) => {

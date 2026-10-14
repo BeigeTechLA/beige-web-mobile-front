@@ -390,7 +390,9 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       await cpCompensationApi.submitForApproval({ ...payload, new_shoot_request_creator_ids: selectedCreativeIds });
       toast.success("CP assigned and compensation sent for finance approval");
       setIsAddCompOpen(false);
-      router.push(`/admin/shoots/${projectId}`);
+      // The assignment now exists, so the agreement wizard can safely create
+      // one document per selected CP using its assigned_crew record.
+      router.push(`/admin/shoots/${projectId}/shoot-agreement`);
     } catch (error: unknown) {
       console.error("Failed to submit CP compensation", error);
       const data = typeof error === "object" && error !== null && "data" in error
