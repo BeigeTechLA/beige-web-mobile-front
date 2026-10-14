@@ -2433,7 +2433,10 @@ function MultiCreatorPaymentContent() {
       return;
     }
     const { booking } = details;
-    const effectiveCardProcessingFeeRate = cardProcessingFeeRate || (/card processing fee:\s*4%/i.test(String(booking?.special_instructions || "")) ? 0.04 : 0);
+    const quoteAlreadyIncludesCardFee = /(?:card payment charges|tax)\s*\(4%\)/i.test(String(details?.quote?.tax_type || ""));
+    const effectiveCardProcessingFeeRate = quoteAlreadyIncludesCardFee
+      ? 0
+      : cardProcessingFeeRate || (/card processing fee:\s*4%/i.test(String(booking?.special_instructions || "")) ? 0.04 : 0);
     const fullPayableAmount = resolveBasePayableAmount(details);
     const basePayableAmount = paymentLinkAmount
       ? Math.min(paymentLinkAmount, fullPayableAmount)
@@ -2763,7 +2766,10 @@ function MultiCreatorPaymentContent() {
   }
 
   const { booking, creators, quote } = paymentDetails;
-  const effectiveCardProcessingFeeRate = cardProcessingFeeRate || (/card processing fee:\s*4%/i.test(String(booking?.special_instructions || "")) ? 0.04 : 0);
+  const quoteAlreadyIncludesCardFee = /(?:card payment charges|tax)\s*\(4%\)/i.test(String(quote?.tax_type || ""));
+  const effectiveCardProcessingFeeRate = quoteAlreadyIncludesCardFee
+    ? 0
+    : cardProcessingFeeRate || (/card processing fee:\s*4%/i.test(String(booking?.special_instructions || "")) ? 0.04 : 0);
   const quoteTotal = (quote && typeof quote.total !== 'undefined') ? parseFloat(quote.total) : null;
   const isQuoteValid = quote && quoteTotal !== null && !isNaN(quoteTotal);
   const fullPayableAmount = resolveBasePayableAmount(paymentDetails);
@@ -3305,14 +3311,11 @@ function MultiCreatorPaymentContent() {
                               <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-black/10">
                                 <div className="flex flex-col">
                                   <span className="text-[#CCC6C6] font-medium">
-                                    Tax
-                                    {parseFloat(quote.tax_rate || 0) > 0 ? ` (${quote.tax_rate}%)` : ""}
+                                    {String(quote.tax_type || "Tax").replace(/\bTax\s*\(4%\)/gi, "Card Payment Charges (4%)")}
+                                    {parseFloat(quote.tax_rate || 0) > 0 && !String(quote.tax_type || "").includes("%")
+                                      ? ` (${quote.tax_rate}%)`
+                                      : ""}
                                   </span>
-                                  {quote.tax_type && (
-                                    <span className="text-[10px] text-[#787979] capitalize">
-                                      {quote.tax_type} tax
-                                    </span>
-                                  )}
                                 </div>
                                 <span className="font-medium text-white">
                                   {formatCurrency(quote.tax_amount)}

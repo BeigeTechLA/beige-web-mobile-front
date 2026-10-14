@@ -1471,6 +1471,7 @@ export default function ShootsPage() {
             cpAssignmentFilter={cpAssignmentFilter}
             setCpAssignmentFilter={setCpAssignmentFilter}
             postProductionUserFilter={postProductionUserFilter}
+            postProductionAssignmentFilter={postProductionAssignmentFilter}
             viewMode={viewMode}
             setViewMode={setViewMode}
             showHeaderControls={true}

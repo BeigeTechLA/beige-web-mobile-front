@@ -239,6 +239,8 @@ export default function QuoteVersionSummary({ quoteId, isDark = true }: QuoteVer
   const discountAmount = Math.min(resolvedDiscountAmount, subtotalAmount);
   const taxRate = Number(quote?.tax_rate ?? 0);
   const taxAmount = Number(quote?.tax_amount ?? 0);
+  const taxLabel = String(quote?.tax_type || "Sales Tax")
+    .replace(/\bTax\s*\(4%\)/gi, "Card Payment Charges (4%)");
   const hasDiscount = discountAmount > 0;
   const activePaymentSummaryOverrides =
     paymentSummaryOverrides?.versionId === String(selectedVersionId)
@@ -499,10 +501,12 @@ export default function QuoteVersionSummary({ quoteId, isDark = true }: QuoteVer
                   <span className="font-medium text-[#FF8A8A]">- {formatQuoteCurrency(discountAmount)}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between lg:text-lg">
-                <span className={`font-medium ${isDark ? "text-[#96969E]" : "text-[#727272]"}`}>Sales Tax ({taxRate}%)</span>
+              {taxAmount > 0 ? <div className="flex items-center justify-between lg:text-lg">
+                <span className={`font-medium ${isDark ? "text-[#96969E]" : "text-[#727272]"}`}>
+                  {taxLabel}{taxRate > 0 && !taxLabel.includes("%") ? ` (${taxRate}%)` : ""}
+                </span>
                 <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{formatQuoteCurrency(taxAmount)}</span>
-              </div>
+              </div> : null}
               {paymentSummary ? (
                 <div className="space-y-3 border-t border-white/10 pt-4">
                   <div className="flex items-center justify-between lg:text-lg">

@@ -401,7 +401,8 @@ const buildQuotePdf = async (quote: SalesQuoteDetailData, quoteId?: string | nul
   const storedSubtotal = getQuoteNumber(quoteData.subtotal);
   const subtotal = lineItems.length > 0 ? lineItemsSubtotal : storedSubtotal ?? 0;
   const taxRate = getQuoteNumber(quoteData.tax_rate) ?? 0;
-  const taxType = getQuoteText(quoteData.tax_type, "Sales Tax") || "Sales Tax";
+  const taxType = (getQuoteText(quoteData.tax_type, "Sales Tax") || "Sales Tax")
+    .replace(/\bTax\s*\(4%\)/gi, "Card Payment Charges (4%)");
   const taxAmount = subtotal * (taxRate / 100);
   const amountAfterTax = subtotal + taxAmount;
   const discountValue = getQuoteNumber(quoteData.discount_value) ?? 0;

@@ -806,7 +806,7 @@ export default function CreatorFileManagerPhasePage() {
                 <FolderPlus /> Create Folder
               </Button>
             ) : null}
-            {canUpload ? (
+            {/* {canUpload ? (
               <Button
                 onClick={() => {
                   if (selectionLockActive) return;
@@ -817,7 +817,7 @@ export default function CreatorFileManagerPhasePage() {
               >
                 <Upload /> Upload Files
               </Button>
-            ) : null}
+            ) : null} */}
           </div>
         ) : null}
       />

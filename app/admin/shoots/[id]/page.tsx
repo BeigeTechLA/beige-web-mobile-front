@@ -743,7 +743,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                     </div>
                   ) : null}
 
-                  {/* If shoot Agreement is sent to CPs, show them below */}
+                  {/* If shoot Agreement is sent to CPs, show them below
                   {
                     isCPAgreementAvailable &&
                     <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
@@ -755,8 +755,9 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                       />
                     </div>
                   }
+                  */}
 
-                  <div className={`${isCPAgreementAvailable ? "" : "mt-5 lg:mt-9 "} border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
+                  <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} createPermissionModuleKey="shoots" />
                   </div>
                 </>
