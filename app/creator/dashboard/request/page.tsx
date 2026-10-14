@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Calendar as CalendarIcon,
   MapPin,
@@ -86,6 +86,7 @@ export default function RequestsShootsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const handledBookingDeepLink = useRef<string | null>(null);
 
   /* ---------------- VIEW TOGGLE STATE ---------------- */
   const view = (searchParams.get("view") as "grid" | "list") || "grid";
@@ -325,6 +326,23 @@ export default function RequestsShootsPage() {
       toast.error("Failed to load project details");
     }
   };
+
+  useEffect(() => {
+    const rawBookingId = searchParams.get("bookingId");
+    if (!rawBookingId) {
+      handledBookingDeepLink.current = null;
+      return;
+    }
+    const bookingId = Number(rawBookingId);
+    if (!Number.isSafeInteger(bookingId) || bookingId < 1) return;
+    if (handledBookingDeepLink.current === rawBookingId) return;
+    handledBookingDeepLink.current = rawBookingId;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("bookingId");
+    router.replace(`${pathname}${params.size ? `?${params.toString()}` : ""}`, { scroll: false });
+    void handleOpenProjectDetails(bookingId);
+  }, [pathname, router, searchParams]);
 
   const toggleDropdown = () => setIsOpen(!isOpen);
 

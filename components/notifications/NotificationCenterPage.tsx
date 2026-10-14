@@ -138,10 +138,13 @@ export default function NotificationCenterPage({ portal }: { portal: Notificatio
   const handleAction = async (item: AdminNotification) => {
     try {
       if (item.unread) await markOneRead(item.id);
-      setSelectedNotification(null);
       const destination = getNotificationDestination(item, portal);
-      if (destination) router.push(destination);
-      else toast.info("This notification has no linked page.");
+      if (destination) {
+        setSelectedNotification(null);
+        router.push(destination);
+      } else {
+        setSelectedNotification({ ...item, unread: false });
+      }
     } catch {
       toast.error("Could not mark notification as read.");
     }
@@ -303,7 +306,7 @@ export default function NotificationCenterPage({ portal }: { portal: Notificatio
                       }}
                       className="h-9 rounded-lg bg-[#E8D1AB] px-4 text-xs font-medium text-black transition hover:bg-[#D9C19A]"
                     >
-                      {item.actionLabel}
+                      {getNotificationDestination(item, portal) ? item.actionLabel : "View details"}
                     </button> : null}
                   </div>
                 </div>
@@ -324,6 +327,7 @@ export default function NotificationCenterPage({ portal }: { portal: Notificatio
         onPrimaryAction={(item) => { void handleAction(item); }}
         onMarkUnread={(item) => { void handleMarkUnread(item); }}
         onMuteSimilar={(item) => { void handleMuteSimilar(item); }}
+        hasDestination={selectedNotification ? Boolean(getNotificationDestination(selectedNotification, portal)) : false}
       />
     </>
   );

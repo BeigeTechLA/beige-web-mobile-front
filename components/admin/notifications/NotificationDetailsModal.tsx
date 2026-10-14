@@ -27,6 +27,7 @@ type NotificationDetailsModalProps = {
   onPrimaryAction: (notification: AdminNotification) => void;
   onMarkUnread: (notification: AdminNotification) => void;
   onMuteSimilar: (notification: AdminNotification) => void;
+  hasDestination?: boolean;
   archived?: boolean;
 };
 
@@ -69,6 +70,7 @@ export default function NotificationDetailsModal({
   onPrimaryAction,
   onMarkUnread,
   onMuteSimilar,
+  hasDestination = true,
   archived = false,
 }: NotificationDetailsModalProps) {
   const { theme } = useTheme();
@@ -153,7 +155,7 @@ export default function NotificationDetailsModal({
             </div>
           </div>
 
-          {!archived ? <button
+          {!archived && hasDestination ? <button
             type="button"
             onClick={() => onPrimaryAction(notification)}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#E8D1AB] text-sm font-medium text-black transition-colors hover:bg-[#D9C19A]"

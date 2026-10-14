@@ -1,4 +1,4 @@
-export type NotificationCategory = "Files" | "Payments" | "Messages" | "Shoots" | "Meetings" | "Proposals" | "Projects" | "System";
+export type NotificationCategory = "Files" | "Payments" | "Messages" | "Shoots" | "Meetings" | "Proposals" | "Projects" | "Leads" | "Agreements" | "Disputes" | "Payouts" | "Reviews" | "System";
 export type NotificationPriority = "Critical" | "High" | "Medium" | "Low";
 
 export type AdminNotification = {

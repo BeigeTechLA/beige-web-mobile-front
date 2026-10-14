@@ -76,6 +76,8 @@ export const notificationCenterApi = {
 const categoryLabels: Record<string, NotificationCategory> = {
   files: "Files", payments: "Payments", messages: "Messages", shoots: "Shoots",
   meetings: "Meetings", proposals: "Proposals", projects: "Projects", project: "Projects",
+  leads: "Leads", agreements: "Agreements", disputes: "Disputes", payouts: "Payouts",
+  reviews: "Reviews",
 };
 
 const priorityLabels: Record<string, NotificationPriority> = {
@@ -123,23 +125,60 @@ const payloadValue = (payload: Record<string, unknown> | null | undefined, ...ke
 
 export const getNotificationDestination = (item: AdminNotification, portal: NotificationPortal) => {
   const payload = item.payload;
+  const leadId = payloadValue(payload, "lead_id") || (item.referenceType === "sales_lead" ? item.referenceId || "" : "");
+  if (item.category === "Leads" && portal === "admin") return leadId ? `/sales/leads/${encodeURIComponent(leadId)}` : "/sales/leads";
+  const disputeId = payloadValue(payload, "dispute_id") || (item.referenceType === "finance_dispute" ? item.referenceId || "" : "");
+  if (item.category === "Disputes") {
+    const path = portal === "admin" ? "/admin/finances/disputes" : portal === "creator" ? "/creator/dashboard/finances/disputes" : "/affiliate/finances/transactions";
+    return `${path}${disputeId ? `?dispute_id=${encodeURIComponent(disputeId)}` : ""}`;
+  }
+  const agreementId = payloadValue(payload, "agreement_document_id") || (item.referenceType === "agreement_document" ? item.referenceId || "" : "");
+  if (item.category === "Agreements" && portal === "creator") return `/creator/dashboard/request/review-agreement${agreementId ? `?agreement_id=${encodeURIComponent(agreementId)}` : ""}`;
+  if (item.category === "Agreements" && portal === "admin") {
+    const agreementBookingId = payloadValue(payload, "booking_id");
+    return agreementBookingId ? `/admin/shoots/${encodeURIComponent(agreementBookingId)}/shoot-agreement` : "/admin/shoots";
+  }
   const roomId = payloadValue(payload, "room_id", "chat_room_id", "roomId", "chatRoomId") || (item.referenceType === "chat_room" ? item.referenceId : "");
   const basePath = portal === "creator" ? "/creator/dashboard" : portal === "client" ? "/affiliate" : "/admin";
   if (item.category === "Messages") return `${basePath}/messages${roomId ? `?roomId=${encodeURIComponent(roomId)}` : ""}`;
 
   const meetingId = payloadValue(payload, "meeting_id", "meetingId") || (item.referenceType === "meeting" ? item.referenceId : "");
-  if (item.category === "Meetings") return `${basePath}/meetings${meetingId ? `?meetingId=${encodeURIComponent(meetingId)}` : ""}`;
+  // Deleted meetings cannot be opened by ID; keep the saved notification
+  // details available and send the action to the meeting list instead.
+  if (item.category === "Meetings") {
+    if (item.type === "meeting_cancelled" || item.type === "meeting_deleted") return `${basePath}/meetings`;
+    return `${basePath}/meetings${meetingId ? `?meetingId=${encodeURIComponent(meetingId)}` : ""}`;
+  }
 
   const bookingId = payloadValue(payload, "booking_id", "bookingId") || (item.referenceType === "booking" ? item.referenceId : "");
+  if (item.type === "shoot_details_submitted" && portal === "admin" && bookingId) return `/admin/shoots/${encodeURIComponent(bookingId)}/form-details`;
   if (item.category === "Shoots" || item.category === "Projects") {
-    if (portal === "creator") return `${basePath}/request`;
+    if (portal === "creator") return `${basePath}/request${bookingId ? `?bookingId=${encodeURIComponent(bookingId)}` : ""}`;
     return bookingId ? `${basePath}/shoots/${encodeURIComponent(bookingId)}` : `${basePath}/shoots`;
   }
   if (item.category === "Files") {
-    if (portal === "client") return `${basePath}/file-manager`;
+    if (portal === "client") return `${basePath}/file-manager${bookingId ? `?bookingId=${encodeURIComponent(bookingId)}` : ""}`;
     return bookingId ? `${basePath}/file-manager/${encodeURIComponent(bookingId)}` : `${basePath}/file-manager`;
   }
-  if (item.category === "Payments") return portal === "creator" ? `${basePath}/finances/earnings` : `${basePath}/finances/transactions`;
-  if (item.category === "Proposals") return portal === "creator" ? `${basePath}/request` : `${basePath}/quotes`;
+  if (item.category === "Payments") {
+    const paymentPath = portal === "creator" ? `${basePath}/finances/earnings` : `${basePath}/finances/transactions`;
+    return bookingId ? `${paymentPath}?booking_id=${encodeURIComponent(bookingId)}` : paymentPath;
+  }
+  if (item.category === "Proposals") {
+    const quoteId = payloadValue(payload, "sales_quote_id") || (item.referenceType === "sales_quote" ? item.referenceId : "");
+    return portal === "creator" ? `${basePath}/request` : quoteId ? `${basePath}/quotes/${encodeURIComponent(quoteId)}` : `${basePath}/quotes`;
+  }
+  // The admin payouts page is currently mock data, so do not deep-link a real
+  // payout request into a page that cannot display it yet.
+  if (item.category === "Payouts") {
+    if (portal !== "creator") return null;
+    const earningId = payloadValue(payload, "creator_earning_id") || (item.referenceType === "creator_earning" ? item.referenceId || "" : "");
+    return `/creator/dashboard/finances/earnings${earningId ? `?earning_id=${encodeURIComponent(earningId)}` : ""}`;
+  }
+  if (item.category === "Reviews" && portal === "creator") {
+    const creatorId = payloadValue(payload, "creator_id");
+    const reviewId = payloadValue(payload, "review_id") || item.referenceId || "";
+    return creatorId ? `/creator/dashboard/reviews?creator_id=${encodeURIComponent(creatorId)}${reviewId ? `&review_id=${encodeURIComponent(reviewId)}` : ""}` : null;
+  }
   return null;
 };
