@@ -250,7 +250,7 @@ export default function AssignedCP({
                             swiperRef.current?.slidePrev();
                           }}
                           disabled={activeIndex === 0}
-                          className="text-white hover:text-[#E5D5B8] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="text-white hover:text-[#E8D1AB] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <ArrowUp size={16} strokeWidth={2.5} />
                         </button>
@@ -261,7 +261,7 @@ export default function AssignedCP({
                             swiperRef.current?.slideNext();
                           }}
                           disabled={activeIndex === crewMembers.length - 1}
-                          className="text-white hover:text-[#E5D5B8] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="text-white hover:text-[#E8D1AB] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <ArrowDown size={16} strokeWidth={2.5} />
                         </button>
@@ -329,7 +329,7 @@ export default function AssignedCP({
                 onClick={handleOpenAssignment}
                 disabled={!canAssignCP}
                 title={assignmentLockTitle}
-                className="h-12 px-4 lg:px-7 bg-[#E5D5B8] font-semibold text-sm text-black disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-12 px-4 lg:px-7 bg-[#E8D1AB] font-semibold text-sm text-black disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus size={24} /> Add More CPs
               </Button>
@@ -349,11 +349,11 @@ export default function AssignedCP({
               onClick={handleOpenAssignment}
               disabled={!canAssignCP}
               title={assignmentLockTitle}
-              className={`w-15 h-15 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-[#E5D5B8] shadow-[#E5D5B8]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"}`}
+              className={`w-15 h-15 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-[#E8D1AB] shadow-[#E8D1AB]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"}`}
             >
               <Plus className="w-7 lg:w-10 h-7 lg:h-10 text-[#333]" />
             </button>
-            <h4 className={`text-base font-medium leading-none ${isDark ? "text-[#E5D5B8]" : "text-black"}`}>
+            <h4 className={`text-base font-medium leading-none ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
               {canAssignCP ? "Assign Creative Partner" : assignmentLockTitle}
             </h4>
           </div>
