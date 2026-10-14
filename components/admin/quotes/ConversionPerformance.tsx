@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Info } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -35,6 +35,121 @@ type ConversionPerformanceData = {
   average_deal_size: number;
   quote_to_cash_conversion: number;
 };
+
+/* Info tooltip: hover on desktop, tap on touch screens */
+const TOOLTIP_W = 192; // w-48
+const EDGE_GAP = 8;
+
+function InfoTooltip({
+  text,
+  isDark,
+  iconClassName,
+  textClassName = "",
+}: {
+  text: string;
+  isDark: boolean;
+  iconClassName: string;
+  textClassName?: string;
+}) {
+  const [open, setOpen] = useState(false);   // tapped / clicked
+  const [hover, setHover] = useState(false); // mouse hover only
+  const [shift, setShift] = useState(0);     // px to slide the popup sideways
+  const [arrowX, setArrowX] = useState<number | null>(null);
+  const [maxW, setMaxW] = useState(TOOLTIP_W);
+  const ref = useRef<HTMLSpanElement>(null);
+  const iconRef = useRef<HTMLSpanElement>(null);
+  const visible = open || hover;
+
+  // Close on outside tap / Esc
+  useEffect(() => {
+    if (!open) return;
+    const onOutside = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", onOutside);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onOutside);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (!visible || !ref.current || !iconRef.current) return;
+    const boundsEl = ref.current.closest("[data-tooltip-bounds]") as HTMLElement | null;
+    const b = boundsEl
+      ? boundsEl.getBoundingClientRect()
+      : { left: 0, right: window.innerWidth, width: window.innerWidth };
+    const anchor = ref.current.getBoundingClientRect();
+    const icon = iconRef.current.getBoundingClientRect();
+
+    const width = Math.min(TOOLTIP_W, b.width - EDGE_GAP * 2);
+    let left = anchor.right - width;                  // default: right edges aligned, opens leftwards
+    const minLeft = b.left + EDGE_GAP;
+    const maxLeft = b.right - EDGE_GAP - width;
+    left = Math.max(minLeft, Math.min(left, maxLeft));
+
+    const iconCenter = icon.left + icon.width / 2;
+    setMaxW(width);
+    setShift(left - (anchor.right - width));
+    setArrowX(Math.max(10, Math.min(width - 18, iconCenter - left - 4)));
+  }, [visible]);
+
+  const toggle = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setOpen((v) => !v);
+  };
+
+  return (
+    <span
+      ref={ref}
+      className="relative flex items-center"
+      onPointerEnter={(e) => e.pointerType === "mouse" && setHover(true)}
+      onPointerLeave={(e) => e.pointerType === "mouse" && setHover(false)}
+    >
+      <span
+        ref={iconRef}
+        role="button"
+        tabIndex={0}
+        aria-label="More info"
+        aria-expanded={visible}
+        onClick={toggle}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggle(e)}
+        className="flex items-center"
+      >
+        <Info size={24} strokeWidth={1.5} className={`cursor-pointer transition-colors ${iconClassName}`} />
+      </span>
+
+      {/* Tooltip Popup */}
+      {visible && (
+      <span
+        role="tooltip"
+          className="absolute right-0 bottom-full mb-2 flex flex-col z-30 pointer-events-none"
+          style={{ width: maxW, transform: `translateX(${shift}px)` }}
+      >
+        <span
+          className={`px-3 py-2 text-xs rounded-lg shadow-xl border text-center transition-all ${textClassName} ${isDark
+            ? "bg-[#252525] text-white border-white/10"
+            : "bg-white text-black border-black/10"
+            }`}
+        >
+          {text}
+        </span>
+          {/* Tooltip Arrow (points at the icon) */}
+        <span
+            className={`w-2 h-2 -mt-1 rotate-45 border-r border-b ${arrowX === null ? "self-center" : ""} ${isDark
+            ? "bg-[#252525] border-white/10"
+            : "bg-white border-black/10"
+            }`}
+            style={arrowX === null ? undefined : { marginLeft: arrowX }}
+        />
+      </span>
+      )}
+    </span>
+  );
+}
 
 export default function ConversionPerformanceWidget({
   isDark = true,
@@ -135,7 +250,7 @@ export default function ConversionPerformanceWidget({
   const avgDealRadialData = buildFormulaRadialData(formulaSources.avgDealValue);
   const quoteToCashRadialData = buildFormulaRadialData(formulaSources.quoteToCash);
   return (
-    <div className={`flex-1 relative overflow-hidden w-full h-full rounded-2xl border p-5 lg:p-6 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
+    <div data-tooltip-bounds className={`flex-1 relative overflow-hidden w-full h-full rounded-2xl border p-5 lg:p-6 transition-all duration-300 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}>
       {/* Header Title */}
       <div className="flex items-center justify-between mb-3 relative z-10">
         <div className="flex items-center gap-2.5">
@@ -311,6 +426,14 @@ export default function ConversionPerformanceWidget({
                       });
                     }}
                     onMouseLeave={() => setHoveredBar(null)}
+                    // Touch screens: tap a ring to show its value (tap again to hide)
+                    onClick={(entry) => {
+                      setHoveredBar((prev) =>
+                        prev?.label === entry.tooltipLabel
+                          ? null
+                          : { label: entry.tooltipLabel, value: entry.tooltipValue }
+                      );
+                    }}
                   />
                 </RadialBarChart>
               </ResponsiveContainer>
@@ -330,7 +453,7 @@ export default function ConversionPerformanceWidget({
       </div>
 
       {/* Metric Cards Grid */}
-      <div className="grid grid-cols-2 gap-3 mt-4 relative z-10">
+      <div className="grid grid-cols-2 gap-3 mt-4 z-10">
         {/* Win Rate Button */}
         <button
           type="button"
@@ -350,32 +473,11 @@ export default function ConversionPerformanceWidget({
             </span>
 
             {/* Win Rate Info Tooltip */}
-            <div className="relative flex items-center group">
-              <Info
-                size={24}
-                strokeWidth={1.5}
-                className={`cursor-pointer transition-colors ${activeTab === "winRate"
-                  ? "fill-black text-[#E8D1AB]"
-                  : "text-black fill-[#E8D1AB]"
-                  }`}
-              />
-              <div className="absolute right-0 bottom-full mb-2 hidden group-hover:flex flex-col items-center z-30 pointer-events-none w-48">
-                <div
-                  className={`px-3 py-2 text-xs rounded-lg shadow-xl border text-center transition-all ${isDark
-                    ? "bg-[#252525] text-white border-white/10"
-                    : "bg-white text-black border-black/10"
-                    }`}
-                >
-                  Percentage of sent proposals that converted into paid bookings (Calculated as Deals Won ÷ Quotes Sent × 100)
-                </div>
-                <div
-                  className={`w-2 h-2 -mt-1 rotate-45 border-r border-b ${isDark
-                    ? "bg-[#252525] border-white/10"
-                    : "bg-white border-black/10"
-                    }`}
-                />
-              </div>
-            </div>
+            <InfoTooltip
+              isDark={isDark}
+              iconClassName={activeTab === "winRate" ? "fill-black text-[#E8D1AB]" : "text-black fill-[#E8D1AB]"}
+              text="Percentage of sent proposals that converted into paid bookings (Calculated as Deals Won ÷ Quotes Sent × 100)"
+            />
           </div>
           <div className="flex items-center gap-1.5 mt-2 text-sm lg:text-base uppercase">
             <span className="w-1.5 h-1.5 rounded-full bg-[#EDE598]" />
@@ -412,34 +514,12 @@ export default function ConversionPerformanceWidget({
             </span>
 
             {/* Avg Deal Value Info Tooltip */}
-            <div className="relative flex items-center group">
-              <Info
-                size={24}
-                strokeWidth={1.5}
-                className={`cursor-pointer transition-colors ${activeTab === "avgDealValue"
-                  ? "fill-black text-[#E8D1AB]"
-                  : "text-black fill-[#E8D1AB]"
-                  }`}
-              />
-              {/* Tooltip Popup */}
-              <div className="absolute right-0 bottom-full mb-2 hidden group-hover:flex flex-col items-center z-30 pointer-events-none w-48">
-                <div
-                  className={`px-3 py-2 text-xs rounded-lg shadow-xl border text-center transition-all capitalize ${isDark
-                    ? "bg-[#252525] text-white border-white/10"
-                    : "bg-white text-black border-black/10"
-                    }`}
-                >
-                  Average revenue generated from each won deal (Calculated as Won Revenue ÷ Deals Won)
-                </div>
-                {/* Tooltip Arrow */}
-                <div
-                  className={`w-2 h-2 -mt-1 rotate-45 border-r border-b ${isDark
-                    ? "bg-[#252525] border-white/10"
-                    : "bg-white border-black/10"
-                    }`}
-                />
-              </div>
-            </div>
+            <InfoTooltip
+              isDark={isDark}
+              iconClassName={activeTab === "avgDealValue" ? "fill-black text-[#E8D1AB]" : "text-black fill-[#E8D1AB]"}
+              textClassName="capitalize"
+              text="Average revenue generated from each won deal (Calculated as Won Revenue ÷ Deals Won)"
+            />
           </div>
           <div className="flex items-center gap-1.5 mt-2 text-sm lg:text-base uppercase">
             <span className="w-1.5 h-1.5 rounded-full bg-[#A78BFA]" />
@@ -464,7 +544,7 @@ export default function ConversionPerformanceWidget({
         onClick={() =>
           setActiveTab(activeTab === "quoteToCash" ? null : "quoteToCash")
         }
-        className={`w-full mt-3 p-3 lg:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none relative z-10 ${activeTab === "quoteToCash"
+        className={`w-full mt-3 p-3 lg:p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer outline-none focus:outline-none z-10 ${activeTab === "quoteToCash"
           ? "bg-[linear-gradient(180deg,#E8D1AB_0%,rgba(232,209,171,0.80)_100%)] text-black border-[#E5D5B8]"
           : isDark
             ? "bg-[linear-gradient(180deg,rgba(11,11,11,0.50)_0%,rgba(0,0,0,0.40)_100%)] border-white/10 text-white hover:bg-white/5"
@@ -476,36 +556,12 @@ export default function ConversionPerformanceWidget({
             {quoteToCashConversion}%
           </span>
 
-          {/* Info Icon with Hover Tooltip */}
-          <div className="relative flex items-center group">
-            <Info
-              size={24}
-              strokeWidth={1.5}
-              className={`cursor-pointer transition-colors ${activeTab === "quoteToCash"
-                ? "fill-black text-[#E8D1AB]"
-                : "text-black fill-[#E8D1AB]"
-                }`}
-            />
-
-            {/* Tooltip Popup */}
-            <div className="absolute right-0 bottom-full mb-2 hidden group-hover:flex flex-col items-center z-30 pointer-events-none w-48">
-              <div
-                className={`px-3 py-2 text-xs rounded-lg shadow-xl border text-center transition-all ${isDark
-                  ? "bg-[#252525] text-white border-white/10"
-                  : "bg-white text-black border-black/10"
-                  }`}
-              >
-                Percentage of the total proposal value that converted into paid revenue (Calculated as Won Revenue ÷ Quote Value × 100)
-              </div>
-              {/* Tooltip Arrow */}
-              <div
-                className={`w-2 h-2 -mt-1 rotate-45 border-r border-b ${isDark
-                  ? "bg-[#252525] border-white/10"
-                  : "bg-white border-black/10"
-                  }`}
-              />
-            </div>
-          </div>
+          {/* Info Icon with Tooltip (hover / tap) */}
+          <InfoTooltip
+            isDark={isDark}
+            iconClassName={activeTab === "quoteToCash" ? "fill-black text-[#E8D1AB]" : "text-black fill-[#E8D1AB]"}
+            text="Percentage of the total proposal value that converted into paid revenue (Calculated as Won Revenue ÷ Quote Value × 100)"
+          />
         </div>
         <div className="flex items-center gap-1.5 mt-2 text-sm lg:text-base uppercase">
           <span className="w-1.5 h-1.5 rounded-full bg-[#38BDF8]" />

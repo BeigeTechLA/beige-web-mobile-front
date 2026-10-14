@@ -323,6 +323,21 @@ export default function QuotesOverdueWidget({
                     formatQuoteAnalyticsNumber(partiallyPaidValue)}
                 </div>
               </div>
+
+              {/* Total Divider */}
+              <div className="relative pt-1 text-center">
+                <div className={`absolute inset-0 flex items-center ${isDark ? "border-white/10" : "border-black/10"}`}>
+                  <div className={`w-full border-t ${isDark ? "border-white/10" : "border-black/10"}`} />
+                </div>
+                <span
+                  className={`relative px-3 text-xl font-semibold ${isDark
+                    ? "bg-[#101010] text-[#E8D1AB]"
+                    : "bg-zinc-50 text-black"
+                    }`}
+                >
+                  Total {formatQuoteAnalyticsCurrency(overdueValue)}
+                </span>
+              </div>
             </div>
 
             {/* Desktop Horizontal Layout */}
@@ -451,10 +466,7 @@ export default function QuotesOverdueWidget({
       </div>
 
       {/* Collapsible Expandable Table Section */}
-      <div
-        className={`grid transition-all duration-500 ease-in-out ${showTable ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-          }`}
-      >
+      <div className={`grid transition-all duration-500 ease-in-out ${showTable ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
         <div className="overflow-hidden">
         <div className={`border-t rounded-b-2xl ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}>
           <div className="w-full overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch]">
