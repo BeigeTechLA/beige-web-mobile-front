@@ -5,6 +5,9 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
 import ShootHeader from "@/components/admin/shoot-details/ShootHeader";
 import ProjectTeam from "@/components/admin/shoot-details/ProjectTeam";
+import ProjectProducer from "@/components/admin/shoot-details/ProjectProducer";
+import EditorAssignmentTable from "@/components/admin/shoot-details/EditorAssignmentTable";
+import { producerDemoService } from "@/components/admin/shoot-details/producerDemoStore";
 import AssignedCP from "@/components/admin/shoot-details/AssignedCP";
 import MeetingSchedule from "@/components/admin/shoot-details/MeetingSchedule";
 import ProjectTimeline from "@/components/admin/shoot-details/ProjectTimeline";
@@ -180,7 +183,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const { id } = use(params);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const { canEdit, canDelete } = usePermissions("shoots");
+  const { canEdit, canCreate, canDelete } = usePermissions("shoots");
   // const [activeTab, setActiveTab] = useState("Overview");
   const activeTab = searchParams.get("tab") || "Overview";
 
@@ -649,19 +652,33 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
               {activeTab === "Overview" && (
                 <>
-                  <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ProjectTeam
+                  <div className="space-y-4 px-5 lg:space-y-6">
+                    <ProjectProducer
                       projectId={id}
-                      assignedMembers={project?.assigned_post_production_members}
+                      project={project}
+                      isDark={isDark}
+                      canAssign={canCreate}
+                      canEdit={canEdit}
                       onRequestAssignment={handleAssignmentRequest}
+                      api={producerDemoService}
+                      demoMode
                     />
-                    <AssignedCP
-                      projectId={id}
-                      leadId={project?.lead_id}
-                      assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
-                      cpCompensationStatus={project?.cp_compensation_status as string | null}
-                      onRequestAssignment={handleAssignmentRequest}
-                    />
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+                      <ProjectTeam
+                        projectId={id}
+                        assignedMembers={project?.assigned_post_production_members}
+                        onRequestAssignment={handleAssignmentRequest}
+                        projectName={project?.project_name}
+                        shootLabel={`#${id}`}
+                      />
+                      <AssignedCP
+                        projectId={id}
+                        leadId={project?.lead_id}
+                        assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
+                        cpCompensationStatus={project?.cp_compensation_status as string | null}
+                        onRequestAssignment={handleAssignmentRequest}
+                      />
+                    </div>
                   </div>
                   {Array.isArray(project?.payment_history) && project.payment_history.length > 0 ? (
                     <div className="px-5 mt-6">
@@ -755,6 +772,14 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                       />
                     </div>
                   }
+
+                  <EditorAssignmentTable
+                    projectId={id}
+                    assignedMembers={project?.assigned_post_production_members}
+                    isDark={isDark}
+                    projectName={project?.project_name}
+                    shootLabel={`#${id}`}
+                  />
 
                   <div className={`${isCPAgreementAvailable ? "" : "mt-5 lg:mt-9 "} border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} createPermissionModuleKey="shoots" />

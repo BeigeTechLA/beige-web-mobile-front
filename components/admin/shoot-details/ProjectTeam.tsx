@@ -1,393 +1,157 @@
 "use client";
 
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useTheme } from "next-themes";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow } from "swiper/modules";
-import { Plus, Loader2, Trash2 } from "lucide-react";
+import type { Swiper as SwiperInstance } from "swiper";
+import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import AddPostProductionTeamModal from "./AddPostProductionTeamModal";
-import { adminApi } from "@/lib/api";
-import { useTheme } from "next-themes";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import AddPostProductionTeamModal from "./AddPostProductionTeamModal";
+import EditorAvatar from "./EditorAvatar";
+import { combinePostProductionEditors, type CombinedEditor } from "./combinedPostProductionEditors";
+import { normalizeAssignedEditors } from "./postProductionEditorUtils";
+import { removeDemoAssignment, takePendingEditorQueue, useDemoEditorAssignments } from "./postProductionDemoStore";
 
 import "swiper/css";
 import "swiper/css/effect-coverflow";
-import { Button } from "@/components/ui/button";
 
-interface TeamMember {
-  id: number;
-  name: string;
-  role: string;
-  bgColor?: string;
-}
-
-interface AssignedPostProductionMember {
-  post_production_member_id?: number;
-  post_production_member?: {
-    first_name?: string;
-    last_name?: string;
-    full_name?: string;
-    role?: string;
-  };
-}
-
-const BG_COLORS = ["bg-[#FFFAC2]", "bg-[#F3E8FF]", "bg-[#E0F2FE]", "bg-[#FCE7F3]", "bg-[#DCFCE7]"];
-
-interface ProjectTeamProps {
+interface Props {
   projectId: string;
-  assignedMembers?: AssignedPostProductionMember[];
+  assignedMembers?: unknown[];
   onRequestAssignment?: (continueAction: () => void) => void;
+  onMembersChanged?: () => void | Promise<void>;
+  projectName?: string;
+  shootLabel?: string;
 }
 
-export default function ProjectTeam({ projectId, assignedMembers, onRequestAssignment }: ProjectTeamProps) {
+export default function ProjectTeam({ projectId, assignedMembers, projectName, shootLabel, onRequestAssignment }: Props) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { theme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const { canCreate, canEdit } = usePermissions("shoots");
+  const assignments = useDemoEditorAssignments(projectId);
+  const existing = useMemo(() => normalizeAssignedEditors(assignedMembers), [assignedMembers]);
+  const editors = useMemo(() => combinePostProductionEditors(existing, assignments), [existing, assignments]);
+  const isDark = (resolvedTheme ?? theme) === "dark";
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(!assignedMembers);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const { canEdit, canCreate } = usePermissions("shoots");
-  const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
-  const [removingMemberId, setRemovingMemberId] = useState<number | null>(null);
-  const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [mode, setMode] = useState<"add" | "change">("add");
+  const [replaceId, setReplaceId] = useState<number | null>(null);
+  const [resumeIds, setResumeIds] = useState<number[]>([]);
+  const [removeEditor, setRemoveEditor] = useState<CombinedEditor | null>(null);
+  const hasResumed = useRef(false);
 
-  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
-  const mapMembers = (members: AssignedPostProductionMember[]) => {
-    return members.map((m, idx: number) => {
-      const profile = m.post_production_member || {};
-      return {
-        id: Number(m.post_production_member_id || idx),
-        name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.full_name || "Unknown",
-        role: profile.role || "Post Production",
-        bgColor: BG_COLORS[idx % BG_COLORS.length]
-      };
-    });
-  };
-
-  const fetchTeamMembers = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await adminApi.getProjectDetails(projectId);
-
-      // Extract post production members from project details 
-      // The API might return it under a specific field, let's look for 'post_production_team' or similar
-      // Based on earlier context, we might need to map it.
-      const projectData = response.data || response;
-      const members = projectData.assignedPostProductionMembers || [];
-
-      if (Array.isArray(members)) {
-        const mappedMembers = members.map((m: AssignedPostProductionMember, idx: number) => {
-          const profile = m.post_production_member || {};
-          return {
-            id: Number(m.post_production_member_id || idx),
-            name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.full_name || "Unknown",
-            role: profile.role || "Post Production",
-            bgColor: BG_COLORS[idx % BG_COLORS.length]
-          };
-        });
-        setTeamMembers(mappedMembers);
-      }
-    } catch (error) {
-      console.error("Error fetching team members:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
+  const selected = editors[Math.min(activeIndex, Math.max(0, editors.length - 1))];
+  const canAdd = canCreate || canEdit;
 
   useEffect(() => {
-    if (assignedMembers) {
-      setTeamMembers(mapMembers(assignedMembers));
-      setLoading(false);
-    } else if (projectId) {
-      fetchTeamMembers();
-    }
-  }, [projectId, assignedMembers, fetchTeamMembers]);
+    setActiveIndex((current) => Math.min(current, Math.max(0, editors.length - 1)));
+  }, [editors.length]);
 
-  const handleMemberAdded = () => {
-    fetchTeamMembers();
-    setIsModalOpen(false);
-  }
+  useEffect(() => {
+    const flag = searchParams.get("resumeEditorFlow");
+    if (flag !== "1") { hasResumed.current = false; return; }
+    if (hasResumed.current) return;
+    hasResumed.current = true;
+    const remaining = takePendingEditorQueue(projectId);
+    router.replace(`/admin/shoots/${encodeURIComponent(projectId)}?tab=Overview`, { scroll: false });
+    if (!remaining.length) return;
+    setMode("add");
+    setReplaceId(null);
+    setResumeIds(remaining);
+    setIsPickerOpen(true);
+  }, [searchParams, router, projectId]);
 
-  const handleOpenAssignment = () => {
-    if (!canCreate) return;
-    if (onRequestAssignment) {
-      onRequestAssignment(() => setIsModalOpen(true));
+  const openPicker = (nextMode: "add" | "change" = "add", id: number | null = null) => {
+    if ((nextMode === "add" && !canAdd) || (nextMode === "change" && !canEdit)) return;
+    const proceed = () => {
+      setMode(nextMode);
+      setReplaceId(id);
+      setResumeIds([]);
+      setIsPickerOpen(true);
+    };
+    if (nextMode === "add" && onRequestAssignment) {
+      onRequestAssignment(proceed);
       return;
     }
-
-    setIsModalOpen(true);
+    proceed();
   };
 
-  const handleRemoveMember = async (memberId: number) => {
-    if (!canEdit) return;
-
-    try {
-      setRemovingMemberId(memberId);
-      const response = await adminApi.removePostProductionMember({
-        project_id: Number(projectId),
-        post_production_member_id: memberId,
-      });
-
-      if (response?.success === false && response?.error) {
-        toast.error(response.error);
-        return;
-      }
-
-      setTeamMembers((prev) => {
-        const updated = prev.filter((member) => member.id !== memberId);
-        setActiveIndex((current) =>
-          updated.length === 0 ? 0 : Math.min(current, updated.length - 1)
-        );
-        return updated;
-      });
-      toast.success("Post production member removed successfully");
-    } catch (error) {
-      console.error("Failed to remove post production member:", error);
-      toast.error("Failed to remove post production member");
-    } finally {
-      setRemovingMemberId(null);
+  const remove = () => {
+    if (!removeEditor || !canEdit) return;
+    if (removeEditor.source === "api") {
+      toast.error("API-backed editor records cannot be changed in the static demo.");
+    } else {
+      removeDemoAssignment(projectId, removeEditor.id);
+      setActiveIndex(0);
+      toast.success("Demo editor removed from this shoot.");
     }
+    setRemoveEditor(null);
   };
 
-  if (!mounted) return null;
-
-  if (loading) {
-    return (
-      <div className={`rounded-2xl border h-full flex items-center justify-center transition-colors duration-300 ${isDark ? "bg-[#111111] border-[#222222]" : "bg-white border-[#E5E5E5]"}`}>
-        <Loader2 className={`animate-spin ${isDark ? "text-white/20" : "text-black/10"}`} size={32} />
-      </div>
-    );
-  }
-
-  const hasTeam = teamMembers.length > 0;
+  const secondary = isDark ? "bg-[#202020] text-white hover:bg-[#303030]" : "bg-[#F0F0F0] text-black hover:bg-[#E3E3E3]";
 
   return (
-    <div
-      className={cn(
-        "rounded-2xl h-full flex flex-col items-center justify-center relative overflow-hidden py-6 transition-all duration-300",
-        isDark ? "bg-[#111111] border border-[#222222]" : "bg-[#F4F5F7]"
-      )}
-      style={{ fontFamily: 'var(--font-instrument-sans)' }}
-    >
+    <div className={`relative flex min-h-[360px] flex-col overflow-hidden rounded-xl border sm:min-h-[425px] ${isDark ? "border-[#222222] bg-[#101010] text-white" : "border-[#E5E5E5] bg-[#F8F8F8] text-[#171717]"}`} style={{ fontFamily: "var(--font-instrument-sans)" }}>
+      <header className={`relative flex min-h-[70px] items-center justify-center border-b border-dashed px-4 py-4 ${isDark ? "border-[#333333]" : "border-[#DADADA]"}`}>
+        <h3 className="text-center text-base font-medium sm:text-lg">Project Post Production Team</h3>
+        {editors.length > 0 && <button type="button" onClick={() => openPicker()} disabled={!canAdd} aria-label="Add another editor" className="absolute right-3 rounded-full p-1.5 text-[#E8D1AB] hover:bg-white/10 disabled:opacity-40"><Plus size={18}/></button>}
+      </header>
 
-      {/* Header */}
-      <h3 className={cn(
-        "text-lg font-medium mb-4 absolute top-6 z-10 transition-colors duration-300",
-        isDark ? "text-white" : "text-black"
-      )}>
-       Producer Team
-      </h3>
-
-      <div className={cn(
-        "w-full h-px border-t absolute top-20 left-0 transition-colors duration-300",
-        isDark ? "border-[#333333]" : "border-[#E5E5E5]"
-      )} />
-
-
-
-      {isRemoveModalOpen && (
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
-          onClick={() => {
-            if (removingMemberId === null) {
-              setIsRemoveModalOpen(false);
-              setSelectedMemberId(null);
-            }
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl transition-all ${isDark
-                ? "border-[#333333] bg-[#161616] text-white"
-                : "border-[#E5E5E5] bg-white text-black"
-              }`}
-          >
-            <h3 className="text-lg font-semibold">
-              Remove Post Production Member?
-            </h3>
-            <p className={`mt-2 text-sm ${isDark ? "text-[#A3A3A3]" : "text-[#666666]"}`}>
-              Are you sure you want to remove this member from the shoot? This action cannot be undone.
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={removingMemberId !== null}
-                onClick={() => {
-                  setIsRemoveModalOpen(false);
-                  setSelectedMemberId(null);
-                }}
-                className={isDark ? "border-[#3D3D3D] bg-[#222222] text-white hover:bg-[#2A2A2A]" : "border-[#E5E5E5] bg-white text-black hover:bg-[#F5F5F5]"}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                disabled={!selectedMemberId || removingMemberId !== null}
-                onClick={async () => {
-                  if (!selectedMemberId) return;
-                  await handleRemoveMember(selectedMemberId);
-                  setIsRemoveModalOpen(false);
-                  setSelectedMemberId(null);
-                }}
-                className="bg-red-600 text-white hover:bg-red-700"
-              >
-                {removingMemberId !== null ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Removing...
-                  </>
-                ) : (
-                  "Remove"
-                )}
-              </Button>
-            </div>
-          </div>
+      {editors.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-5 text-center">
+          <button type="button" onClick={() => openPicker()} disabled={!canAdd} aria-label="Add Post Production Team" className="flex h-16 w-16 items-center justify-center rounded-full bg-[#E8D1AB] text-black transition-transform hover:scale-105 disabled:opacity-40 sm:h-20 sm:w-20"><Plus size={37} strokeWidth={1.6}/></button>
+          <h4 className={`text-base font-medium sm:text-lg ${isDark ? "text-[#E8D1AB]" : "text-[#936D3A]"}`}>Add Post Production Team</h4>
+          <p className={`max-w-[290px] text-xs leading-5 ${isDark ? "text-[#777777]" : "text-[#666666]"}`}>Internal editors assign directly. External editors continue through compensation and a Shoot Agreement.</p>
         </div>
-      )}
-
-      <AddPostProductionTeamModal
-        isOpen={isModalOpen}
-        projectId={projectId}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={handleMemberAdded}
-        isDark={isDark}
-      />
-
-      {!hasTeam && (
-        <div className="flex flex-col items-center justify-center h-full mt-16 relative py-10 lg:py-0">
-          <button
-            onClick={handleOpenAssignment}
-            disabled={!canCreate}
-            className={cn(
-              "w-15 h-15 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40",
-              isDark ? "bg-[#E8D1AB] shadow-[#E8D1AB]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"
-            )}
-            title={canCreate ? "Add Producer Team" : "Create permission not allowed"}
-          >
-            <Plus className="w-7 lg:w-10 h-7 lg:h-10 text-[#333]" />
-          </button>
-          <h4 className={cn(
-            "text-base font-medium leading-none",
-            isDark ? "text-[#E8D1AB]" : "text-[#000]"
-          )}>
-            {canCreate ? "Add Producer Team" : "Create permission not allowed"}
-          </h4>
-        </div>
-      )}
-
-      {hasTeam && (
-        <>
-          {/* Add Button in Top Right for List View */}
-          <button
-            onClick={handleOpenAssignment}
-            disabled={!canCreate}
-            className={cn(
-              "absolute top-6 right-6 z-30 transition-colors disabled:cursor-not-allowed disabled:opacity-40",
-              isDark ? "text-[#E8D1AB] hover:text-white" : "text-[#E8D1AB] hover:text-black"
-            )}
-            title={canCreate ? "Add Post Production Team" : "Create permission not allowed"}
-          >
-            <Plus size={24} />
-          </button>
-
-          {/* Slider Section - Horizontal Coverflow */}
-          <div className="w-full h-[250px] mt-24 relative z-10">
-            <Swiper
-              effect={"coverflow"}
-              grabCursor={true}
-              centeredSlides={true}
-              slidesPerView={"auto"}
-              coverflowEffect={{
-                rotate: 0,
-                stretch: 0,
-                depth: 100,
-                modifier: 2.5,
-                slideShadows: false,
-              }}
-              modules={[EffectCoverflow]}
-              className="w-full h-full project-team-swiper"
-              onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
-              initialSlide={0}
-            >
-              {teamMembers.map((member, index) => (
-                <SwiperSlide
-                  key={`${member.id}-${index}`}
-                  className={cn(
-                    "relative !w-[280px] !h-[250px] rounded-2xl overflow-hidden shadow-lg transition-all duration-300",
-                    member.bgColor,
-                    activeIndex === index ? 'opacity-100 scale-100' : 'opacity-40 scale-95'
-                  )}
-                >
-                  {canEdit && activeIndex === index && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedMemberId(member.id);
-                        setIsRemoveModalOpen(true);
-                      }}
-                      disabled={removingMemberId === member.id}
-                      className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-[#FF6467] text-white hover:bg-[#e60000] flex items-center justify-center transition-all shadow-md shrink-0"
-                      aria-label="Remove team member"
-                      title="Remove team member"
-                    >
-                      {removingMemberId === member.id ? (
-                        <Loader2 size={15} className="animate-spin" />
-                      ) : (
-                        <Trash2 size={15} strokeWidth={2.5} />
-                      )}
-                    </button>
-                  )}
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-5xl font-bold text-black/85">
-                      {(member.name || "U")
-                        .split(" ")
-                        .filter(Boolean)
-                        .map((part) => part[0])
-                        .join("")
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </span>
-                  </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-3 pt-4 pb-5 sm:pt-5">
+          <div className="w-full max-w-full">
+            <Swiper key={editors.map((item) => `${item.source}-${item.id}`).join("-")} effect="coverflow" grabCursor centeredSlides slidesPerView="auto"
+              coverflowEffect={{ rotate: 0, stretch: 0, depth: 90, modifier: 2, slideShadows: false }} modules={[EffectCoverflow]}
+              onSlideChange={(swiper: SwiperInstance) => setActiveIndex(swiper.activeIndex)} className="w-full">
+              {editors.map((editor, index) => (
+                <SwiperSlide key={`${editor.source}-${editor.id}`} className={`!h-[165px] !w-[205px] overflow-hidden rounded-xl transition-opacity sm:!h-[190px] sm:!w-[230px] ${index === activeIndex ? "opacity-100" : "opacity-45"}`}>
+                  <EditorAvatar name={editor.name} avatarUrl={editor.avatarUrl} className="h-full w-full text-4xl" rounded="rounded-none" />
+                  {canEdit && index === activeIndex && editor.source === "preview" && <button type="button" onClick={() => setRemoveEditor(editor)} aria-label={`Remove ${editor.name}`} className="absolute right-3 top-3 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-[#FF6467] text-white hover:bg-[#E54F52]"><Trash2 size={15}/></button>}
                 </SwiperSlide>
               ))}
             </Swiper>
           </div>
-
-          {/* Text Info */}
-          <div className="mt-auto mb-4 text-center z-10 relative">
-            <h4 className={cn(
-              "text-[22px] font-semibold leading-none tracking-normal transition-all duration-300",
-              isDark ? "text-white" : "text-black"
-            )}>
-              {teamMembers[activeIndex]?.name}
-            </h4>
-            <p className={cn(
-              "text-base font-medium leading-none mt-2 transition-all duration-300",
-              isDark ? "text-[#888888]" : "text-[#666666]"
-            )}>
-              {teamMembers[activeIndex]?.role}
-            </p>
+          <div className="mt-3 max-w-full text-center">
+            <h4 className="truncate text-base font-semibold sm:text-lg">{selected?.name}</h4>
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+              <span className={`inline-flex rounded-full border px-3 py-1 text-xs ${isDark ? "border-[#373329] bg-[#201D19] text-[#E8D1AB]" : "border-[#E3D3B8] bg-[#F7EBD9] text-[#78572A]"}`}>{selected?.category === "internal" ? "Internal Editor" : selected?.category === "external" ? "External Editor" : "Editor"}</span>
+              {selected?.source === "preview" && <span className="rounded-full border border-[#806641] px-2 py-1 text-[10px] text-[#C6A675]">Demo</span>}
+            </div>
           </div>
-
-          <div className="flex flex-col lg:flex-row gap-4 mb-4">
- 
-            <Button
-              className={`h-12 px-4 lg:px-7 transition-all duration-300 font-medium bg-[#E8D1AB] text-black hover:bg-[#D4C3A3]`}
-              onClick={handleOpenAssignment}
-              disabled={!canCreate}
-              title={canCreate ? "Add More Team Members" : "Create permission not allowed"}
-            >
-              <Plus /> Add More Team Members
-            </Button>
+          <div className="mt-4 grid w-full grid-cols-2 gap-2 px-2 sm:gap-3 sm:px-3">
+            <Button type="button" onClick={() => selected?.source === "preview" && openPicker("change", selected.id)} disabled={!canEdit || selected?.source !== "preview"} className="h-10 rounded-lg bg-[#E8D1AB] px-2 text-xs font-semibold text-black hover:bg-[#D9C39F] disabled:opacity-40 sm:text-sm">Change</Button>
+            <Button type="button" onClick={() => selected && setRemoveEditor(selected)} disabled={!canEdit || selected?.source !== "preview"} className={`h-10 rounded-lg px-2 text-xs font-semibold disabled:opacity-40 sm:text-sm ${isDark ? "bg-[#2A1317] text-[#F0707A]" : "bg-[#FCE7E9] text-[#AE3139]"}`}>Remove</Button>
           </div>
-        </>
+          <p className={`mt-3 px-3 text-center text-xs ${isDark ? "text-[#777777]" : "text-[#666666]"}`}>External editors require compensation and an agreement.</p>
+        </div>
       )}
+
+      <AddPostProductionTeamModal isOpen={isPickerOpen} projectId={projectId} isDark={isDark} mode={mode} replaceMemberId={replaceId}
+        assignedMemberIds={editors.map((item) => item.id)} projectName={projectName} shootLabel={shootLabel}
+        resumeEditorIds={resumeIds} onClose={() => { setIsPickerOpen(false); setResumeIds([]); }} />
+
+      <Dialog open={removeEditor !== null} onOpenChange={(open: boolean) => { if (!open) setRemoveEditor(null); }}>
+        <DialogContent className={`z-[130] flex max-h-[calc(100dvh_-_24px)] w-[calc(100vw_-_24px)] max-w-[450px] flex-col gap-0 overflow-hidden rounded-2xl border p-0 [&>button]:hidden ${isDark ? "border-[#3A3A3A] bg-black text-white" : "border-[#E5E5E5] bg-white text-black"}`}>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-6 pb-4 sm:px-6">
+            <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#331B1D] text-[#F07979]"><AlertCircle size={20}/></span><DialogTitle className="text-xl font-medium">Remove Editor?</DialogTitle></div>
+            <DialogDescription className="mt-4 text-sm leading-6 text-[#999999]">Remove <span className="font-medium text-[#E8D1AB]">{removeEditor?.name}</span> as Editor from this shoot?</DialogDescription>
+            <p className="mt-2 text-sm leading-6 text-[#999999]">This only removes the local demo assignment. No email will be sent.</p>
+          </div>
+          <footer className="grid shrink-0 grid-cols-2 gap-3 px-5 pb-6 sm:px-6"><Button type="button" onClick={() => setRemoveEditor(null)} className={`h-11 rounded-lg ${secondary}`}>Cancel</Button><Button type="button" onClick={remove} className="h-11 rounded-lg bg-[#E8D1AB] text-black hover:bg-[#D9C39F]">Remove</Button></footer>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

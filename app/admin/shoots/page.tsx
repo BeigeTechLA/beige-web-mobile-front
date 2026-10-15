@@ -483,6 +483,14 @@ export default function ShootsPage() {
     }
   };
 
+  useEffect(() => {
+    if (!hasRestoredFilters) return;
+    const requestedView = new URLSearchParams(window.location.search).get("view");
+    if (requestedView === "globe" || requestedView === "calendar") {
+      setViewMode(requestedView);
+    }
+  }, [hasRestoredFilters]);
+
   // Constant default to dark
   const isDark = !mounted || theme === "dark";
 
@@ -496,6 +504,13 @@ export default function ShootsPage() {
               {/* <Button className="text-sm font-semibold text-white h-12 px-4 lg:px-7 rounded-lg bg-[#202020] border border-white/20 hover:bg-white/10 transition-colors ">
               <ArrowUpToLine /> Export
             </Button> */}
+              <Button
+                type="button"
+                onClick={() => router.push("/admin/shoots/editor-workspace?role=internal")}
+                className={`h-12 rounded-lg border px-4 text-xs ${isDark ? "border-[#3A3A3A] bg-[#1E1E1E] text-white hover:bg-[#303030]" : "border-[#DADADA] bg-white text-black hover:bg-[#F6F6F6]"}`}
+              >
+                Editor Workspace Preview
+              </Button>
               <Button
                 onClick={() => router.push("/book-a-shoot")}
                 disabled={!canCreate}
