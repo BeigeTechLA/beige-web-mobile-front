@@ -54,6 +54,7 @@ export default function AdminAgreementDetailsPage() {
   const [cpList, setCpList] = useState<CPDetail[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [draftAgreementIds, setDraftAgreementIds] = useState<Record<string, number>>({});
+  const [sentAgreementIds, setSentAgreementIds] = useState<number[]>([]);
 
   // Editable Clause Sections State
   const [sections, setSections] = useState<ClauseSection[]>([
@@ -135,6 +136,13 @@ export default function AdminAgreementDetailsPage() {
             )
             .map((agreement) => Number(agreement.assignment_id)),
         );
+        const savedDraftIds: Record<string, number> = {};
+        for (const agreement of agreementsResponse.data) {
+          if (agreement.status === "draft" && agreement.assignment_id && !savedDraftIds[String(agreement.assignment_id)]) {
+            savedDraftIds[String(agreement.assignment_id)] = agreement.agreement_document_id;
+          }
+        }
+        setDraftAgreementIds(savedDraftIds);
         const pending = assignments.filter((assignment: any) =>
           Number(assignment?.crew_accept ?? 0) === 0 &&
           Number(assignment?.is_active ?? 1) === 1 &&
@@ -254,20 +262,25 @@ export default function AdminAgreementDetailsPage() {
       },
     };
 
-    const persisted = await Promise.all(cpList.map(async (cp) => {
+    const persisted: (readonly [string, number])[] = [];
+    for (const cp of cpList) {
+      if (sentAgreementIds.includes(draftAgreementIds[cp.assignmentId])) continue;
       const assignmentId = Number(cp.assignmentId);
       const existingAgreementId = draftAgreementIds[cp.assignmentId];
       if (existingAgreementId) {
         await agreementApi.updateShootAgreement(existingAgreementId, payload);
-        return [cp.assignmentId, existingAgreementId] as const;
+        persisted.push([cp.assignmentId, existingAgreementId]);
+        continue;
       }
 
       const created = await agreementApi.createShootAgreement(bookingId, assignmentId, {
         ...payload,
         title: `Shoot Agreement — ${cp.projectName}`,
       });
-      return [cp.assignmentId, created.data.agreement_document_id] as const;
-    }));
+      const agreementId = created.data.agreement_document_id;
+      persisted.push([cp.assignmentId, agreementId]);
+      setDraftAgreementIds((current) => ({ ...current, [cp.assignmentId]: agreementId }));
+    }
 
     const nextDraftAgreementIds = Object.fromEntries(persisted);
     setDraftAgreementIds((current) => ({ ...current, ...nextDraftAgreementIds }));
@@ -291,10 +304,13 @@ export default function AdminAgreementDetailsPage() {
     try {
       setIsSending(true);
       const agreementIds = await persistAgreementDrafts();
-      await Promise.all(agreementIds.map((agreementId) => agreementApi.sendShootAgreement(agreementId)));
+      for (const agreementId of agreementIds) {
+        await agreementApi.sendShootAgreement(agreementId);
+        setSentAgreementIds((current) => [...current, agreementId]);
+      }
       setIsSendDialogOpen(false);
       setIsSuccessOpen(true);
-      toast.success(`${agreementIds.length} shoot agreement${agreementIds.length === 1 ? "" : "s"} sent`);
+      toast.success(`${cpList.length} shoot agreement${cpList.length === 1 ? "" : "s"} sent`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to create and send shoot agreements");
     } finally {
