@@ -55,8 +55,20 @@ interface CrewMemberProfile {
 interface CrewAssignment {
   id?: number | string;
   crew_member_id?: number | string;
+  acceptance_status?: string | null;
   crew_member?: CrewMemberProfile;
 }
+
+const acceptanceStatusPresentation = (status?: string | null) => {
+  switch (String(status || "pending").toLowerCase()) {
+    case "accepted":
+      return { label: "Accepted", className: "bg-emerald-500/90 text-white" };
+    case "rejected":
+      return { label: "Rejected", className: "bg-red-500/90 text-white" };
+    default:
+      return { label: "Pending", className: "bg-amber-400 text-black" };
+  }
+};
 
 export default function AssignedCP({
   projectId,
@@ -93,26 +105,29 @@ export default function AssignedCP({
   const userTypeId = Number(user?.user_type_id ?? user?.userTypeId);
   const normalizedRole = String(user?.role ?? user?.userRole ?? "").trim().toLowerCase();
   const isSalesAdmin = userTypeId === 7 && normalizedRole === "sales_admin";
+  const isSuperAdmin = userTypeId === 8 || ["super_admin", "superadmin"].includes(normalizedRole);
   const isSalesShootPage = pathname?.startsWith("/sales/shoots/");
   const isCompensationApproved = String(cpCompensationStatus || "").toLowerCase() === "approved";
   const canAssignCP = canCreate && !isCompensationApproved;
-  const canRemoveCP = canEdit && !isCompensationApproved;
+  const canRemoveCP = canEdit && (!isCompensationApproved || isSuperAdmin);
   const assignmentLockTitle = !canCreate
     ? "Create permission not allowed"
     : isCompensationApproved
-      ? "CP compensation is approved for this shoot. Adding more CPs is locked."
+      ? "All assigned CPs have accepted and their compensation has been approved. Adding more CPs is locked."
       : undefined;
   const removeLockTitle = !canEdit
     ? "Edit permission not allowed"
     : isCompensationApproved
-      ? "CP compensation is approved for this shoot. Removing CPs is locked."
+      ? isSuperAdmin
+        ? "Remove CP"
+        : "All CPs have accepted and their compensation has been approved. Only a Super Admin can remove a CP."
       : "Remove CP";
 
   const handleOpenAssignment = () => {
     if (!canCreate) return;
 
     if (isCompensationApproved) {
-      toast.error("CP compensation is approved for this shoot. Adding more CPs is locked.");
+      toast.error("All assigned CPs have accepted and their compensation has been approved. Adding more CPs is locked.");
       return;
     }
 
@@ -223,6 +238,7 @@ export default function AssignedCP({
                 {crewMembers.map((member, index) => {
                   const crewMemberId = Number(member.crew_member_id || member.id);
                   const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
+                  const acceptanceStatus = acceptanceStatusPresentation(member.acceptance_status);
                   return (
                     <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg group ${bgColor}`}>
 
@@ -240,6 +256,9 @@ export default function AssignedCP({
                         className="absolute inset-0 pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity duration-300"
                         style={{ background: "linear-gradient(180deg, rgba(0, 0, 0, 0.00) 40%, #000 100%)" }}
                       />
+                      <span className={`absolute top-4 left-4 z-30 inline-flex rounded-full px-2 py-1 text-[10px] font-semibold shadow-sm ${acceptanceStatus.className}`}>
+                        {acceptanceStatus.label}
+                      </span>
 
                       {/* Absolute Pill Controller Element on the Slide */}
                       <div className="absolute top-4 right-4 z-30 pointer-events-auto flex flex-col items-center gap-1.5 border border-white/40 bg-white/20 rounded-full px-2 py-2">
@@ -306,6 +325,7 @@ export default function AssignedCP({
                                 disabled={removingCrewId === crewMemberId}
                                 className="w-8 h-8 rounded-full bg-[#FF6467] text-white hover:bg-[#e60000] flex items-center justify-center transition-all shadow-md shrink-0"
                                 aria-label="Remove CP"
+                                title={removeLockTitle}
                               >
                                 {removingCrewId === crewMemberId ? (
                                   <Loader2 size={15} className="animate-spin" />
