@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useId } from 'react';
+import React, { useState, useEffect, useMemo, useId, useRef, useCallback } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
@@ -242,6 +242,94 @@ const ActiveDotWithBubble = (props: any) => {
 };
 
 /* ------------------------------------------------------------------ */
+/* Info tooltip                                                        */
+/* ------------------------------------------------------------------ */
+
+// Hover on desktop, tap on touch screens (tap again / tap elsewhere closes).
+// Position is measured so the tooltip always stays inside the card marked [data-tooltip-bounds].
+interface InfoTooltipProps {
+  text: string;
+  label: string;
+  isDark: boolean;
+  iconClassName: string;
+  iconSize?: number;
+  width?: number;
+  placement?: 'top' | 'bottom';
+  textClassName?: string;
+}
+
+function InfoTooltip({
+  text,
+  label,
+  isDark,
+  iconClassName,
+  iconSize = 13,
+  width = 224,
+  placement = 'bottom',
+  textClassName = 'text-xs',
+}: InfoTooltipProps) {
+  const wrapRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ left: number; width: number } | null>(null);
+
+  const place = useCallback(() => {
+    const anchor = wrapRef.current?.getBoundingClientRect();
+    const boundsEl = wrapRef.current?.closest('[data-tooltip-bounds]') ?? document.documentElement;
+    const bounds = boundsEl.getBoundingClientRect();
+    if (!anchor) return;
+    const gutter = 12;
+    const w = Math.min(width, bounds.width - gutter * 2);
+    // Centred on the icon, then pulled back inside the card if it would overflow
+    const desired = anchor.left + anchor.width / 2 - w / 2;
+    const clamped = Math.max(bounds.left + gutter, Math.min(desired, bounds.right - gutter - w));
+    const left = clamped - anchor.left; // relative to the icon wrapper
+    setPos((prev) => (prev?.left === left && prev?.width === w ? prev : { left, width: w }));
+  }, [width]);
+
+  // While open: re-measure on resize / rotate, close on a tap anywhere else
+  useEffect(() => {
+    if (!open) return;
+    place();
+    const onResize = () => place();
+    const onPointerDown = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [open, place]);
+
+  return (
+    <span
+      ref={wrapRef}
+      onMouseEnter={place}
+      onClick={(e) => e.stopPropagation()}
+      className="relative group/info inline-flex"
+    >
+      <button
+        type="button"
+        aria-label={`About ${label}`}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex p-1 -m-1 rounded-full focus:outline-none focus-visible:ring-1 focus-visible:ring-[#E8D1AB]"
+      >
+        <Info size={iconSize} className={iconClassName} />
+      </button>
+      <span
+        role="tooltip"
+        style={{ left: pos?.left ?? -(width / 2) + iconSize / 2, width: pos?.width ?? width }}
+        className={`absolute ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} rounded-lg border px-3 py-2 ${textClassName} leading-snug font-normal text-left transition-all duration-200 z-50 pointer-events-none shadow-2xl ${open ? 'opacity-100 visible' : 'opacity-0 invisible [@media(hover:hover)]:group-hover/info:opacity-100 [@media(hover:hover)]:group-hover/info:visible'} ${isDark ? "bg-[#1A1A1A] border-[#3D3D3D] text-zinc-300" : "bg-white border-[#E3E3E3] text-zinc-600"}`}
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -279,7 +367,7 @@ export default function RevenueOverviewChart() {
   const stopOpacityStart = isDark ? 0.12 : 0.15;
 
   return (
-    <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full mt-5 lg:mt-9 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+    <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl p-5 w-full mt-5 lg:mt-9 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
       {/* Header */}
       <div className="flex justify-between items-center mb-5 lg:mb-6">
         <div className="flex items-center gap-2">
@@ -321,15 +409,16 @@ export default function RevenueOverviewChart() {
                     {m.label}
                   </span>
                   {/* Info tooltip */}
-                  <span className="relative group/info inline-flex" onClick={(e) => e.stopPropagation()}>
-                    <Info
-                      size={14}
-                      className={isActive ? 'text-[#171717] fill-[#171717] stroke-[#ECD7B4]' : 'text-[#E8D1AB] fill-[#E8D1AB] stroke-[#101010]'}
+                  <InfoTooltip
+                    text={m.info}
+                    label={m.label}
+                    isDark={isDark}
+                    iconSize={14}
+                    width={192}
+                    placement="top"
+                    textClassName="text-[11px]"
+                    iconClassName={isActive ? 'text-[#171717] fill-[#171717] stroke-[#ECD7B4]' : 'text-[#E8D1AB] fill-[#E8D1AB] stroke-[#101010]'}
                     />
-                    <span className={`absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 rounded-lg border px-3 py-2 text-[11px] leading-snug font-normal opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-200 z-50 pointer-events-none shadow-2xl ${isDark ? "bg-[#1A1A1A] border-[#3D3D3D] text-zinc-300" : "bg-white border-[#E3E3E3] text-zinc-600"}`}>
-                      {m.info}
-                    </span>
-                  </span>
                 </div>
                 <div className={`p-2 rounded-full flex items-center justify-center ${isActive ? 'bg-[#171717] text-[#E8D1AB]' : (isDark ? 'bg-[#2C2C2C] text-[#E8D1AB]' : 'bg-[#fff] text-[#E8D1AB]')}`}>
                   <m.icon size={20} />
