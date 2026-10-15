@@ -55,6 +55,8 @@ interface CrewMemberProfile {
 interface CrewAssignment {
   id?: number | string;
   crew_member_id?: number | string;
+  acceptance_status?: string | null;
+  crew_accept?: number | string | null;
   crew_member?: CrewMemberProfile;
 }
 
@@ -96,17 +98,12 @@ export default function AssignedCP({
   const isSalesShootPage = pathname?.startsWith("/sales/shoots/");
   const isCompensationApproved = String(cpCompensationStatus || "").toLowerCase() === "approved";
   const canAssignCP = canCreate && !isCompensationApproved;
-  const canRemoveCP = canEdit && !isCompensationApproved;
+  const canRemoveCP = canEdit;
   const assignmentLockTitle = !canCreate
     ? "Create permission not allowed"
     : isCompensationApproved
       ? "CP compensation is approved for this shoot. Adding more CPs is locked."
       : undefined;
-  const removeLockTitle = !canEdit
-    ? "Edit permission not allowed"
-    : isCompensationApproved
-      ? "CP compensation is approved for this shoot. Removing CPs is locked."
-      : "Remove CP";
 
   const handleOpenAssignment = () => {
     if (!canCreate) return;
@@ -142,7 +139,7 @@ export default function AssignedCP({
   };
 
   const handleRemoveCP = async (crewMemberId: number) => {
-    if (!canRemoveCP) return;
+    if (!canEdit) return;
 
     try {
       setRemovingCrewId(crewMemberId);
@@ -222,6 +219,11 @@ export default function AssignedCP({
               >
                 {crewMembers.map((member, index) => {
                   const crewMemberId = Number(member.crew_member_id || member.id);
+                  const acceptanceStatus = String(member.acceptance_status || "").trim().toLowerCase();
+                  const crewAcceptance = Number(member.crew_accept);
+                  const isCPAccepted = crewAcceptance === 1 || ["accepted", "approved", "confirmed"].includes(acceptanceStatus);
+                  const isCPRejected = crewAcceptance === 2 || ["rejected", "declined"].includes(acceptanceStatus);
+                  const canRemoveThisCP = canRemoveCP && !isCPAccepted;
                   const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
                   return (
                     <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg group ${bgColor}`}>
@@ -240,6 +242,14 @@ export default function AssignedCP({
                         className="absolute inset-0 pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity duration-300"
                         style={{ background: "linear-gradient(180deg, rgba(0, 0, 0, 0.00) 40%, #000 100%)" }}
                       />
+
+                      {(isCPAccepted || isCPRejected) && (
+                        <span
+                          className={`absolute left-4 top-4 z-30 rounded-full px-3 py-1 text-[10px] font-semibold text-white shadow-sm ${isCPAccepted ? "bg-[#16A34A]" : "bg-[#DC2626]"}`}
+                        >
+                          {isCPAccepted ? "Accepted" : "Rejected"}
+                        </span>
+                      )}
 
                       {/* Absolute Pill Controller Element on the Slide */}
                       <div className="absolute top-4 right-4 z-30 pointer-events-auto flex flex-col items-center gap-1.5 border border-white/40 bg-white/20 rounded-full px-2 py-2">
@@ -295,7 +305,7 @@ export default function AssignedCP({
                               View Profile
                             </button>
 
-                            {canRemoveCP && (
+                            {canRemoveThisCP && (
                               <button
                                 type="button"
                                 onClick={(e) => {
