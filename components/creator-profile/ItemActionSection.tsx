@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
+// import Link from "next/link"; // Kept for the future agreement-review link.
 import { ChevronRight } from "lucide-react";
 import ActionMenu from "./AgreementActionMenu"; // Adjust path as needed
 
@@ -53,10 +53,9 @@ export function ItemActionSection({ item, isDark }: { item: any; isDark: boolean
           anchor={actionMenuAnchor}
           onClose={handleCloseActionMenu}
           leadId={selectedItem.project_id || selectedItem.id}
-          onViewDetails={() => {
-            // Navigate to review agreement or project details
-            window.location.href = "/creator/dashboard/request/review-agreement";
-          }}
+          // The review-agreement route is intentionally disabled in production.
+          // Restore the following callback when the agreement flow goes live:
+          // onViewDetails={() => window.location.href = "/creator/dashboard/request/review-agreement"}
           onApprove={() => setAcceptShootEvent(selectedItem)}
           onDecline={() => setDeclineShootEvent(selectedItem)}
           onEdit={() => {

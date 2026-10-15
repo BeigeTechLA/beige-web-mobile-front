@@ -11,7 +11,7 @@ interface ActionMenuProps {
   leadId: number | string;
   basePath?: string;
   onViewDetails?: () => void;
-  onReview?: () => void;
+  // onReview?: () => void; // Restore with the production agreement-review flow.
   onApprove?: () => void;
   onDecline?: () => void;
 }
@@ -23,7 +23,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
   leadId,
   basePath,
   onViewDetails,
-  onReview,
+  // onReview,
   onApprove,
   onDecline,
 }) => {
@@ -49,10 +49,10 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
     onClose();
   };
 
-  const handleReviewDetails = () => {
+  /* const handleReviewDetails = () => {
     onReview?.();
     onClose();
-  };
+  }; */
 
   const handleApprove = () => {
     onApprove?.();
@@ -87,12 +87,14 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
             variant="default"
             isDark={isDark}
           />
+          {/* Shoot agreement review is not live in production yet.
           <MenuButton
             label="Review Agreement"
             onClick={handleReviewDetails}
             variant="default"
             isDark={isDark}
           />
+          */}
           <MenuButton
             label="Approve"
             onClick={handleApprove}
