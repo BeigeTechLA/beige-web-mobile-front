@@ -58,6 +58,8 @@ const mapReassignmentRecords = (data: any): ReassignRecord[] => {
   return orderedRecords.map((record: any) => record.record_type === "lead"
     ? {
         id: `L-${record.lead_id}`,
+        displayId: record.booking_id ?? "-",
+        href: `/admin/sales-representative/${encodeURIComponent(record.lead_id)}`,
         clientName: record.client_name || record.guest_email || "—",
         type: "Lead",
         status: formatLeadStatus(record),
@@ -65,7 +67,9 @@ const mapReassignmentRecords = (data: any): ReassignRecord[] => {
       }
     : {
         id: `Q-${record.quote_number || record.sales_quote_id}`,
-        clientName: record.client_name || "—",
+        displayId: record.sales_quote_id ?? "-",
+        href: `/admin/quotes/${encodeURIComponent(record.sales_quote_id)}`,
+        clientName: record.client_name || "-",
         type: "Quote",
         status: formatQuoteStatusLabel(String(record.status || "Open")),
         amount: Number(record.total || 0),
@@ -131,7 +135,7 @@ function ReassignRecordsContent() {
         return;
       }
       setHistory(response.data.map((row: any) => ({
-        recordId: row.record_id,
+        recordId: row.display_record_id ?? "—",
         action: `${String(row.record_type || "record").replace(/^./, (letter: string) => letter.toUpperCase())} reassigned${row.actor_name ? ` by ${row.actor_name}` : ""}`,
         from: row.from_name || "Unknown user",
         to: row.to_name || "Unknown user",
@@ -275,7 +279,7 @@ function ReassignRecordsContent() {
           const historyResponse = await adminApi.getUserReassignmentHistory(userId);
           if (historyResponse?.success && Array.isArray(historyResponse.data)) {
             setHistory(historyResponse.data.map((row: any) => ({
-              recordId: row.record_id,
+              recordId: row.display_record_id ?? "—",
               action: `${String(row.record_type || "record").replace(/^./, (letter: string) => letter.toUpperCase())} reassigned${row.actor_name ? ` by ${row.actor_name}` : ""}`,
               from: row.from_name || "Unknown user",
               to: row.to_name || "Unknown user",

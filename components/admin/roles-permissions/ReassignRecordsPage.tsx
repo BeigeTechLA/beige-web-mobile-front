@@ -16,6 +16,8 @@ export type RecordType = "Lead" | "Quote";
 
 export type ReassignRecord = {
   id: string;
+  displayId: string | number;
+  href: string;
   clientName: string;
   type: RecordType;
   status: string;
@@ -52,7 +54,7 @@ type ReassignRecordsPageProps = {
   onAllReassigned?: () => void;
 };
 
-type RecordAssignment = { recordId: string; repId: string };
+type RecordAssignment = { recordId: string; repId: string; displayId?: string | number };
 type Pending = { assignments: RecordAssignment[] } | null;
 
 const getInitials = (value: string) =>
@@ -220,7 +222,12 @@ export function ReassignRecordsPage({
       const remainingCount = await onReassign?.(pending.assignments);
       const assignedIds = pending.assignments.map((assignment) => assignment.recordId);
       const next = records.filter((r) => !assignedIds.includes(r.id));
-      setSuccessAssignments(pending.assignments);
+      setSuccessAssignments(
+        pending.assignments.map((assignment) => ({
+          ...assignment,
+          displayId: records.find((record) => record.id === assignment.recordId)?.displayId,
+        })),
+      );
       setCanDeactivate(typeof remainingCount === "number" ? remainingCount === 0 : totalRecords <= assignedIds.length);
       setRecords(next);
       setSelected((prev) => prev.filter((id) => !assignedIds.includes(id)));
@@ -246,7 +253,7 @@ export function ReassignRecordsPage({
     new Set((pending?.assignments ?? []).map((assignment) => repName(assignment.repId))),
   );
   const successRecordSummary = successAssignments
-    .map((assignment) => `${assignment.recordId} to ${repName(assignment.repId)}`)
+    .map((assignment) => `${assignment.displayId ?? assignment.recordId} to ${repName(assignment.repId)}`)
     .join(", ");
   const successSubtext = canDeactivate
     ? "All open leads and quotes have been reassigned. You can now deactivate this Sales Rep."
@@ -529,7 +536,16 @@ export function ReassignRecordsPage({
                           className={`${checkboxClass} h-6 w-6`}
                         />
                       </td>
-                      <td className={`whitespace-nowrap px-4 py-3 font-medium underline underline-offset-4 ${strong}`}>{r.id}</td>
+                      <td className="whitespace-nowrap px-4 py-3 font-medium">
+                        <a
+                          href={r.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`underline underline-offset-4 ${strong}`}
+                        >
+                          {r.displayId}
+                        </a>
+                      </td>
                       <td className={`truncate px-4 py-3 ${strong}`} title={r.clientName}>{r.clientName}</td>
                       <td className="px-4 py-3">
                         <div className="flex min-w-0 items-center gap-3">
