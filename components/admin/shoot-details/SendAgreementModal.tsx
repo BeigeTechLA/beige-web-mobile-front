@@ -25,6 +25,7 @@ interface SendAgreementModalProps {
   cps?: CPDetail[];
   mode?: "individual" | "common";
   isDark?: boolean;
+  isSubmitting?: boolean;
 }
 
 const DEFAULT_CPS: CPDetail[] = [
@@ -39,6 +40,7 @@ export function SendAgreementModal({
   cps = DEFAULT_CPS,
   mode = "individual",
   isDark = true,
+  isSubmitting = false,
 }: SendAgreementModalProps) {
   const isCommon = mode === "common";
   const cpNamesText = cps.map((cp) => cp.name).join(" and ");
@@ -138,6 +140,7 @@ export function SendAgreementModal({
           <Button
             type="button"
             onClick={onClose}
+            disabled={isSubmitting}
             className={`flex-1 w-full h-12 px-5 rounded-lg text-sm font-semibold transition-all ${isDark
               ? "bg-[#101010] border border-white/10 text-white hover:bg-[#303030]"
               : "bg-[#F3F4F6] border border-[#E5E5E5] text-black hover:bg-[#E5E7EB]"
@@ -148,9 +151,10 @@ export function SendAgreementModal({
           <Button
             type="button"
             onClick={onSubmit}
+            disabled={isSubmitting}
             className="flex-1 w-full h-12 px-5 rounded-lg text-sm font-semibold bg-[#E8D1AB] text-black hover:bg-[#D5C5A8] transition-all"
           >
-            Submit
+            {isSubmitting ? "Sending..." : "Submit"}
           </Button>
         </DialogFooter>
       </DialogContent>

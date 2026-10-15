@@ -203,9 +203,6 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [shootAgreements, setShootAgreements] = useState<AgreementDocument[]>([]);
 
-  // State to show/hide CP Agreements table
-  const [isCPAgreementAvailable, setIsCPAgreementAvailable] = useState(true);
-
   // 3. Helper to update the URL when a tab is clicked
   const handleTabChange = (tabName: string) => {
     if (tabName === activeTab) return;
@@ -561,8 +558,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     const creator = assignment?.crew_member || assignment?.creator || {};
     const name = [creator.first_name, creator.last_name].filter(Boolean).join(" ") || creator.name || `CP #${assignment?.crew_member_id || assignmentId}`;
     const agreement = currentAgreementByAssignmentId.get(assignmentId);
-    const statusMap: Record<string, "Accepted" | "Pending" | "Rejected" | "Draft" | "Cancelled"> = {
-      accepted: "Accepted",
+    const statusMap: Record<string, "Completed" | "Pending" | "Rejected" | "Draft" | "Cancelled"> = {
+      accepted: "Completed",
       pending_acceptance: "Pending",
       rejected: "Rejected",
       draft: "Draft",
@@ -820,9 +817,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                     </div>
                   ) : null}
 
-                  {/* If shoot Agreement is sent to CPs, show them below
-                  {
-                    isCPAgreementAvailable &&
+                  {assignedCreativePartners.length > 0 && (
                     <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                       <CpAgreementsTable
                         agreements={cpAgreementRows}
@@ -835,8 +830,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                         }}
                       />
                     </div>
-                  }
-                  */}
+                  )}
 
                   <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} createPermissionModuleKey="shoots" />

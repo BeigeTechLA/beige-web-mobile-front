@@ -21,7 +21,7 @@ export interface CPAgreementItem {
   agreementType: string;
   version: string;
   compensation: string;
-  status: "Accepted" | "Pending" | "Rejected" | "Draft" | "Not Sent" | "Cancelled";
+  status: "Completed" | "Pending" | "Rejected" | "Draft" | "Not Sent" | "Cancelled";
   actionLabel: string;
 }
 
@@ -37,7 +37,7 @@ export default function CpAgreementsTable({
   const { isDark } = useResolvedTheme();
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const availableStatuses = ["all", "Not Sent", "Draft", "Pending", "Accepted", "Rejected", "Cancelled"];
+  const availableStatuses = ["all", "Not Sent", "Draft", "Pending", "Completed", "Rejected", "Cancelled"];
 
   // Filter agreements based on selected status
   const filteredAgreements = statusFilter && statusFilter !== "all"
@@ -158,9 +158,9 @@ export default function CpAgreementsTable({
 
                 {/* Status Column */}
                 <td className="py-5 px-3">
-                  {item.status === "Accepted" && (
+                  {item.status === "Completed" && (
                     <span className="inline-flex items-center justify-center px-5 py-1.5 rounded-full text-sm lg:text-base font-medium bg-[#D4FFE4] text-[#16A34A]">
-                      Accepted
+                      Completed
                     </span>
                   )}
                   {item.status === "Pending" && (

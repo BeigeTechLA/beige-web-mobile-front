@@ -53,6 +53,7 @@ export default function AdminAgreementDetailsPage() {
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [cpList, setCpList] = useState<CPDetail[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [draftAgreementIds, setDraftAgreementIds] = useState<Record<string, number>>({});
 
   // Editable Clause Sections State
   const [sections, setSections] = useState<ClauseSection[]>([
@@ -116,15 +117,28 @@ export default function AdminAgreementDetailsPage() {
       const requestedAssignmentId = Number(searchParams.get("assignment_id") || 0);
       if (!bookingId) return;
       try {
-        const response: any = await getProject(bookingId);
+        const [response, agreementsResponse] = await Promise.all([
+          getProject(bookingId),
+          agreementApi.listAdminAgreements({ type: "shoot", booking_id: bookingId, limit: 100 }),
+        ]);
         const payload = response?.data?.data ?? response?.data ?? response;
         const booking = payload?.project ?? payload;
         const assignments = Array.isArray(payload?.assignedCrew)
           ? payload.assignedCrew
           : Array.isArray(payload?.assigned_crews) ? payload.assigned_crews : [];
+        const sentAssignmentIds = new Set(
+          agreementsResponse.data
+            .filter((agreement) =>
+              agreement.is_current &&
+              ["pending_acceptance", "accepted"].includes(agreement.status) &&
+              agreement.assignment_id,
+            )
+            .map((agreement) => Number(agreement.assignment_id)),
+        );
         const pending = assignments.filter((assignment: any) =>
           Number(assignment?.crew_accept ?? 0) === 0 &&
           Number(assignment?.is_active ?? 1) === 1 &&
+          !sentAssignmentIds.has(Number(assignment?.id)) &&
           (!requestedAssignmentId || Number(assignment?.id) === requestedAssignmentId),
         )
           .map((assignment: any) => {
@@ -139,7 +153,7 @@ export default function AdminAgreementDetailsPage() {
             } as CPDetail;
           });
         setCpList(pending);
-        if (!pending.length) toast.info("No pending Creative Partner assignments are available for an agreement.");
+        if (!pending.length) toast.info("All pending Creative Partner assignments already have a sent agreement.");
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Unable to load assigned Creative Partners");
       }
@@ -206,29 +220,81 @@ export default function AdminAgreementDetailsPage() {
     }
   };
 
+  const handlePrimaryAction = () => {
+    if (currentStep === 3) {
+      setIsSendDialogOpen(true);
+      return;
+    }
+    handleNextStep();
+  };
+
   const buildAgreementHtml = () => sections.map((section) =>
     `<section><h2>${section.title}</h2><p>${section.content.replace(/\n/g, "<br />")}</p></section>`
   ).join("\n");
 
-  const sendAgreements = async () => {
+  const persistAgreementDrafts = async () => {
     const bookingId = Number(params.id);
-    if (!bookingId || !cpList.length) return;
+    if (!bookingId || !cpList.length) return [];
+
+    const html = buildAgreementHtml();
+    const payload = {
+      content_html: html,
+      content_json: {
+        sections,
+        production_date: productionDate?.toISOString() || null,
+        location,
+        call_time: callTime,
+        end_time: endTime,
+      },
+      snapshot_overrides: {
+        production_date: productionDate?.toISOString() || null,
+        location,
+        call_time: callTime,
+        end_time: endTime,
+      },
+    };
+
+    const persisted = await Promise.all(cpList.map(async (cp) => {
+      const assignmentId = Number(cp.assignmentId);
+      const existingAgreementId = draftAgreementIds[cp.assignmentId];
+      if (existingAgreementId) {
+        await agreementApi.updateShootAgreement(existingAgreementId, payload);
+        return [cp.assignmentId, existingAgreementId] as const;
+      }
+
+      const created = await agreementApi.createShootAgreement(bookingId, assignmentId, {
+        ...payload,
+        title: `Shoot Agreement — ${cp.projectName}`,
+      });
+      return [cp.assignmentId, created.data.agreement_document_id] as const;
+    }));
+
+    const nextDraftAgreementIds = Object.fromEntries(persisted);
+    setDraftAgreementIds((current) => ({ ...current, ...nextDraftAgreementIds }));
+    return persisted.map(([, agreementId]) => agreementId);
+  };
+
+  const saveDrafts = async () => {
     try {
       setIsSending(true);
-      const html = buildAgreementHtml();
-      const targets = selectedMode === "individual" ? cpList : cpList;
-      await Promise.all(targets.map(async (cp) => {
-        const created = await agreementApi.createShootAgreement(bookingId, Number(cp.assignmentId), {
-          title: `Shoot Agreement — ${cp.projectName}`,
-          content_html: html,
-          content_json: { sections, production_date: productionDate?.toISOString() || null, location, call_time: callTime, end_time: endTime },
-          snapshot_overrides: { production_date: productionDate?.toISOString() || null, location, call_time: callTime, end_time: endTime },
-        });
-        await agreementApi.sendShootAgreement(created.data.agreement_document_id);
-      }));
+      const agreementIds = await persistAgreementDrafts();
+      if (agreementIds.length) toast.success("Shoot agreement draft saved");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save shoot agreement draft");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const sendAgreements = async () => {
+    if (!cpList.length) return;
+    try {
+      setIsSending(true);
+      const agreementIds = await persistAgreementDrafts();
+      await Promise.all(agreementIds.map((agreementId) => agreementApi.sendShootAgreement(agreementId)));
       setIsSendDialogOpen(false);
       setIsSuccessOpen(true);
-      toast.success(`${targets.length} shoot agreement${targets.length === 1 ? "" : "s"} sent`);
+      toast.success(`${agreementIds.length} shoot agreement${agreementIds.length === 1 ? "" : "s"} sent`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to create and send shoot agreements");
     } finally {
@@ -254,7 +320,9 @@ export default function AdminAgreementDetailsPage() {
                     ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
                     : "bg-[#F0F0F0] border-[#E3E3E3] text-[#323232] hover:bg-zinc-50"
                     }`}
-                > Save Draft
+                  onClick={() => void saveDrafts()}
+                  disabled={isSending}
+                > {isSending ? "Saving..." : "Save Draft"}
                 </Button>
                 <Button
                   className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
@@ -332,7 +400,7 @@ export default function AdminAgreementDetailsPage() {
             sections={sections}
             onOpenSendDialog={() => setIsSendDialogOpen(true)}
             onPrevious={handlePreviousStep}
-            onSave={() => router.push("/admin/agreements")}
+            onSave={() => setIsSendDialogOpen(true)}
           />
         )}
 
@@ -354,7 +422,7 @@ export default function AdminAgreementDetailsPage() {
 
           <Button
             type="button"
-            onClick={handleNextStep}
+            onClick={handlePrimaryAction}
             className="flex-[2] h-12 rounded-lg text-sm font-semibold bg-[#E8D1AB] text-black hover:bg-[#D4C3A3]"
           >
             {currentStep === 1
@@ -365,7 +433,7 @@ export default function AdminAgreementDetailsPage() {
                 ? "Next CP"
                 : currentStep === 2
                   ? "Review"
-                  : "Save"}
+                  : "Send Agreement"}
           </Button>
         </div>
       </div>
@@ -376,6 +444,7 @@ export default function AdminAgreementDetailsPage() {
         onSubmit={sendAgreements}
         cps={cpList}
         mode={selectedMode}
+        isSubmitting={isSending}
       />
 
       <ShootAgreementSuccessModal
