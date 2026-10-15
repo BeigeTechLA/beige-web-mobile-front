@@ -890,33 +890,6 @@ export const ShootsGlobeView = ({
     [moveMapTo],
   );
 
-  const handleTodayShootClick = useCallback(
-    async (event: GlobeShoot) => {
-      if (hasValidCoordinates(event.latitude, event.longitude)) {
-        handleMarkerClick(event);
-        return;
-      }
-
-      const coordinates = await geocodeAddress(event.location);
-      if (!coordinates) return;
-
-      const locatedEvent: GlobeShoot = {
-        ...event,
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        location: coordinates.placeName || event.location,
-        hasCoordinates: true,
-        isGeocoded: true,
-      };
-
-      setTodayEvents((current) =>
-        current.map((item) => (item.id === event.id ? locatedEvent : item)),
-      );
-      handleMarkerClick(locatedEvent);
-    },
-    [geocodeAddress, handleMarkerClick],
-  );
-
   const closePopup = useCallback(() => {
     setSelectedEvent(null);
     moveMapTo(
