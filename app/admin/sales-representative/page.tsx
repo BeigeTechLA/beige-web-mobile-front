@@ -167,6 +167,10 @@ const isClosedLostStatus = (value: unknown): boolean => {
 };
 
 const resolveBookingStatusForList = (lead: BookingStatusSource): BookingStatus => {
+  if (isClosedLostStatus(lead?.booking_status)) {
+    return "Closed - Lost";
+  }
+
   const paymentSummary = lead?.payment_summary || {};
   const paymentSummaryStatus = normalizeStatusValue(paymentSummary?.payment_status).replace(/\s+/g, "_");
   const paidAmount = Number(paymentSummary?.paid_amount || lead?.collected_amount || 0);
