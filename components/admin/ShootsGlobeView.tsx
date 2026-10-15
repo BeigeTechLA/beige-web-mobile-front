@@ -251,10 +251,10 @@ const statusConfig: Record<
   },
   completed: {
     label: "Completed Shoots",
-    marker: "bg-[#10B981]",
-    ring: "border-[#10B981]",
-    badgeDark: "border border-[#2F6848] bg-[#123A27] text-[#53D18B]",
-    badgeLight: "border border-[#B9E7CD] bg-[#DCF7E8] text-[#1F8A53]",
+    marker: "bg-[#A78BFA]",
+    ring: "border-[#A78BFA]",
+    badgeDark: "border border-[#594A85] bg-[#27203D] text-[#C4B5FD]",
+    badgeLight: "border border-[#DDD6FE] bg-[#F5F3FF] text-[#6D28D9]",
   },
   cancelled: {
     label: "Cancelled Shoots",
@@ -736,35 +736,28 @@ export const ShootsGlobeView = ({
     refreshEventsKey,
   ]);
 
+  // The Today Calendar deliberately has its own request so it remains useful
+  // while the map is filtered to another date range. Always finish loading,
+  // including when the API returns no projects or the request fails.
   useEffect(() => {
     let cancelled = false;
 
     const loadTodayShoots = async () => {
       setTodayLoading(true);
-      setTodayError(false);
 
       try {
-        const response = await adminApi.getShootCalendarDay({
-          date: formatDateFns(new Date(), "yyyy-MM-dd"),
-        });
+        const response = await adminApi.getGlobalShoots({ range: "today" });
         if (cancelled) return;
 
-        if (response?.success === false) {
-          throw new Error(response?.message || response?.error || "Could not load today's shoots");
-        }
-
-        const shoots = getTodayShootsFromCalendarResponse(response);
-        const transformedEvents = shoots
-          .map(mapProjectToGlobeShoot)
-          .filter((event): event is GlobeShoot => Boolean(event));
-
-        setTodayEvents(transformedEvents);
+        const projects = getProjectsFromGlobalResponse(response);
+        setTodayEvents(
+          projects
+            .map(mapProjectToGlobeShoot)
+            .filter((event): event is GlobeShoot => Boolean(event)),
+        );
       } catch (error) {
         console.error("Failed to load today's shoots:", error);
-        if (!cancelled) {
-          setTodayEvents([]);
-          setTodayError(true);
-        }
+        if (!cancelled) setTodayEvents([]);
       } finally {
         if (!cancelled) setTodayLoading(false);
       }
@@ -775,14 +768,13 @@ export const ShootsGlobeView = ({
     return () => {
       cancelled = true;
     };
-  }, [refreshTodayKey]);
+  }, []);
 
   const sortedTodayEvents = useMemo(
     () =>
       [...todayEvents].sort(
-        (a, b) =>
-          timeToMinutes(a.startTime) - timeToMinutes(b.startTime) ||
-          a.title.localeCompare(b.title),
+        (first, second) =>
+          timeToMinutes(first.startTime) - timeToMinutes(second.startTime),
       ),
     [todayEvents],
   );
@@ -896,6 +888,33 @@ export const ShootsGlobeView = ({
       });
     },
     [moveMapTo],
+  );
+
+  const handleTodayShootClick = useCallback(
+    async (event: GlobeShoot) => {
+      if (hasValidCoordinates(event.latitude, event.longitude)) {
+        handleMarkerClick(event);
+        return;
+      }
+
+      const coordinates = await geocodeAddress(event.location);
+      if (!coordinates) return;
+
+      const locatedEvent: GlobeShoot = {
+        ...event,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        location: coordinates.placeName || event.location,
+        hasCoordinates: true,
+        isGeocoded: true,
+      };
+
+      setTodayEvents((current) =>
+        current.map((item) => (item.id === event.id ? locatedEvent : item)),
+      );
+      handleMarkerClick(locatedEvent);
+    },
+    [geocodeAddress, handleMarkerClick],
   );
 
   const closePopup = useCallback(() => {
@@ -1894,7 +1913,9 @@ export const ShootsGlobeView = ({
                       <div className="min-w-0 flex-1">
                         <div className="mb-2 flex items-center gap-2">
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold capitalize ${isDark ? colors.badgeDark : colors.badgeLight}`}
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold capitalize ${
+                              isDark ? colors.badgeDark : colors.badgeLight
+                            }`}
                           >
                             {event.status}
                           </span>

@@ -547,7 +547,7 @@ export const salesApi = createApi({
       invalidatesTags: (result, error, { lead_id }) => [{ type: 'Lead', id: lead_id }, { type: 'Lead', id: 'LIST' }],
     }),
 
-    assignCrewFromLead: builder.mutation<ApiResponse<void>, { lead_id?: number; client_lead_id?: number; crew_member_ids: number[]; allow_pending_compensation_assignment?: boolean }>({
+    assignCrewFromLead: builder.mutation<ApiResponse<void>, { lead_id?: number; client_lead_id?: number; crew_member_ids: number[] }>({
       query: (data) => ({
         url: 'admin/assign-crew-from-lead',
         method: 'POST',
@@ -555,7 +555,7 @@ export const salesApi = createApi({
       }),
       invalidatesTags: ['Lead'],
     }),
-    assignCrewFromShoot: builder.mutation<ApiResponse<void>, { project_id: number; crew_member_ids: number[]; allow_pending_compensation_assignment?: boolean }>({
+    assignCrewFromShoot: builder.mutation<ApiResponse<void>, { project_id: number; crew_member_ids: number[]; defer_new_shoot_request_email?: boolean }>({
       query: (data) => ({
         url: 'admin/assign-crew-from-shoot',
         method: 'POST',

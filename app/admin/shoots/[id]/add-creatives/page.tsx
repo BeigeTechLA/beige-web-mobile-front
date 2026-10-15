@@ -297,11 +297,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
 
   const handleAssign = async () => {
     if (cpCompensationLocked) {
-      toast.error("CP compensation is already approved for this shoot. You cannot assign more CPs.");
-      return;
-    }
-    if (cpCompensationHasPending) {
-      toast.error("This shoot has pending CP compensation. Use Continue to Compensation so the payout stays updated.");
+      toast.error("All assigned CPs have accepted and their compensation has been approved. You cannot assign more CPs.");
       return;
     }
     if (!validateSelectedCounts("assign")) return;
@@ -310,7 +306,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
 
   const handleContinueToCompensation = () => {
     if (cpCompensationLocked) {
-      toast.error("CP compensation is already approved for this shoot. You cannot assign more CPs.");
+      toast.error("All assigned CPs have accepted and their compensation has been approved. You cannot assign more CPs.");
       return;
     }
     if (!validateSelectedCounts("compensation")) return;
@@ -319,7 +315,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
 
   const handleCreativeSelectionChange = useCallback((ids: number[]) => {
     if (cpCompensationLocked) {
-      toast.error("CP compensation is already approved for this shoot. You cannot assign more CPs.");
+      toast.error("All assigned CPs have accepted and their compensation has been approved. You cannot assign more CPs.");
       return;
     }
     setSelectedCreativeIds(ids);
@@ -375,7 +371,6 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       const assignResponse = await assignCrew({
         project_id: Number(projectId),
         crew_member_ids: selectedCreativeIds,
-        allow_pending_compensation_assignment: true,
         defer_new_shoot_request_email: true,
       }).unwrap();
 
@@ -444,7 +439,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
 
               {/* <Button
                 onClick={handleAssign}
-                disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked || cpCompensationHasPending}
+                disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked}
                 className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
               >
                 {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
@@ -458,8 +453,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           <div className="w-full px-6 py-3 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
             <p className="font-['Instrument_Sans'] text-sm leading-5 text-[#E8D1AB]">
               {cpCompensationLocked
-                ? "CP compensation is approved for this shoot. Adding more CPs is locked."
-                : "This shoot has pending CP compensation. Add CPs through compensation so payout records stay updated."}
+                ? "All assigned CPs have accepted and their compensation has been approved. Adding more CPs is locked."
+                : "This shoot has pending CP compensation. You can still add or remove CPs until all CPs and Finance approve."}
             </p>
           </div>
         )}
@@ -559,7 +554,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
 
           <Button
             onClick={handleAssign}
-            disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked || cpCompensationHasPending}
+            disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked}
             className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
           >
             {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}

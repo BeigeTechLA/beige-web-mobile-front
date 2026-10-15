@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { ArrowLeft, CalendarClock, Eye, History, Loader2, Pencil, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, Eye, History, Loader2, Pencil, X, Copy, Check } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -323,6 +323,18 @@ export default function ShootHeader({
   const { theme, resolvedTheme } = useTheme();
   const { canEdit } = usePermissions("shoots");
   const [mounted, setMounted] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleCopyValue = async (value: string, fieldName: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(fieldName);
+      toast.success(`${fieldName} copied successfully`);
+      setTimeout(() => setCopiedField(null), 1500);
+    } catch {
+      toast.error(`Failed to copy ${fieldName}`);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -462,6 +474,15 @@ export default function ShootHeader({
       : getShootFilesText(project);
   const rawProjectName = toDisplayText(project?.project_name) || "Untitled Project";
   const projectName = rawProjectName.replace(/^CUSTOM Shoot\b/i, "CUSTOM");
+
+  const getShootInitials = (name: string) =>
+    String(name || "")
+      .split(/[\s\-–—]+/)
+      .filter((part) => /[a-zA-Z0-9]/.test(part))
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2);
   const skillsText = Array.isArray(project?.skills_needed)
     ? project.skills_needed.map(toDisplayText).filter(Boolean).join(", ")
     : toDisplayText(project?.skills_needed);
@@ -632,6 +653,10 @@ export default function ShootHeader({
 
     return elements;
   };
+
+  const COPY_BTN_STYLE = `shrink-0 flex items-center justify-center p-1 transition-all active:scale-90 ${
+    isDark ? "text-white/50 hover:text-[#E8D1AB]" : "text-gray-400 hover:text-black"
+  }`;
 
   const handleViewClientDetails = () => {
     if (resolvedClientId) {
@@ -1130,7 +1155,7 @@ export default function ShootHeader({
       <div className={`transition-all duration-300 lg:rounded-2xl mb-6 lg:mb-10`}>
         <div className="flex gap-5">
           <div className={`w-10 h-10 lg:w-16 lg:h-16 rounded-lg lg:rounded-2xl flex items-center justify-center text-sm lg:text-2xl font-bold ${isDark ? "bg-[#FFF6D9] text-black" : "bg-[#DCE8FA] text-[#1F2A44]"}`}>
-            {getInitials(displayProjectName)}
+            {getShootInitials(displayProjectName)}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -1244,9 +1269,30 @@ export default function ShootHeader({
               </div>
               <div className="flex items-center gap-3 min-w-0">
                 <span className="whitespace-nowrap">Location :</span>
-                <span title={locationText} className={`${isDark ? "text-white" : "text-black"} whitespace-nowrap truncate text-right`}>
+                <div className="flex items-center gap-2 min-w-0">
+                <span title={locationText} className={`${isDark ? "text-white" : "text-black"} min-w-0 whitespace-nowrap truncate text-right`}>
                   {locationText}
                 </span>
+                  {locationText !== "No location specified" && (
+                    <button
+                      type="button"
+                      title="Copy location"
+                      aria-label="Copy location"
+                      onClick={() => void handleCopyValue(locationText, "Location")}
+                      className={COPY_BTN_STYLE}
+                    >
+                      {copiedField === "Location" ? (
+                        <Check
+                          size={14}
+                          strokeWidth={3}
+                          className="text-[#E8D1AB] animate-in zoom-in-50 duration-200"
+                        />
+                      ) : (
+                        <Copy size={14} />
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
               {updatedByName ? (
                 <div className="flex items-center gap-3 min-w-0">

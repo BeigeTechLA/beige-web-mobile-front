@@ -5244,6 +5244,23 @@ export const salesApi = {
       };
     }
   },
+  editLeadManualPayment: async (
+    leadId: number | string,
+    paymentId: number | string,
+    payload: { amount: number }
+  ) => {
+    try {
+      const response = await api.put(`/sales/leads/${leadId}/manual-payment/${paymentId}`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Edit Lead Manual Payment Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update manual payment amount',
+      };
+    }
+  },
   recordClientLeadManualPayment: async (
     leadId: number | string,
     payload: {

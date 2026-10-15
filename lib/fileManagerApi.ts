@@ -68,6 +68,7 @@ interface ProjectFilesResponse {
 interface ExternalWorkspaceSummary {
   externalId: string;
   folderName: string;
+  projectName?: string;
   displayName?: string;
   storageFolderName?: string;
   rootPath: string;
@@ -604,6 +605,8 @@ export interface UiFolderItem {
   updatedAtRaw?: string;
   visibleUntil?: string | null;
   rawName?: string;
+  projectName?: string;
+  shootHref?: string;
 }
 
 const DEFAULT_FILE_MANAGER_BASE_PATH = "/production-manager/file-manager";
@@ -1816,6 +1819,8 @@ export const mapExternalWorkspaceToFolderCard = (
     updatedAtRaw: workspace.updatedAt || workspace.createdAt,
     visibleUntil: workspace.visibleUntil || null,
     rawName: getExternalWorkspaceStorageName(workspace),
+    projectName: workspace.isCommonEvent ? undefined : workspace.projectName,
+    shootHref: workspace.isCommonEvent ? undefined : `/admin/shoots/${workspace.externalId}`,
   };
 };
 

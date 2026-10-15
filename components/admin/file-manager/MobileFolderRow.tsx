@@ -35,6 +35,8 @@ interface FolderEntry {
   visibilityExpired?: boolean;
   type?: string;
   lastOpened: string;
+  projectName?: string;
+  shootHref?: string;
 }
 
 export const MobileFolderRow = ({
@@ -102,6 +104,18 @@ export const MobileFolderRow = ({
             className={`border-t transition-colors duration-200 ${isDark ? "border-white/5 bg-black/20" : "border-[#D7D7D7] bg-[#FAFAFA]"}`}
           >
             <div className="p-4 grid grid-cols-2 gap-4 text-sm">
+              {folder.projectName && folder.shootHref ? (
+                <div className="col-span-2">
+                  <p className={`text-xs mb-1 ${isDark ? "text-white/40" : "text-[#727272]"}`}>Shoot</p>
+                  <a
+                    href={folder.shootHref}
+                    onClick={(event) => event.stopPropagation()}
+                    className={`font-medium hover:underline ${isDark ? "text-[#E8D1AB]" : "text-[#725B38]"}`}
+                  >
+                    {folder.projectName} #{folder.id}
+                  </a>
+                </div>
+              ) : null}
               {
                 folder?.category && (
                   <div>
