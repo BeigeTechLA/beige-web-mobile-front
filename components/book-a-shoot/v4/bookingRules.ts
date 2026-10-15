@@ -26,11 +26,13 @@ export function isLosAngelesLocation(address: string, details?: unknown): boolea
 
 export function getV4PhotoEditsPerHour(
   shootType: string,
-  hasHybridShooter: boolean
+  hasHybridShooter: boolean,
+  hasPhotographer: boolean
 ): number {
-  // Hybrid shooters capture both photo and video, so their included photo
-  // allowance is lower than a dedicated photographer's allowance.
-  if (hasHybridShooter) return 10;
+  // A dedicated photographer takes priority when both crew types are selected.
+  // Otherwise, hybrid shooters capture both photo and video, so their included
+  // photo allowance is lower than a dedicated photographer's allowance.
+  if (hasHybridShooter && !hasPhotographer) return 10;
 
   return shootType === "wedding" ? 50 : 25;
 }

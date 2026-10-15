@@ -214,12 +214,20 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
 
   const handleBack = () => {
     const returnTo = searchParams.get("returnTo");
-    if (returnTo) {
-      router.push(returnTo);
+
+    // Normal case: pop history so no new entry is added
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
       return;
     }
 
-    router.push("/admin/users/creative-partners");
+    // Opened directly (new tab, no history): fall back without adding an entry
+    if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+      router.replace(returnTo);
+      return;
+    }
+
+    router.replace("/admin/users/creative-partners");
   };
 
   useEffect(() => {

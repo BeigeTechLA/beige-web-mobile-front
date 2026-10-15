@@ -177,6 +177,28 @@ export default function MeetingsWorkspaceView({ role }: MeetingsWorkspaceViewPro
     const value = (user as { id?: string | number }).id;
     return value != null ? value : undefined;
   }, [user]);
+  useEffect(() => {
+    if (!currentUserId) return;
+    const meetingId = new URLSearchParams(window.location.search).get("meetingId")?.trim();
+    if (!meetingId) return;
+
+    let cancelled = false;
+    meetingsApi.getById(meetingId)
+      .then((meeting) => {
+        if (cancelled) return;
+        if (meeting?.id) {
+          setSelectedMeeting(meeting);
+        } else {
+          toast.error("This meeting is no longer available.");
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not open this meeting.");
+      });
+
+    return () => { cancelled = true; };
+  }, [currentUserId]);
+
   const currentUserEmail = useMemo(() => {
     if (!user || typeof user !== "object") return "";
     return String((user as { email?: string }).email || "");

@@ -141,8 +141,8 @@ class ApiClient {
   }
 
   // DELETE request
-  async delete<T>(url: string) {
-    const response = await this.client.delete<T>(url);
+  async delete<T>(url: string, data?: unknown) {
+    const response = await this.client.delete<T>(url, data === undefined ? undefined : { data });
     return response.data;
   }
 

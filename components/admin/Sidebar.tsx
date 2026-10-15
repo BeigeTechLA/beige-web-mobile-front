@@ -17,6 +17,7 @@ import {
   Settings,
   SquareArrowOutUpRight,
   User,
+  ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -95,6 +96,7 @@ const menuItems: MenuItem[] = [
     permissionKeys: ["finances"],
     children: [
       // { name: 'Payouts', link: '/admin/finances/payouts' },
+      { name: "Finance Analytics", link: '/admin/finances/analytics' },
       { name: "Transactions", link: "/admin/finances/transactions" },
       { name: "Disputes", link: "/admin/finances/disputes" },
       { name: "Beige credit points", link: "/admin/finances/creditPoints" },
@@ -127,9 +129,15 @@ const menuItems: MenuItem[] = [
       { name: "All Quotes", link: "/admin/quotes" },
       { name: "Quote Approvals", link: "/admin/quotes/change-requests" },
       { name: "Master Pricing", link: "/admin/quotes/pricing" },
-      // { name: "Quote Analytics", link: "/admin/quotes/analytics" },
+      { name: "Quote Analytics", link: "/admin/quotes/analytics" },
     ],
   },
+  // {
+  //   name: "Agreements",
+  //   icon: ClipboardList,
+  //   link: "/admin/agreements",
+  //   permissionKeys: ["agreements"],
+  // },
   {
     name: "Invoices",
     icon: Receipt,

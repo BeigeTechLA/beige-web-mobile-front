@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   ArrowLeft,
@@ -23,7 +23,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  getQuoteAdditionalPaymentDetails,
   formatQuoteCurrency,
+  getQuoteNumber,
   normalizeQuoteLineItems,
 } from "@/lib/quoteDetail";
 import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
@@ -71,6 +73,13 @@ export default function QuoteVersionSummary({ quoteId, isDark = true }: QuoteVer
   const [versions, setVersions] = useState<any[]>([]);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedVersionId, setSelectedVersionId] = useState<string>("");
+  const [paymentSummaryOverrides, setPaymentSummaryOverrides] = useState<{
+    versionId: string;
+    previousTotal: number;
+    revisedTotal: number;
+    previouslyPaid?: number;
+  } | undefined>(undefined);
+  const fetchRequestIdRef = useRef(0);
 
   const handleBeforeShareQuote = React.useCallback(async () => {
     const blockMessage = await getLatestQuotePaymentChangeBlockMessage({
@@ -87,7 +96,9 @@ export default function QuoteVersionSummary({ quoteId, isDark = true }: QuoteVer
   }, [quote, quoteId]);
 
   const fetchQuoteData = async (id: string, versionId?: string) => {
+    const requestId = ++fetchRequestIdRef.current;
     setIsLoading(true);
+    setPaymentSummaryOverrides(undefined);
     try {
       const response = versionId
         ? await salesApi.getQuoteVersionDetail(id, versionId)
@@ -95,7 +106,7 @@ export default function QuoteVersionSummary({ quoteId, isDark = true }: QuoteVer
 
       if (response?.success && response.data) {
         const unwrappedQuote = unwrapSalesQuoteDetail(response.data);
-        if (unwrappedQuote) {
+        if (unwrappedQuote && requestId === fetchRequestIdRef.current) {
           const versionInfo = extractVersionInfo(response.data);
           if (versionInfo) {
             unwrappedQuote.version_number = versionInfo.version_number;
@@ -105,12 +116,54 @@ export default function QuoteVersionSummary({ quoteId, isDark = true }: QuoteVer
             };
           }
           setQuote(unwrappedQuote);
+
+          const selectedVersionNumber = Number(versionId);
+          if (versionId && Number.isFinite(selectedVersionNumber) && selectedVersionNumber > 1) {
+            const [previousResponse, paymentContextResponse] = await Promise.all([
+              salesApi.getQuoteVersionDetail(id, String(selectedVersionNumber - 1)),
+              salesApi.getQuoteDetail(id),
+            ]);
+            const previousQuote = unwrapSalesQuoteDetail(previousResponse?.data ?? null);
+            const paymentContextQuote = unwrapSalesQuoteDetail(paymentContextResponse?.data ?? null);
+            if (requestId !== fetchRequestIdRef.current) return;
+            const paymentContext = asRecord(paymentContextQuote);
+            const additionalPayment = asRecord(paymentContext?.additional_payment);
+            const paymentSummary = asRecord(paymentContext?.payment_summary);
+            const previouslyPaid = getQuoteNumber(
+              additionalPayment?.previously_paid_amount,
+              paymentSummary?.paid_amount,
+              paymentContext?.collected_amount,
+              paymentContext?.total_paid_amount,
+              paymentContext?.paid_amount
+            );
+            const previousTotal = Number(
+              previousQuote?.final_total ?? previousQuote?.total_amount ?? previousQuote?.total ?? 0
+            );
+            const revisedTotal = Number(
+              unwrappedQuote.final_total ?? unwrappedQuote.total_amount ?? unwrappedQuote.total ?? 0
+            );
+
+            if (
+              Number.isFinite(previousTotal) &&
+              Number.isFinite(revisedTotal) &&
+              Math.abs(revisedTotal - previousTotal) > 0.009
+            ) {
+              setPaymentSummaryOverrides({
+                versionId,
+                previousTotal,
+                revisedTotal,
+                ...(previouslyPaid !== undefined ? { previouslyPaid } : {}),
+              });
+            }
+          }
         }
       }
     } catch (error) {
       console.error("Failed to fetch quote detail:", error);
     } finally {
-      setIsLoading(false);
+      if (requestId === fetchRequestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -133,9 +186,9 @@ export default function QuoteVersionSummary({ quoteId, isDark = true }: QuoteVer
 
         setVersions(versionsData);
 
-        const defaultVersion =
-          versionsData.find((version) => version?.is_current && version?.version_number != null) ||
-          versionsData.find((version) => version?.version_number != null);
+        const defaultVersion = versionsData
+          .filter((version) => version?.version_number != null)
+          .sort((a, b) => Number(b.version_number) - Number(a.version_number))[0];
 
         if (defaultVersion?.version_number != null) {
           const versionId = String(defaultVersion.version_number);
@@ -187,6 +240,23 @@ export default function QuoteVersionSummary({ quoteId, isDark = true }: QuoteVer
   const taxRate = Number(quote?.tax_rate ?? 0);
   const taxAmount = Number(quote?.tax_amount ?? 0);
   const hasDiscount = discountAmount > 0;
+  const activePaymentSummaryOverrides =
+    paymentSummaryOverrides?.versionId === String(selectedVersionId)
+      ? paymentSummaryOverrides
+      : undefined;
+  const rawPaymentSummary = getQuoteAdditionalPaymentDetails(quote, {
+    previousTotalOverride: activePaymentSummaryOverrides?.previousTotal,
+    previouslyPaidOverride: activePaymentSummaryOverrides?.previouslyPaid,
+    revisedTotalOverride: activePaymentSummaryOverrides?.revisedTotal,
+  });
+  const highestVersionNumber = versions.reduce(
+    (highest, version) => Math.max(highest, Number(version?.version_number || 0)),
+    0
+  );
+  const paymentSummary =
+    highestVersionNumber > 0 && Number(selectedVersionId) === highestVersionNumber
+      ? rawPaymentSummary
+      : null;
 
   if (isLoading && !quote) {
     return (
@@ -433,8 +503,32 @@ export default function QuoteVersionSummary({ quoteId, isDark = true }: QuoteVer
                 <span className={`font-medium ${isDark ? "text-[#96969E]" : "text-[#727272]"}`}>Sales Tax ({taxRate}%)</span>
                 <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{formatQuoteCurrency(taxAmount)}</span>
               </div>
+              {paymentSummary ? (
+                <div className="space-y-3 border-t border-white/10 pt-4">
+                  <div className="flex items-center justify-between lg:text-lg">
+                    <span className={`font-medium ${isDark ? "text-[#96969E]" : "text-[#727272]"}`}>Old Quote Total</span>
+                    <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{formatQuoteCurrency(paymentSummary.previousTotal)}</span>
+                  </div>
+                  {paymentSummary.previouslyPaidAmount > 0 ? (
+                    <div className="flex items-center justify-between lg:text-lg">
+                      <span className={`font-medium ${isDark ? "text-[#96969E]" : "text-[#727272]"}`}>Previously Paid</span>
+                      <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{formatQuoteCurrency(paymentSummary.previouslyPaidAmount)}</span>
+                    </div>
+                  ) : null}
+                  <div className="flex items-center justify-between lg:text-lg">
+                    <span className={`font-medium ${isDark ? "text-[#96969E]" : "text-[#727272]"}`}>
+                      {paymentSummary.totalDelta < 0 ? "Reduced Amount" : "Additional Amount"}
+                    </span>
+                    <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                      {paymentSummary.totalDelta < 0 ? "-" : "+"}{formatQuoteCurrency(Math.abs(paymentSummary.totalDelta))}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-4 rounded-[16px] bg-[#E8D1AB] p-6 flex items-center justify-between">
-                <span className="text-lg lg:text-xl font-bold text-black">Final Total</span>
+                <span className="text-lg lg:text-xl font-bold text-black">
+                  {paymentSummary ? "New Quote Total" : "Final Total"}
+                </span>
                 <span className="text-lg lg:text-[32px] font-bold text-black">
                   {formatQuoteCurrency(quote?.final_total || quote?.total_amount || quote?.total)}
                 </span>
@@ -494,6 +588,8 @@ export default function QuoteVersionSummary({ quoteId, isDark = true }: QuoteVer
         quoteId={quoteId}
         onBeforeCopy={handleBeforeShareQuote}
         onBeforeSend={handleBeforeShareQuote}
+        paymentSummaryOverrides={activePaymentSummaryOverrides}
+        hidePaymentSummary={highestVersionNumber > 0 && Number(selectedVersionId) !== highestVersionNumber}
       />
     </div>
   );

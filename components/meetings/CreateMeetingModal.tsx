@@ -182,7 +182,7 @@ const formatRoleLabel = (value?: string) =>
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const getCrewId = (member: CrewSource | null | undefined) =>
-  String(member?.user_id || member?.crew_member?.user_id || member?.crew_member_id || member?.crew_member?.crew_member_id || member?.id || "");
+  String(member?.crew_member_id || member?.crew_member?.crew_member_id || "");
 
 const getCrewName = (member: CrewSource | null | undefined) =>
   `${member?.crew_member?.first_name || member?.first_name || ""} ${member?.crew_member?.last_name || member?.last_name || ""}`.trim() ||
@@ -297,13 +297,9 @@ export default function CreateMeetingModal({
 
   const filteredDirectoryMembers = useMemo(() => {
     const normalizedSearch = memberSearch.trim().toLowerCase();
-    const excluded = new Set([
-      ...selectedManagerIds,
-      ...selectedCpIds,
-      // ...selectedStaffIds,
-      // ...selectedExtraCpIds,
-      String(currentUserId || ""),
-    ]);
+    const excluded = new Set(memberTab === "cp"
+      ? selectedCpIds
+      : [...selectedManagerIds, String(currentUserId || "")]);
 
     const pool = memberTab === "cp" ? directory.creativePartners || [] : directory.staff || [];
 
@@ -328,22 +324,24 @@ export default function CreateMeetingModal({
   ]);
 
   const selectedAdditionalMembers = useMemo(() => {
-    const pool = [...(directory.staff || []), ...(directory.creativePartners || [])];
-    const uniqueMembers = new Map<string, ExternalChatUser>();
+    const staffMembers = new Map<string, ExternalChatUser>();
+    const cpMembers = new Map<string, ExternalChatUser>();
 
-    pool.forEach((member) => {
+    (directory.staff || []).forEach((member) => {
       const id = String(member.id || "");
-      if (id) {
-        uniqueMembers.set(id, member);
-      }
+      if (id) staffMembers.set(id, member);
+    });
+    (directory.creativePartners || []).forEach((member) => {
+      const id = String(member.id || "");
+      if (id) cpMembers.set(id, member);
     });
 
     return {
       staff: selectedStaffIds
-        .map((id) => uniqueMembers.get(id))
+        .map((id) => staffMembers.get(id))
         .filter((member): member is ExternalChatUser => Boolean(member)),
       cp: selectedExtraCpIds
-        .map((id) => uniqueMembers.get(id))
+        .map((id) => cpMembers.get(id))
         .filter((member): member is ExternalChatUser => Boolean(member)),
     };
   }, [directory.creativePartners, directory.staff, selectedExtraCpIds, selectedStaffIds]);
@@ -460,7 +458,10 @@ export default function CreateMeetingModal({
           if (cancelled) return;
           setDirectory({
             staff: directory.staff || [],
-            creativePartners: directory.creativePartners || [],
+            creativePartners: (directory.creativePartners || []).map((member) => ({
+              ...member,
+              id: member.crew_member_id ? String(member.crew_member_id) : "",
+            })).filter((member) => Boolean(member.id)),
           });
         })
         .catch((error) => {
@@ -696,36 +697,6 @@ export default function CreateMeetingModal({
         return;
       }
 
-      if (resolvedGoogleEvent?.eventId) {
-        const updatedEvent = await meetingsApi.updateEvent({
-          eventId: resolvedGoogleEvent.eventId,
-          calendarId: resolvedGoogleEvent.calendarId || "primary",
-          summary: meetingTitle.trim() || `Meeting for ${getProjectName(selectedOrder)}`,
-          location: "Online",
-          description: description.trim(),
-          startDateTime: startIso,
-          endDateTime: endIso,
-          timeZone: getBrowserTimeZone(),
-        });
-
-        if (updatedEvent?.authUrl) {
-          window.open(updatedEvent.authUrl, "_blank", "noopener,noreferrer");
-          toast.info("Google authorization opened. Complete it, then try creating the meeting again.");
-          return;
-        }
-
-        resolvedLink = updatedEvent?.meetLink || resolvedLink;
-        resolvedGoogleEvent = {
-          eventId: updatedEvent?.eventId || resolvedGoogleEvent.eventId,
-          calendarId: updatedEvent?.calendarId || resolvedGoogleEvent.calendarId || "primary",
-          meetLink: resolvedLink,
-          startDateTime: startIso,
-          endDateTime: endIso,
-        };
-        setMeetLink(resolvedLink);
-        setGeneratedMeetEvent(resolvedGoogleEvent);
-      }
-
       await meetingsApi.createMeeting({
         order_id: activeOrderId,
         meeting_date_time: startIso,
@@ -738,6 +709,7 @@ export default function CreateMeetingModal({
         googleCalendarEventId: resolvedGoogleEvent?.eventId,
         googleCalendarId: resolvedGoogleEvent?.calendarId || "primary",
         cp_ids: cpParticipantIds,
+        cp_id_type: "crew_member",
         admin_id: currentUserId,
         created_by_id: currentUserId,
         participants: managerParticipantIds,

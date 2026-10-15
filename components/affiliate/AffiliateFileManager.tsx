@@ -1184,6 +1184,7 @@ export default function AffiliateFileManager() {
                       Updated {formatRelativeTime(workspace.lastOpened)}
                     </td>
                     <td className="py-5 px-6 text-right">
+                    {!isCommonEventWorkspaceId(workspace.externalId) ? (
                       <button
                         type="button"
                         onClick={(event) => {
@@ -1197,6 +1198,7 @@ export default function AffiliateFileManager() {
                       >
                         <UserRoundPlus size={16} />
                       </button>
+                    ) : null}
                       <ExternalLink className={`inline-block ${isDark ? "text-white/40" : "text-black/40"}`} size={16} />
                     </td>
                   </tr>
@@ -1263,6 +1265,7 @@ export default function AffiliateFileManager() {
                     </p>
                   </div>
                 </div>
+              {!isCommonEventWorkspaceId(workspace.externalId) ? (
                 <button
                   type="button"
                   onClick={(event) => {
@@ -1276,6 +1279,7 @@ export default function AffiliateFileManager() {
                 >
                   <UserRoundPlus size={16} />
                 </button>
+              ) : null}
               </div>
 
               <div className="mt-4 flex min-w-0 flex-nowrap items-center gap-2">

@@ -280,7 +280,7 @@ export default function CompensationModal({
   const getSelectedCreatorIds = () => selectedCreators.map(Number).filter(Boolean);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-end bg-[#101010CC] font-sans backdrop-blur-sm animate-in fade-in duration-200 p-4 lg:p-0">
+    <div className={`fixed inset-0 z-50 flex items-center justify-end font-sans backdrop-blur-sm animate-in fade-in duration-200 p-4 lg:p-0 ${isDark ? "bg-[#101010CC]" : "bg-black/40"}`}>
       {/* Backdrop Trigger Dismissal */}
       <div className="absolute inset-0" onClick={onClose} />
 
@@ -290,18 +290,18 @@ export default function CompensationModal({
         : "border-[#D7D7D7] bg-white text-black shadow-2xl"
         }`}>
         {/* Header Block Section */}
-        <div className="sticky top-0 inset-x-0 flex items-start justify-between p-5 lg:px-9 lg:py-10 bg-[#000000]  border-b border-[#CACACA]">
+        <div className={`sticky top-0 inset-x-0 flex items-start justify-between border-b p-5 lg:px-9 lg:py-10 ${isDark ? "border-[#CACACA] bg-black" : "border-[#E3E3E3] bg-white"}`}>
           <div className="flex flex-col gap-1.5 lg:gap-4">
             <h2 className="text-lg lg:text-3xl font-bold tracking-tight">
               {rowContext.shootName || "Corporate Shoot"}
             </h2>
-            <p className="text-sm lg:text-base text-white/50 font-normal capitalize">
+            <p className={`text-sm lg:text-base font-normal capitalize ${isDark ? "text-white/50" : "text-black/50"}`}>
               {rowContext.category || "Videography"}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-3 lg:p-4 rounded-full bg-[#2B2626] text-white transition-colors"
+            className={`p-3 lg:p-4 rounded-full transition-colors ${isDark ? "bg-[#2B2626] text-white hover:bg-[#383131]" : "bg-[#F1F1F1] text-[#252525] hover:bg-[#E7E7E7]"}`}
           >
             <X className="w-5 h-5 lg:h-7 lg:w-7" />
           </button>
@@ -309,42 +309,42 @@ export default function CompensationModal({
 
         <div className="space-y-3 lg:space-y-5 p-5 lg:p-9">
           {loading && (
-            <div className="rounded-lg border border-[#3D3D3D] bg-[#171717] p-4 text-sm text-white/60">
+            <div className={`rounded-lg border p-4 text-sm ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white/60" : "border-[#E3E3E3] bg-[#FAFAFA] text-black/55"}`}>
               Loading compensation details...
             </div>
           )}
           {/* Quick Statistics Horizontal Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-3">
-            <div className="bg-[#171717] border border-[#3D3D3D] rounded-lg p-2.5 lg:p-4">
-              <p className="text-sm text-white">Total CP Payout</p>
+            <div className={`rounded-lg border p-2.5 lg:p-4 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-[#FAFAFA]"}`}>
+              <p className={`text-sm ${isDark ? "text-white" : "text-[#323232]"}`}>Total CP Payout</p>
               <p className="text-lg lg:text-2xl font-bold text-[#83B7FA] mt-0.5 lg:mt-1">
                 {formatCurrency(rowContext.cpPayout || 12500)}
               </p>
             </div>
-            <div className="bg-[#171717] border border-[#3D3D3D] rounded-lg p-2.5 lg:p-4">
-              <p className="text-sm text-white">Shoot Amount</p>
+            <div className={`rounded-lg border p-2.5 lg:p-4 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-[#FAFAFA]"}`}>
+              <p className={`text-sm ${isDark ? "text-white" : "text-[#323232]"}`}>Shoot Amount</p>
               <p className="text-lg lg:text-2xl font-bold text-[#C97DFF] mt-0.5 lg:mt-1">
                 {formatCurrency(rowContext.shootBudget || 50000)}
               </p>
             </div>
-            <div className="bg-[#171717] border border-[#3D3D3D] rounded-lg p-2.5 lg:p-4">
-              <p className="text-sm text-white">Margin</p>
+            <div className={`rounded-lg border p-2.5 lg:p-4 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-[#FAFAFA]"}`}>
+              <p className={`text-sm ${isDark ? "text-white" : "text-[#323232]"}`}>Margin</p>
               <p className="text-lg lg:text-2xl font-bold text-[#10B981] mt-0.5 lg:mt-1">
                 {rowContext.margin || "18.5"}%
               </p>
             </div>
           </div>
 
-          <div className="flex-1 space-y-3 lg:space-y-5 bg-[#171717] border border-[#3D3D3D] rounded-lg p-3 lg:p-4">
+          <div className={`flex-1 space-y-3 lg:space-y-5 rounded-lg border p-3 lg:p-4 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
             {/* Dynamic Itemization List Module */}
             <div className="space-y-3">
-              <h3 className="lg:text-lg text-white text-semibold capitalize">
+              <h3 className={`lg:text-lg text-semibold capitalize ${isDark ? "text-white" : "text-[#101010]"}`}>
                 Compensation Breakdown ({selectedCreators.length} Selected)
               </h3>
 
               <div className="space-y-4 ">
                 {!loading && compensationList.length === 0 && (
-                  <div className="rounded-lg border border-[#FFFFFF33] bg-[#141414] p-4 text-sm text-white/60">
+                  <div className={`rounded-lg border p-4 text-sm ${isDark ? "border-[#FFFFFF33] bg-[#141414] text-white/60" : "border-[#E3E3E3] bg-[#FAFAFA] text-black/55"}`}>
                     No compensation records found for this shoot.
                   </div>
                 )}
@@ -359,14 +359,14 @@ export default function CompensationModal({
                   return (
                     <div
                       key={creator.id}
-                      className={`flex gap-3 border rounded-lg p-3 lg:p-4 bg-[#141414] transition-all ${isChecked ? "border-[#E8D1AB]" : "border-[#FFFFFF33]"}`}
+                      className={`flex gap-3 rounded-lg border p-3 lg:p-4 transition-all ${isDark ? "bg-[#141414]" : "bg-[#FAFAFA]"} ${isChecked ? "border-[#E8D1AB]" : isDark ? "border-[#FFFFFF33]" : "border-[#E3E3E3]"}`}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
                         disabled={!canEditActions || isRejected}
                         onChange={() => handleCheckboxChange(creator.id)}
-                        className="hidden lg:block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB] disabled:cursor-not-allowed disabled:opacity-40"
+                        className={`hidden lg:block mt-1 h-4 w-4 rounded text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB] disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "border-white/30 bg-black" : "border-[#CFCFCF] bg-white"}`}
                       />
 
                       <div className="space-y-2 lg:space-y-4 w-full">
@@ -378,13 +378,13 @@ export default function CompensationModal({
                         checked={isChecked}
                         disabled={isRejected}
                         onChange={() => handleCheckboxChange(creator.id)}
-                        className="lg:hidden block mt-1 h-4 w-4 rounded border-black bg-black text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB] disabled:cursor-not-allowed disabled:opacity-40"
+                        className={`lg:hidden block mt-1 h-4 w-4 rounded text-[#E8D1AB] focus:ring-0 focus:ring-offset-0 accent-[#E8D1AB] disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "border-white/30 bg-black" : "border-[#CFCFCF] bg-white"}`}
                       />
                             <div>
                               <h4 className="text-sm lg:text-base font-medium text-[#E8D1AB]">
                                 {creator.name}
                               </h4>
-                              <p className="text-xs lg:text-sm text-white">{creator.role}</p>
+                              <p className={`text-xs lg:text-sm ${isDark ? "text-white" : "text-[#323232]"}`}>{creator.role}</p>
                             </div>
                           </div>
                           <span className="lg:text-xl font-bold text-[#E8D1AB]">
@@ -393,35 +393,35 @@ export default function CompensationModal({
                         </div>
 
                         {/* Financial Metric Allocation Subgrid */}
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 py-2.5 lg:py-4 border-y border-[#FFFFFF33] text-left">
+                        <div className={`grid grid-cols-2 gap-2 border-y py-2.5 text-left lg:grid-cols-4 lg:py-4 ${isDark ? "border-[#FFFFFF33]" : "border-[#E3E3E3]"}`}>
                           <div>
-                            <p className="text-xs lg:text-sm text-white/50">Base Payout</p>
-                            <p className="text-xs lg:text-sm text-white font-medium">
+                            <p className={`text-xs lg:text-sm ${isDark ? "text-white/50" : "text-black/45"}`}>Base Payout</p>
+                            <p className={`text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>
                               {formatCurrency(creator.base)}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs lg:text-sm text-white/50">Editing Payout</p>
-                            <p className="text-xs lg:text-sm text-white font-medium">
+                            <p className={`text-xs lg:text-sm ${isDark ? "text-white/50" : "text-black/45"}`}>Editing Payout</p>
+                            <p className={`text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>
                               {formatCurrency(creator.editing)}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs lg:text-sm text-white/50">Travel Adjustment</p>
-                            <p className="text-xs lg:text-sm text-white font-medium">
+                            <p className={`text-xs lg:text-sm ${isDark ? "text-white/50" : "text-black/45"}`}>Travel Adjustment</p>
+                            <p className={`text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>
                               {formatCurrency(creator.travel)}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs lg:text-sm text-white/50">Bonus</p>
-                            <p className="text-xs lg:text-sm text-white font-medium">
+                            <p className={`text-xs lg:text-sm ${isDark ? "text-white/50" : "text-black/45"}`}>Bonus</p>
+                            <p className={`text-xs lg:text-sm font-medium ${isDark ? "text-white" : "text-[#323232]"}`}>
                               {formatCurrency(creator.bonus)}
                             </p>
                           </div>
                         </div>
 
                         {/* Context Notice Alert Safeguard */}
-                        <div className="text-xs text-[#E8D1AB] bg-[#211F1C] font-medium rounded-lg p-3 w-fit">
+                        <div className={`w-fit rounded-lg p-3 text-xs font-medium ${isDark ? "bg-[#211F1C] text-[#E8D1AB]" : "bg-[#FFF8EC] text-[#8E6A2A]"}`}>
                           {isRejected ? "Rejected compensation record" : isPaid ? "Payment completed" : isApproved ? "Approved by finance. Ready for payment." : isPendingApproval ? "Note : Select and Approve to Enable Payment" : "No finance action available"}
                         </div>
                         {(isPaid || Number(creator.paidTotal || 0) > 0) && (
@@ -434,7 +434,7 @@ export default function CompensationModal({
                                 + {formatCurrency(creator.disputeExtra)} extra due to dispute
                               </span>
                             ) : null}
-                            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 font-medium text-white/70">
+                            <span className={`rounded-full border px-3 py-1 font-medium ${isDark ? "border-white/15 bg-white/5 text-white/70" : "border-[#E3E3E3] bg-[#FAFAFA] text-black/60"}`}>
                               Remaining {formatCurrency(Math.max(Number(creator.remainingBalance || 0), 0))}
                             </span>
                           </div>
@@ -443,16 +443,16 @@ export default function CompensationModal({
                         {/* Pre-Shoot Advance Section Drawer */}
                         {creator.hasPendingAdvance && (
                           <div className="space-y-3">
-                            <div className="flex flex-col lg:flex-row items-start gap-2 lg:items-center lg:justify-between bg-[#FFFBEB] rounded-lg p-3">
+                            <div className={`flex flex-col lg:flex-row items-start gap-2 lg:items-center lg:justify-between rounded-lg border p-3 ${isDark ? "border-[#E8D1AB33] bg-[#211F1C]" : "border-[#F3E3C6] bg-[#FFFBEB]"}`}>
                               <div className="text-xs lg:text-sm">
-                                <p className="font-medium text-[#7B3306]">
+                                <p className={`font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7B3306]"}`}>
                                   Approval Pending for the Advance Payment
                                 </p>
-                                <p className="text-[#BB4D00]">
+                                <p className={isDark ? "text-[#D8B985]" : "text-[#BB4D00]"}>
                                   {formatCurrency(creator.advanceAmount || 0)} on {formatDateOnly(creator.advanceDate) || "Pending date"}
                                 </p>
                               </div>
-                              <span className="text-sm lg:text-base font-semibold text-[#BA6605] bg-[#FACD9A] px-5 py-3 rounded-full">
+                              <span className={`text-sm lg:text-base font-semibold px-5 py-3 rounded-full ${isDark ? "bg-[#E8D1AB33] text-[#E8D1AB]" : "bg-[#FACD9A] text-[#BA6605]"}`}>
                                 Pre-shoot advance
                               </span>
                             </div>
@@ -470,7 +470,7 @@ export default function CompensationModal({
                                 Pay Advance Amount
                               </button>
                             ) : (
-                              <div className="rounded-lg border border-[#E8D1AB33] bg-[#211F1C] p-3 text-xs font-medium text-[#E8D1AB]">
+                              <div className={`rounded-lg border p-3 text-xs font-medium ${isDark ? "border-[#E8D1AB33] bg-[#211F1C] text-[#E8D1AB]" : "border-[#E5D5B8] bg-[#FFF8EC] text-[#8E6A2A]"}`}>
                                 Approve this CP compensation before paying the advance.
                               </div>
                             )}
@@ -521,26 +521,26 @@ export default function CompensationModal({
           </div>
 
           {/* Margin Analysis Data Grid Section */}
-          <div className="flex-1 space-y-2 lg:space-y-4 bg-[#171717] border border-[#3D3D3D] rounded-lg p-4">
-            <h3 className="lg:text-lg text-white text-semibold capitalize">
+          <div className={`flex-1 space-y-2 rounded-lg border p-4 lg:space-y-4 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
+            <h3 className={`lg:text-lg text-semibold capitalize ${isDark ? "text-white" : "text-[#101010]"}`}>
               Margin Analysis
             </h3>
             <div className="space-y-3 text-sm lg:text-base">
-              <div className="flex justify-between items-center text-white/40">
+              <div className={`flex items-center justify-between ${isDark ? "text-white/40" : "text-black/45"}`}>
                 <span>Shoot Budget</span>
-                <span className="font-semibold text-zinc-100">
+                <span className={`font-semibold ${isDark ? "text-zinc-100" : "text-[#323232]"}`}>
                   {formatCurrency(rowContext.shootBudget || 50000)}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-white/40">
+              <div className={`flex items-center justify-between ${isDark ? "text-white/40" : "text-black/45"}`}>
                 <span>Total CP Payout</span>
-                <span className="font-semibold text-zinc-100">
+                <span className={`font-semibold ${isDark ? "text-zinc-100" : "text-[#323232]"}`}>
                   -{formatCurrency(rowContext.cpPayout || 12500)}
                 </span>
               </div>
-              <div className="w-full h-px border-b border-white/30" />
+              <div className={`h-px w-full border-b ${isDark ? "border-white/30" : "border-black/10"}`} />
               <div className="flex justify-between items-center font-medium">
-                <span className="text-white">Margin</span>
+                <span className={isDark ? "text-white" : "text-[#101010]"}>Margin</span>
                 <span className="text-[#E8D1AB] font-bold">
                   {formatCurrency((rowContext.shootBudget || 50000) - (rowContext.cpPayout || 12500))} ({rowContext.margin || "18.5"}%)
                 </span>
@@ -549,32 +549,32 @@ export default function CompensationModal({
           </div>
 
           {!canEditActions && (
-            <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-xs lg:text-sm text-white/70">
+            <div className={`rounded-lg border px-4 py-3 text-xs lg:text-sm ${isDark ? "border-white/10 bg-white/5 text-white/70" : "border-[#E3E3E3] bg-[#FAFAFA] text-black/60"}`}>
               You have view-only access for CP compensation. Edit actions are hidden.
             </div>
           )}
 
           {/* Audit Ledger Traces Trail */}
-          <div className="flex-1 space-y-2 lg:space-y-4 bg-[#171717] border border-[#3D3D3D] rounded-lg p-4">
-            <h3 className="lg:text-lg text-white text-semibold capitalize">
+          <div className={`flex-1 space-y-2 rounded-lg border p-4 lg:space-y-4 ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}>
+            <h3 className={`lg:text-lg text-semibold capitalize ${isDark ? "text-white" : "text-[#101010]"}`}>
               Audit Log
             </h3>
             {auditEntries.length === 0 ? (
-              <div className="rounded-lg border border-white/10 bg-[#141414] p-3 text-xs lg:text-sm text-white/50">
+              <div className={`rounded-lg border p-3 text-xs lg:text-sm ${isDark ? "border-white/10 bg-[#141414] text-white/50" : "border-[#E3E3E3] bg-[#FAFAFA] text-black/50"}`}>
                 No audit activity recorded yet.
               </div>
             ) : (
               <div className="no-scrollbar max-h-[320px] space-y-4 overflow-y-auto pr-2">
                 {auditEntries.map((entry, index) => (
                   <div key={`${entry.id}-${index}`} className="flex items-start gap-3 text-xs lg:text-sm">
-                    <Clock size={20} className="text-[#99A1AF] shrink-0" />
+                    <Clock size={20} className={`shrink-0 ${isDark ? "text-[#99A1AF]" : "text-[#7A7A7A]"}`} />
                     <div className="flex-1 flex flex-col lg:flex-row justify-between gap-1 lg:gap-4">
                       <div>
-                        <span className="text-white">{entry.label}</span>
-                        {entry.paidByName && <p className="mt-0.5 text-xs text-white/45">{`Paid by ${entry.paidByName}`}</p>}
-                        {entry.subLabel && <p className="mt-0.5 text-xs text-white/45">{entry.subLabel}</p>}
+                        <span className={isDark ? "text-white" : "text-[#101010]"}>{entry.label}</span>
+                        {entry.paidByName && <p className={`mt-0.5 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>{`Paid by ${entry.paidByName}`}</p>}
+                        {entry.subLabel && <p className={`mt-0.5 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>{entry.subLabel}</p>}
                       </div>
-                      <span className="text-white/50 whitespace-nowrap text-xs">{formatAuditDate(entry.date)}</span>
+                      <span className={`whitespace-nowrap text-xs ${isDark ? "text-white/50" : "text-black/45"}`}>{formatAuditDate(entry.date)}</span>
                     </div>
                   </div>
                 ))}
@@ -585,7 +585,7 @@ export default function CompensationModal({
 
         {/* Persistent Base Sticky Double Action Control Drawer */}
         {hasPendingApproval && canEditActions && (
-          <div className="sticky bottom-0 inset-x-0 bg-[#0C0C0C] p-5 lg:p-9 flex flex-col gap-3 z-10 mt-auto">
+          <div className={`sticky bottom-0 inset-x-0 z-10 mt-auto flex flex-col gap-3 p-5 lg:p-9 ${isDark ? "bg-[#0C0C0C]" : "border-t border-[#E3E3E3] bg-white"}`}>
             <button
                 onClick={() => onApproveClick(getSelectedCreatorIds())}
                 disabled={!canEditActions}

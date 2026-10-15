@@ -220,7 +220,11 @@ export const Navbar = () => {
         setLocalUser(JSON.parse(storedUser));
       } catch (e) {
         console.error("Error parsing user data", e);
+        setLocalUser(null);
       }
+    } else {
+      setLocalUser(null);
+      setShowProfileDropdown(false);
     }
 
     const handleScroll = () => {
@@ -344,12 +348,11 @@ export const Navbar = () => {
     router.push("/login");
   };
 
-  const handleLogout = () => {
-    logout();
-    localStorage.clear();
+  const handleLogout = async () => {
     setLocalUser(null);
+    setShowProfileDropdown(false);
     setMobileOpen(false);
-    router.push("/");
+    await logout();
   };
 
   const goToDashboard = () => {

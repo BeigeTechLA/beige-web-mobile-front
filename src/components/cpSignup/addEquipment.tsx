@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Trash2 } from "lucide-react";
 import { getEquipmentSuggestions } from "@/lib/api";
+import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
 type EquipmentOption = {
   equipment_id: string | number;
@@ -20,10 +21,13 @@ type AddEquipmentsProps = {
   value?: Array<string | number>;
   names?: string[];
   onChange: (ids: Array<string | number>, names: string[]) => void;
+  isDark?: boolean;
 };
 
 // Added 'names' to props
-export default function AddEquipments({ value = [], names = [], onChange }: AddEquipmentsProps) {
+export default function AddEquipments({ value = [], names = [], onChange, isDark: isDarkProp }: AddEquipmentsProps) {
+  const { isDark: resolvedIsDark } = useResolvedTheme();
+  const isDark = isDarkProp ?? resolvedIsDark;
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<EquipmentOption[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -156,7 +160,11 @@ export default function AddEquipments({ value = [], names = [], onChange }: AddE
                 event.preventDefault();
               }
             }}
-            className="h-12 w-full border-[#333333] bg-[#111111] text-white placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-[#BEA784] focus-visible:ring-offset-0"
+            className={`h-12 w-full focus-visible:ring-1 focus-visible:ring-[#BEA784] focus-visible:ring-offset-0 ${
+              isDark
+                ? "border-[#333333] bg-[#111111] text-white placeholder:text-white/35"
+                : "border-[#D7D7D7] bg-white text-black placeholder:text-black/35"
+            }`}
           />
         </PopoverTrigger>
 
@@ -164,18 +172,22 @@ export default function AddEquipments({ value = [], names = [], onChange }: AddE
           align="start"
           side="bottom"
           sideOffset={6}
-          className="z-[130] w-[var(--radix-popover-trigger-width)] overflow-hidden border-[#333333] bg-[#111111] p-0 text-white shadow-xl"
+          className={`z-[130] w-[var(--radix-popover-trigger-width)] overflow-hidden p-0 shadow-xl ${
+            isDark
+              ? "border-[#333333] bg-[#111111] text-white"
+              : "border-[#E5E5E5] bg-white text-black"
+          }`}
           onOpenAutoFocus={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => event.preventDefault()}
         >
-          <Command className="bg-transparent text-white">
+          <Command className={`bg-transparent ${isDark ? "text-white" : "text-black"}`}>
             <CommandList className="max-h-64 border-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {isSearching ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">
+                <div className={`py-6 text-center text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
                   Searching equipment...
                 </div>
               ) : suggestions.length === 0 ? (
-                <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
+                <CommandEmpty className={`py-6 text-center text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>
                   No equipment found.
                 </CommandEmpty>
               ) : (
@@ -184,7 +196,11 @@ export default function AddEquipments({ value = [], names = [], onChange }: AddE
                     key={equipment.equipment_id}
                     value={equipment.equipment_name}
                     onSelect={() => handleSelectSuggestion(equipment)}
-                    className="cursor-pointer px-3 py-2 text-white aria-selected:bg-neutral-800 aria-selected:text-white"
+                    className={`cursor-pointer px-3 py-2 ${
+                      isDark
+                        ? "text-white aria-selected:bg-neutral-800 aria-selected:text-white"
+                        : "text-black aria-selected:bg-[#F4F5F7] aria-selected:text-black"
+                    }`}
                   >
                     {equipment.equipment_name}
                   </CommandItem>
@@ -206,7 +222,11 @@ export default function AddEquipments({ value = [], names = [], onChange }: AddE
           return (
             <div
               key={String(equipmentId)}
-              className="flex items-center justify-between rounded-md border border-[#333333] bg-[#111111] px-3 py-3 text-sm text-white shadow-sm"
+              className={`flex items-center justify-between rounded-md border px-3 py-3 text-sm shadow-sm ${
+                isDark
+                  ? "border-[#333333] bg-[#111111] text-white"
+                  : "border-[#E5E5E5] bg-white text-black"
+              }`}
             >
               <span>{name}</span>
 

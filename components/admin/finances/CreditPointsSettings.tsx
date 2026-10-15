@@ -125,15 +125,30 @@ const formatChangeLabel = (field: string) => {
   }
 };
 
-const formatFieldChangeText = (change: CreditPromotionHistoryChange) => {
+const formatHistoryDate = (value: unknown) => {
+  if (value === null || value === undefined || value === "") {
+    return "Not set";
+  }
+
+  const parsed = parseISO(String(value));
+  if (!isValid(parsed)) {
+    return String(value);
+  }
+
+  return format(parsed, "MMM d, yyyy");
+};
+
+const formatFieldChangeText = (
+  change: CreditPromotionHistoryChange
+) => {
   if (change.field === "setting") {
     return `${formatValue(change.before)} to ${formatValue(change.after)}`;
   }
 
   if (change.field === "start_date" || change.field === "end_date") {
     const label = change.field === "start_date" ? "Start date" : "End date";
-    const before = formatValue(change.before);
-    const after = formatValue(change.after);
+    const before = formatHistoryDate(change.before);
+    const after = formatHistoryDate(change.after);
 
     if (before === "Not set" && after !== "Not set") {
       return `${label} set to ${after}`;

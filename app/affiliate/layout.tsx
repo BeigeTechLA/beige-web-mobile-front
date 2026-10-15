@@ -7,6 +7,7 @@ import { useTheme } from "next-themes"; // Integrated theme hook
 
 import Sidebar from "@/components/affiliate/Sidebar";
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
+import WebPushRegistration from "@/components/chat/WebPushRegistration";
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import { fetchAndCommitUserPermissions } from '@/lib/permissionsActions';
 import { canAccessPortalPath, getFirstAllowedPortalPath } from '@/lib/permissions';
@@ -96,6 +97,7 @@ export default function AffiliateLayout({ children }: { children: React.ReactNod
           ? "bg-[#0f0f0f] text-white" 
           : "bg-[#F4F5F7] text-[#000000]"
       }`}>
+        {user?.id ? <WebPushRegistration userType={3} /> : null}
         <LayoutContent>{children}</LayoutContent>
       </div>
     </SidebarProvider>

@@ -14,6 +14,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { salesApi, type QuotesListResponse, type SalesQuoteListItem } from "@/lib/api";
+import {
+  formatQuoteStatusLabel,
+  getPaymentAwareQuoteStatusKey,
+  getQuoteStatusColor,
+  matchesQuoteStatusFilter,
+} from "@/lib/quoteStatus";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 
@@ -144,42 +150,6 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-const formatLabel = (value: string) =>
-  value
-    .replace(/_quotes$/i, "")
-    .split(/[_\s-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(" ");
-
-const getStatusColor = (status: string) => {
-  switch (status.toLowerCase()) {
-    case "paid":
-      return "bg-[#D6FFE6] text-[#27AE60] border-transparent";
-    case "partially paid":
-    case "partial_paid":
-    case "partially_paid":
-      return "bg-[#FFF6E9] text-[#D4A017] border-transparent";
-    case "accepted":
-    case "confirmed":
-      return "bg-[#D6FFE6] text-[#27AE60] border-transparent";
-    case "draft":
-      return "bg-[#D1D5DB] text-[#4B5563] border-transparent";
-    case "pending":
-    case "sent":
-      return "bg-[#D6E6FF] text-[#4A90E2] border-transparent";
-    case "viewed":
-      return "bg-[#E6DBFF] text-[#9070FF] border-transparent";
-    case "rejected":
-    case "cancelled":
-      return "bg-[#FFD1D1] text-[#EB5757] border-transparent";
-    case "expired":
-      return "bg-[#FFF6E9] text-[#D4A017] border-transparent";
-    default:
-      return "bg-white/10 text-white border-transparent";
-  }
-};
-
 const extractQuoteRows = (data: QuotesListResponse["data"]) => {
   if (Array.isArray(data)) {
     return data;
@@ -203,23 +173,7 @@ const extractQuoteRows = (data: QuotesListResponse["data"]) => {
 };
 
 const matchesStatusFilter = (quoteStatusKey: string, filterValue: string) => {
-  if (filterValue === "all") {
-    return true;
-  }
-
-  if (filterValue === "accepted") {
-    return quoteStatusKey === "accepted" || quoteStatusKey === "confirmed";
-  }
-
-  if (filterValue === "pending") {
-    return quoteStatusKey === "pending" || quoteStatusKey === "sent";
-  }
-
-  if (filterValue === "rejected") {
-    return quoteStatusKey === "rejected" || quoteStatusKey === "cancelled";
-  }
-
-  return quoteStatusKey === filterValue;
+  return matchesQuoteStatusFilter(quoteStatusKey, filterValue);
 };
 
 const buildPaginationItems = (currentPage: number, totalPages: number): PaginationItem[] => {
@@ -290,7 +244,7 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
     quote.created_by?.name,
     "N/A"
   );
-  const statusKey = getText(quote.quote_status, quote.status, "draft").toLowerCase() || "draft";
+  const statusKey = getPaymentAwareQuoteStatusKey(quote);
   const quoteNumber = getText(quote.quote_number);
   const location = getText(
     quote.location,
@@ -309,9 +263,9 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
     color: AVATAR_COLORS[index % AVATAR_COLORS.length],
     project,
     amountValue,
-    status: formatLabel(statusKey),
+    status: formatQuoteStatusLabel(statusKey),
     statusKey,
-    statusColor: getStatusColor(statusKey),
+    statusColor: getQuoteStatusColor(statusKey),
     validUntil: formatDate(getText(quote.valid_until, quote.expires_at)),
     salesperson,
     salespersonId: String(quote.assigned_sales_rep?.id ?? quote.created_by?.id ?? ""),
@@ -323,7 +277,7 @@ const normalizeQuoteRow = (quote: SalesQuoteListItem, index: number): DisplayQuo
       project,
       salesperson,
       location,
-      formatLabel(statusKey),
+      formatQuoteStatusLabel(statusKey),
     ]
       .join(" ")
       .toLowerCase(),
@@ -389,7 +343,6 @@ export default function AffiliateQuotesTable({
         page: 1,
         limit: 100,
         ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
-        ...(selectedStatusFilter !== "all" ? { status: selectedStatusFilter } : {}),
       });
 
       if (!isActive) {
@@ -439,6 +392,8 @@ export default function AffiliateQuotesTable({
         "pending",
         "rejected",
         "sent",
+        "partially_paid",
+        "paid",
         ...normalizedQuotes
           .map((quote) => quote.statusKey)
           .filter((status) => !["accepted", "draft", "pending", "rejected", "sent"].includes(status)),
@@ -626,7 +581,7 @@ export default function AffiliateQuotesTable({
                     <SelectItem value="all">All Status</SelectItem>
                     {statusOptions.map((status) => (
                       <SelectItem key={status} value={status}>
-                        {formatLabel(status)}
+                        {formatQuoteStatusLabel(status)}
                       </SelectItem>
                     ))}
                   </SelectContent>

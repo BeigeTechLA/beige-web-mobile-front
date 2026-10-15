@@ -800,6 +800,7 @@ export default function SubFolderDetailsPage() {
                     onAction={selectionLockActive ? undefined : () => setIsUploadModalOpen(true)}
                     actionLabel={selectionLockActive ? undefined : "Upload Files"}
                     actionDisabled={!canCreate}
+                    isDark={isDark}
                   />
                 ) : (
                   <div className="space-y-5">
@@ -875,6 +876,7 @@ export default function SubFolderDetailsPage() {
                     onAction={selectionLockActive ? undefined : () => setIsUploadModalOpen(true)}
                     actionLabel={selectionLockActive ? undefined : "Upload Files"}
                     actionDisabled={!canCreate}
+                    isDark={isDark}
                   />
                 ) : (
                   <div className="space-y-4">
@@ -958,6 +960,7 @@ export default function SubFolderDetailsPage() {
                     onAction={selectionLockActive ? undefined : () => setIsUploadModalOpen(true)}
                     actionLabel={selectionLockActive ? undefined : "Upload Files"}
                     actionDisabled={!canCreate}
+                    isDark={isDark}
                   />
                 ) : (
                   <>

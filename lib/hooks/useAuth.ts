@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { logoutSession } from '@/lib/auth/session';
+import { unregisterBrowserPush } from '@/lib/browserPush';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
@@ -9,6 +10,7 @@ import { fetchAndCommitUserPermissions } from '../permissionsActions';
 import { authApi } from '../redux/features/auth/authApi';
 import type { PasswordUpdateResponse } from '../redux/features/auth/authApi';
 import { salesApi } from '../redux/features/sales/salesApi';
+import { apiClient } from '../apiClient';
 import { persistor } from '../redux/store';
 import {
   useLoginMutation,
@@ -33,6 +35,13 @@ import type {
   VerifyEmailData,
   CreatorRegistrationStep2Data,
 } from '../types';
+
+const saveInitialTimezone = async () => {
+  if (typeof window === 'undefined') return;
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (!timezone) return;
+  await apiClient.patch('auth/timezone', { timezone, only_if_missing: true });
+};
 
 export const useAuth = () => {
   const dispatch = useAppDispatch();
@@ -70,7 +79,8 @@ export const useAuth = () => {
   }, [dispatch]);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
-    const result = await loginMutation(credentials).unwrap();
+    const timezone = typeof window === 'undefined' ? undefined : Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const result = await loginMutation({ ...credentials, timezone }).unwrap();
     
     if (result.token && result.user) {
       const user = {
@@ -78,6 +88,7 @@ export const useAuth = () => {
         permissions_version: result.permissions_version ?? result.user.permissions_version,
       };
       Cookies.set('revure_token', result.token, { expires: 1, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+      void saveInitialTimezone().catch((error) => console.warn('Failed to save initial timezone:', error));
       
       if (typeof window !== 'undefined') {
         localStorage.setItem('revure_user', JSON.stringify(user));
@@ -101,7 +112,8 @@ export const useAuth = () => {
   }, [loginMutation, dispatch]);
 
   const googleLogin = useCallback(async (data: GoogleClientAuthData) => {
-    const result = await googleClientAuthMutation(data).unwrap();
+    const timezone = typeof window === 'undefined' ? undefined : Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const result = await googleClientAuthMutation({ ...data, timezone }).unwrap();
 
     if (result.token && result.user) {
       const user = {
@@ -110,6 +122,7 @@ export const useAuth = () => {
       };
 
       Cookies.set('revure_token', result.token, { expires: 1, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+      void saveInitialTimezone().catch((error) => console.warn('Failed to save initial timezone:', error));
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('revure_user', JSON.stringify(user));
@@ -201,10 +214,23 @@ export const useAuth = () => {
   const logout = useCallback(async () => {
     if (logoutPending.current) return false;
     logoutPending.current = true;
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('revure_logout_in_progress', 'true');
+    }
+    // This request needs the current access token, so it must happen before
+    // the auth session and cookies are cleared. Failure must not block logout.
+    try {
+      await unregisterBrowserPush();
+    } catch (error) {
+      console.warn('Failed to unregister browser push during logout:', error);
+    }
     try {
       await logoutSession(Cookies.get('revure_token') || token || undefined);
     } catch {
       toast.error('Could not end your session. Check your connection and try signing out again.');
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('revure_logout_in_progress');
+      }
       logoutPending.current = false;
       return false;
     }
@@ -219,6 +245,10 @@ export const useAuth = () => {
       localStorage.removeItem('revure_user');
       localStorage.removeItem('revure_permissions');
       sessionStorage.clear();
+      sessionStorage.setItem('revure_logout_in_progress', 'true');
+      window.setTimeout(() => {
+        sessionStorage.removeItem('revure_logout_in_progress');
+      }, 5000);
     }
     void persistor.purge();
     router.push('/');

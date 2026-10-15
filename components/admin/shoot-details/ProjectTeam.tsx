@@ -179,7 +179,7 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
         "text-lg font-medium mb-4 absolute top-6 z-10 transition-colors duration-300",
         isDark ? "text-white" : "text-black"
       )}>
-       Post Production Team
+       Producer Team
       </h3>
 
       <div className={cn(
@@ -267,7 +267,7 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
               "w-15 h-15 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40",
               isDark ? "bg-[#E8D1AB] shadow-[#E8D1AB]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"
             )}
-            title={canCreate ? "Add Post Production Team" : "Create permission not allowed"}
+            title={canCreate ? "Add Producer Team" : "Create permission not allowed"}
           >
             <Plus className="w-7 lg:w-10 h-7 lg:h-10 text-[#333]" />
           </button>
@@ -275,7 +275,7 @@ export default function ProjectTeam({ projectId, assignedMembers, onRequestAssig
             "text-base font-medium leading-none",
             isDark ? "text-[#E8D1AB]" : "text-[#000]"
           )}>
-            {canCreate ? "Add Post Production Team" : "Create permission not allowed"}
+            {canCreate ? "Add Producer Team" : "Create permission not allowed"}
           </h4>
         </div>
       )}

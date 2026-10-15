@@ -8,6 +8,7 @@ import { useTheme } from "next-themes"; // Integrated theme hook
 import Sidebar from "@/components/admin/Sidebar";
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
+import WebPushRegistration from '@/components/chat/WebPushRegistration';
 import { fetchAndCommitUserPermissions } from '@/lib/permissionsActions';
 import { canAccessPortalPath, getFirstAllowedPortalPath } from '@/lib/permissions';
 
@@ -133,6 +134,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ? "bg-[#101010] text-white" 
           : "bg-[#F4F5F7] text-[#000000]"
       }`}>
+        {user?.id ? <WebPushRegistration userType={1} /> : null}
         {isResolvingInitialRoute && shouldGateInitialAdminRoute ? null : (
           <LayoutContent>{children}</LayoutContent>
         )}
