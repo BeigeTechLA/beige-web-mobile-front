@@ -14,6 +14,7 @@ import Topbar from "@/components/admin/Topbar";
 import AddCompensationModal from "@/components/admin/finances/AddCompensationModal";
 import { cpCompensationApi, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 type FulfillmentStats = {
   fulfillment_stats?: {
@@ -135,6 +136,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
   const { canEdit, isLoading: isPermissionsLoading } = usePermissions("shoots");
+  const { user } = useAuth();
 
   const { id: projectId } = use(params);
 
@@ -157,6 +159,9 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [assignCrew, { isLoading }] = useAssignCrewFromShootMutation();
   const cpCompensationLocked = Boolean(stats?.cp_compensation_locked);
   const cpCompensationHasPending = Boolean(stats?.cp_compensation_has_pending);
+  const normalizedRole = String(user?.role ?? user?.userRole ?? "").trim().toLowerCase();
+  const isSuperAdmin = Number(user?.user_type_id ?? user?.userTypeId) === 8 || ["super_admin", "superadmin"].includes(normalizedRole);
+  const isAssignmentLockedForUser = cpCompensationLocked && !isSuperAdmin;
 
   useEffect(() => {
     setMounted(true);
@@ -296,7 +301,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   };
 
   const handleAssign = async () => {
-    if (cpCompensationLocked) {
+    if (isAssignmentLockedForUser) {
       toast.error("All assigned CPs have accepted and their compensation has been approved. You cannot assign more CPs.");
       return;
     }
@@ -305,7 +310,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   };
 
   const handleContinueToCompensation = () => {
-    if (cpCompensationLocked) {
+    if (isAssignmentLockedForUser) {
       toast.error("All assigned CPs have accepted and their compensation has been approved. You cannot assign more CPs.");
       return;
     }
@@ -314,12 +319,12 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   };
 
   const handleCreativeSelectionChange = useCallback((ids: number[]) => {
-    if (cpCompensationLocked) {
+    if (isAssignmentLockedForUser) {
       toast.error("All assigned CPs have accepted and their compensation has been approved. You cannot assign more CPs.");
       return;
     }
     setSelectedCreativeIds(ids);
-  }, [cpCompensationLocked]);
+  }, [isAssignmentLockedForUser]);
 
   const openCompensationDrawer = () => {
     if (!selectedCompensationShoot?.creators.length) {
@@ -439,7 +444,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
 
               {/* <Button
                 onClick={handleAssign}
-                disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked}
+                disabled={isLoading || selectedCreativeIds.length === 0 || isAssignmentLockedForUser}
                 className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
               >
                 {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
@@ -453,14 +458,16 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           <div className="w-full px-6 py-3 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
             <p className="font-['Instrument_Sans'] text-sm leading-5 text-[#E8D1AB]">
               {cpCompensationLocked
-                ? "All assigned CPs have accepted and their compensation has been approved. Adding more CPs is locked."
+                ? isSuperAdmin
+                  ? "This shoot is closed, but Super Admin can replace a removed CP."
+                  : "All assigned CPs have accepted and their compensation has been approved. Adding more CPs is locked."
                 : "This shoot has pending CP compensation. You can still add or remove CPs until all CPs and Finance approve."}
             </p>
           </div>
         )}
 
         {/* Pinned Creative Counter Action Tray Bar */}
-        {selectedCreativeIds.length > 0 && !cpCompensationLocked && (
+        {selectedCreativeIds.length > 0 && !isAssignmentLockedForUser && (
           <div className="w-full flex flex-col items-start pt-3 px-6 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
             <div className="w-full flex flex-col lg:flex-row justify-between items-start lg:items-center mb-3">
               {/* Left Side: Count */}
@@ -485,7 +492,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
                 {/* Continue to Compensation Button */}
                 <button
                   onClick={() => { handleContinueToCompensation(); }}
-                  disabled={cpCompensationLocked}
+                  disabled={isAssignmentLockedForUser}
                   className="w-[232px] pt-[5px] pb-[7px] px-4 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-black/90 transition-colors cursor-pointer"
                 >
                   <Send size={14} className="text-[#E8D1AB]" strokeWidth={1.5} />
@@ -554,7 +561,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
 
           <Button
             onClick={handleAssign}
-            disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked}
+            disabled={isLoading || selectedCreativeIds.length === 0 || isAssignmentLockedForUser}
             className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
           >
             {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}

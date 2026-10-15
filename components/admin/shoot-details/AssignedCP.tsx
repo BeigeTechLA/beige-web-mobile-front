@@ -108,7 +108,7 @@ export default function AssignedCP({
   const isSuperAdmin = userTypeId === 8 || ["super_admin", "superadmin"].includes(normalizedRole);
   const isSalesShootPage = pathname?.startsWith("/sales/shoots/");
   const isCompensationApproved = String(cpCompensationStatus || "").toLowerCase() === "approved";
-  const canAssignCP = canCreate && !isCompensationApproved;
+  const canAssignCP = canCreate && (!isCompensationApproved || isSuperAdmin);
   const canRemoveCP = canEdit && (!isCompensationApproved || isSuperAdmin);
   const assignmentLockTitle = !canCreate
     ? "Create permission not allowed"
@@ -126,7 +126,7 @@ export default function AssignedCP({
   const handleOpenAssignment = () => {
     if (!canCreate) return;
 
-    if (isCompensationApproved) {
+    if (isCompensationApproved && !isSuperAdmin) {
       toast.error("All assigned CPs have accepted and their compensation has been approved. Adding more CPs is locked.");
       return;
     }
