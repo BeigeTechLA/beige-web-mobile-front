@@ -663,7 +663,31 @@ export default function ShootsPage() {
                         {/* ... add others as needed */}
                       </SelectContent>
                     </Select>
+
+                    
                   </div>
+                  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
                   <div className="flex flex-col gap-1">
                     <Select
