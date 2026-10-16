@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
 
@@ -56,7 +56,42 @@ export default function TopCPsByPayout({
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Info tooltip: hover on desktop, tap on touch screens; position measured so it stays inside the card
+  const cardRef = useRef<HTMLDivElement>(null);
+  const infoRef = useRef<HTMLSpanElement>(null);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [infoPos, setInfoPos] = useState<{ left: number; width: number } | null>(null);
+
+  const placeInfo = useCallback(() => {
+    const card = cardRef.current?.getBoundingClientRect();
+    const anchor = infoRef.current?.getBoundingClientRect();
+    if (!card || !anchor) return;
+    const gutter = 12;
+    const width = Math.min(224, card.width - gutter * 2);
+    // Centred on the icon, then pulled back inside the card if it would overflow
+    const desired = anchor.left + anchor.width / 2 - width / 2;
+    const clamped = Math.max(card.left + gutter, Math.min(desired, card.right - gutter - width));
+    const left = clamped - anchor.left; // relative to the icon wrapper
+    setInfoPos((prev) => (prev?.left === left && prev?.width === width ? prev : { left, width }));
+  }, []);
+
   useEffect(() => setMounted(true), []);
+
+  // Re-measure while open (resize / rotate) and close on a tap anywhere else
+  useEffect(() => {
+    if (!isInfoOpen) return;
+    placeInfo();
+    const onResize = () => placeInfo();
+    const onPointerDown = (e: PointerEvent) => {
+      if (!infoRef.current?.contains(e.target as Node)) setIsInfoOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [isInfoOpen, placeInfo]);
 
   // Simulated fetch so the loading state matches the other dashboard components
   useEffect(() => {
@@ -84,17 +119,28 @@ export default function TopCPsByPayout({
   const mutedText = isDark ? 'text-[#999999]' : 'text-zinc-500';
 
   return (
-    <div className={`transition-colors duration-300 border rounded-2xl w-full h-full flex flex-col overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+    <div ref={cardRef} className={`transition-colors duration-300 border rounded-2xl w-full h-full flex flex-col overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
       {/* Header */}
       <div className={`shrink-0 flex items-center gap-1.5 p-5 ${isDark ? "bg-[#090909]" : "bg-[#F4F5F7]"}`}>
         <p className="text-sm lg:text-base">{title}</p>
         {/* Info tooltip */}
-        <span className="relative group/info inline-flex">
+        <span ref={infoRef} onMouseEnter={placeInfo} className="relative group/info inline-flex">
+          <button
+            type="button"
+            aria-label={`About ${title}`}
+            aria-expanded={isInfoOpen}
+            onClick={() => setIsInfoOpen((open) => !open)}
+            className="inline-flex p-1 -m-1 rounded-full focus:outline-none focus-visible:ring-1 focus-visible:ring-[#E8D1AB]"
+          >
           <Info
             size={13}
             className={isDark ? 'text-[#E8D1AB] fill-[#E8D1AB] stroke-[#101010]' : 'text-[#BFA780] fill-[#BFA780] stroke-[#F4F5F7]'}
           />
-          <span className={`absolute left-1/2 -translate-x-1/2 top-full mt-2 w-56 rounded-lg border px-3 py-2 text-xs leading-snug font-normal opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-200 z-50 pointer-events-none shadow-2xl ${isDark ? "bg-[#1A1A1A] border-[#3D3D3D] text-zinc-300" : "bg-white border-[#E3E3E3] text-zinc-600"}`}>
+          </button>
+          <span
+            role="tooltip"
+            style={{ left: infoPos?.left ?? -105, width: infoPos?.width ?? 224 }}
+            className={`absolute top-full mt-2 rounded-lg border px-3 py-2 text-xs leading-snug font-normal transition-all duration-200 z-50 pointer-events-none shadow-2xl ${isInfoOpen ? 'opacity-100 visible' : 'opacity-0 invisible [@media(hover:hover)]:group-hover/info:opacity-100 [@media(hover:hover)]:group-hover/info:visible'} ${isDark ? "bg-[#1A1A1A] border-[#3D3D3D] text-zinc-300" : "bg-white border-[#E3E3E3] text-zinc-600"}`}>
             {infoText}
           </span>
         </span>
