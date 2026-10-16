@@ -183,6 +183,7 @@ export function RolesPermissionsPage({
   const [isOpenRecordsModalOpen, setIsOpenRecordsModalOpen] = useState(false);
   const [openLeadsCount, setOpenLeadsCount] = useState(0);
   const [openQuotesCount, setOpenQuotesCount] = useState(0);
+  const [openPostProductionCount, setOpenPostProductionCount] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedUser, setSelectedUser] = useState<PermissionUser | null>(null);
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
@@ -313,10 +314,14 @@ useEffect(() => {
 
     const leadsCount = Number(response.count ?? response.data.leads?.length ?? 0);
     const quotesCount = Number(response.quote_count ?? response.data.quotes?.length ?? 0);
+    const postProductionCount = Number(
+      response.post_production_count ?? response.data.post_production?.length ?? 0,
+    );
     setOpenLeadsCount(leadsCount);
     setOpenQuotesCount(quotesCount);
+    setOpenPostProductionCount(postProductionCount);
 
-    if (leadsCount + quotesCount > 0) {
+    if (leadsCount + quotesCount + postProductionCount > 0) {
       setIsOpenRecordsModalOpen(true);
       return;
     }
@@ -454,7 +459,8 @@ useEffect(() => {
 
       const userWithOpenRecords = reassignmentChecks.find(({ response }) =>
         Number(response.count ?? response.data.leads?.length ?? 0) +
-        Number(response.quote_count ?? response.data.quotes?.length ?? 0) > 0,
+        Number(response.quote_count ?? response.data.quotes?.length ?? 0) +
+        Number(response.post_production_count ?? response.data.post_production?.length ?? 0) > 0,
       );
       if (userWithOpenRecords) {
         const user = users.find((item) => item.id === userWithOpenRecords.userId);
@@ -462,6 +468,7 @@ useEffect(() => {
           setSelectedUser(user);
           setOpenLeadsCount(Number(userWithOpenRecords.response.count ?? userWithOpenRecords.response.data.leads?.length ?? 0));
           setOpenQuotesCount(Number(userWithOpenRecords.response.quote_count ?? userWithOpenRecords.response.data.quotes?.length ?? 0));
+          setOpenPostProductionCount(Number(userWithOpenRecords.response.post_production_count ?? 0));
           setIsOpenRecordsModalOpen(true);
           setUsersError("Reassign open records before deleting users. Start with the user shown.");
         }
@@ -659,6 +666,7 @@ useEffect(() => {
         userName={selectedUser?.name || "this user"}
         openLeads={openLeadsCount}
         openQuotes={openQuotesCount}
+        openPostProduction={openPostProductionCount}
       />
 
       <ActionModal

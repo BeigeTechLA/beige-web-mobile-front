@@ -12,7 +12,7 @@ import ActionSuccessModal from "@/components/admin/ActionSuccessModal";
 import { LeadsStatusBadge } from "@/components/sales/LeadsStatusBadge";
 import { formatQuoteStatusLabel, getQuoteStatusColor } from "@/lib/quoteStatus";
 
-export type RecordType = "Lead" | "Quote";
+export type RecordType = "Lead" | "Quote" | "Post Production";
 
 export type ReassignRecord = {
   id: string;
@@ -41,6 +41,8 @@ type ReassignRecordsPageProps = {
   totalRecords: number;
   totalLeads: number;
   totalQuotes: number;
+  totalPostProduction?: number;
+  postProductionReps?: SalesRep[];
   page: number;
   typeFilter: "all" | RecordType;
   recordsLoading?: boolean;
@@ -75,6 +77,8 @@ export function ReassignRecordsPage({
   totalRecords,
   totalLeads,
   totalQuotes,
+  totalPostProduction = 0,
+  postProductionReps = [],
   page,
   typeFilter,
   recordsLoading = false,
@@ -205,6 +209,9 @@ export function ReassignRecordsPage({
     setRowRepIds((current) => {
       const next = { ...current };
       selected.forEach((recordId) => {
+        const record = records.find((r) => r.id === recordId);
+        const allowed = record?.type === "Post Production" ? postProductionReps : reps;
+        if (repId && !allowed.some((rep) => rep.id === repId)) return;
         if (repId) next[recordId] = repId;
         else delete next[recordId];
       });
@@ -212,7 +219,16 @@ export function ReassignRecordsPage({
     });
   };
 
-  const repName = (id: string) => reps.find((r) => r.id === id)?.name ?? "";
+  const repsForType = (type: RecordType) => (type === "Post Production" ? postProductionReps : reps);
+  const repName = (id: string) => [...reps, ...postProductionReps].find((r) => r.id === id)?.name ?? "";
+  const selectedRecords = records.filter((r) => selected.includes(r.id));
+  const selectedHasPostProduction = selectedRecords.some((r) => r.type === "Post Production");
+  const selectedHasOther = selectedRecords.some((r) => r.type !== "Post Production");
+  const bulkMixed = selectedHasPostProduction && selectedHasOther;
+  const bulkReps = selectedHasPostProduction && !selectedHasOther ? postProductionReps : reps;
+  const typeColor = (type: RecordType) =>
+    type === "Lead" ? "text-[#3B82F6]" : type === "Post Production" ? "text-[#A78BFA]" : gold;
+  const nameColumnLabel = "Client Name";
 
   const handleConfirm = async () => {
     if (!pending) return;
@@ -256,7 +272,7 @@ export function ReassignRecordsPage({
     .map((assignment) => `${assignment.displayId ?? assignment.recordId} to ${repName(assignment.repId)}`)
     .join(", ");
   const successSubtext = canDeactivate
-    ? "All open leads and quotes have been reassigned. You can now deactivate this Sales Rep."
+    ? "All open records have been reassigned. You can now deactivate this user."
     : `${successRecordSummary} ${successAssignments.length === 1 ? "has" : "have"} been successfully reassigned from ${user.name}. Reassign the remaining records before deactivating ${user.name}.`;
   const checkboxClass = `h-5 w-5 rounded-md border transition-all duration-150 hover:scale-105 focus-visible:ring-2 focus-visible:ring-offset-0 ${
     isDark
@@ -283,8 +299,8 @@ export function ReassignRecordsPage({
             <RepSelect
               value={bulkRepId}
               onChange={handleBulkRepChange}
-              reps={reps}
-              placeholder="Assign to Sales Rep..."
+              reps={bulkMixed ? [] : bulkReps}
+              placeholder={bulkMixed ? "Select one record type only" : "Assign to..."}
               className={`h-11 min-w-0 flex-1 sm:w-[240px] sm:flex-none ${field}`}
             />
             <button
@@ -349,6 +365,7 @@ export function ReassignRecordsPage({
           <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-sm lg:text-base">
             <Stat label="Open Leads" value={openLeads} valueClass="text-[#3B82F6]" muted={muted} />
             <Stat label="Open Quotes" value={openQuotes} valueClass={isDark ? "text-[#E8D1AB]" : "text-[#8E6A2A]"} muted={muted} />
+            <Stat label="Open Post Production" value={totalPostProduction} valueClass="text-[#A78BFA]" muted={muted} />
             <Stat label="Remaining" value={remaining} valueClass="text-[#F5A524]" muted={muted} />
           </div>
           <p className={`flex items-center gap-2 text-sm lg:text-base ${strong}`}>
@@ -382,6 +399,7 @@ export function ReassignRecordsPage({
                 <SelectItem value="all">All Records</SelectItem>
                 <SelectItem value="Lead">Leads</SelectItem>
                 <SelectItem value="Quote">Quotes</SelectItem>
+                <SelectItem value="Post Production">Post Production</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -428,13 +446,15 @@ export function ReassignRecordsPage({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`font-semibold ${strong}`}>{r.id}</span>
-                      <span className={`text-xs font-medium ${r.type === "Lead" ? "text-[#3B82F6]" : gold}`}>{r.type}</span>
+                      <span className={`text-xs font-medium ${typeColor(r.type)}`}>{r.type}</span>
                     </div>
                     <p className={`mt-1 truncate text-sm ${muted}`}>{r.clientName}</p>
                   </div>
                 </div>
                 <div>
                   {r.type === "Lead" ? (
+                    <LeadsStatusBadge status={r.status} size="compact" />
+                  ) : r.type === "Post Production" ? (
                     <LeadsStatusBadge status={r.status} size="compact" />
                   ) : (
                     <span className={`inline-flex w-fit items-center justify-center whitespace-nowrap rounded-full border px-5 py-1.5 text-sm font-semibold ${getQuoteStatusColor(r.status)}`}>
@@ -462,7 +482,7 @@ export function ReassignRecordsPage({
                   <RepSelect
                     value={rowRepIds[r.id] ?? ""}
                     onChange={(repId) => handleRowRepChange(r.id, repId)}
-                    reps={reps}
+                    reps={repsForType(r.type)}
                     placeholder="Assign to..."
                     className={`h-11 w-full min-w-0 rounded-xl text-sm ${field}`}
                   />
@@ -471,21 +491,21 @@ export function ReassignRecordsPage({
             ))}
           </div>
 
-          <div className="hidden overflow-x-auto xl:block">
+          <div className="hidden min-w-0 overflow-x-auto xl:block">
             <table className="w-full min-w-[1200px] table-fixed text-left text-base">
               <colgroup>
-                <col className="w-[5%]" />
+                <col className="w-[4%]" />
+                <col className="w-[8%]" />
+                <col className="w-[15%]" />
+                <col className="w-[15%]" />
+                <col className="w-[12%]" />
+                <col className="w-[18%]" />
                 <col className="w-[10%]" />
-                <col className="w-[11%]" />
-                <col className="w-[16%]" />
-                <col className="w-[7%]" />
-                <col className="w-[20%]" />
-                <col className="w-[10%]" />
-                <col className="w-[21%]" />
+                <col className="w-[18%]" />
               </colgroup>
               <thead>
                 <tr className={`${isDark ? "bg-[#0A0A0A]" : "bg-[#F4F5F7]"} ${strong}`}>
-                  <th className="px-6 py-5">
+                  <th className="px-3 py-5">
                     <Checkbox
                       aria-label="Select all on this page"
                       checked={
@@ -499,8 +519,8 @@ export function ReassignRecordsPage({
                       className={`${checkboxClass} h-6 w-6`}
                     />
                   </th>
-                  {["ID", "Client Name", "Current Rep", "Type", "Status", "Amount", "Assign To Other Rep"].map((h) => (
-                    <th key={h} className={`px-4 py-5 text-base font-medium ${h === "Amount" ? "text-right" : ""}`}>
+                  {["ID", nameColumnLabel, "Current Rep", "Type", "Status", "Amount", "Assign To Other Rep"].map((h) => (
+                    <th key={h} className={`px-3 py-5 text-base font-medium ${h === "Amount" ? "text-right" : ""}`}>
                       {h}
                     </th>
                   ))}
@@ -528,7 +548,7 @@ export function ReassignRecordsPage({
                 ) : (
                   pageRows.map((r) => (
                     <tr key={r.id} className={`h-20 border-t ${isDark ? "border-[#222] bg-[#111111]" : "border-[#EEE] bg-white"}`}>
-                      <td className="px-6 py-3">
+                      <td className="px-3 py-3">
                         <Checkbox
                           aria-label={`Select ${r.id}`}
                           checked={selected.includes(r.id)}
@@ -536,7 +556,7 @@ export function ReassignRecordsPage({
                           className={`${checkboxClass} h-6 w-6`}
                         />
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 font-medium">
+                      <td className="whitespace-nowrap px-3 py-3 font-medium">
                         <a
                           href={r.href}
                           target="_blank"
@@ -546,11 +566,11 @@ export function ReassignRecordsPage({
                           {r.displayId}
                         </a>
                       </td>
-                      <td className={`truncate px-4 py-3 ${strong}`} title={r.clientName}>{r.clientName}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex min-w-0 items-center gap-3">
+                      <td className={`truncate px-3 py-3 ${strong}`} title={r.clientName}>{r.clientName}</td>
+                      <td className="px-3 py-3">
+                        <div className="flex min-w-0 items-center gap-2">
                           <div
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold ${
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold ${
                               isDark ? "bg-[#F1C7E6] text-black" : "bg-[#E8D1AB] text-[#101010]"
                             }`}
                           >
@@ -559,10 +579,12 @@ export function ReassignRecordsPage({
                           <span className={`min-w-0 truncate ${strong}`} title={user.name}>{user.name}</span>
                         </div>
                       </td>
-                      <td className={`px-4 py-3 ${r.type === "Lead" ? "text-[#3B82F6]" : gold}`}>{r.type}</td>
-                      <td className="px-4 py-3">
+                      <td className={`whitespace-nowrap px-3 py-3 ${typeColor(r.type)}`}>{r.type}</td>
+                      <td className="px-3 py-3">
                         <div className="w-full min-w-0">
                           {r.type === "Lead" ? (
+                            <LeadsStatusBadge status={r.status} size="compact" />
+                          ) : r.type === "Post Production" ? (
                             <LeadsStatusBadge status={r.status} size="compact" />
                           ) : (
                             <span
@@ -573,14 +595,14 @@ export function ReassignRecordsPage({
                           )}
                         </div>
                       </td>
-                      <td className={`whitespace-nowrap px-4 py-3 text-right text-base tabular-nums ${strong}`}>{formatAmount(r.amount)}</td>
-                      <td className="px-4 py-3">
+                      <td className={`whitespace-nowrap px-3 py-3 text-right text-base tabular-nums ${strong}`}>{formatAmount(r.amount)}</td>
+                      <td className="px-3 py-3">
                         <RepSelect
                           value={rowRepIds[r.id] ?? ""}
                           onChange={(repId) => handleRowRepChange(r.id, repId)}
-                          reps={reps}
+                          reps={repsForType(r.type)}
                           placeholder="Assign to..."
-                          className={`h-12 w-full min-w-[200px] rounded-xl text-base ${field}`}
+                          className={`h-12 w-full min-w-0 rounded-xl text-base ${field}`}
                         />
                       </td>
                     </tr>

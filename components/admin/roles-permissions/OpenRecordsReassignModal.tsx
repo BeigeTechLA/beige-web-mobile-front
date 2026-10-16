@@ -17,6 +17,7 @@ type OpenRecordsReassignModalProps = {
   userName: string;
   openLeads: number;
   openQuotes: number;
+  openPostProduction?: number;
 };
 
 export function OpenRecordsReassignModal({
@@ -26,10 +27,11 @@ export function OpenRecordsReassignModal({
   userName,
   openLeads,
   openQuotes,
+  openPostProduction = 0,
 }: OpenRecordsReassignModalProps) {
   const { isDark } = useResolvedTheme();
 
-  const total = openLeads + openQuotes;
+  const total = openLeads + openQuotes + openPostProduction;
 
   return (
     <Dialog
@@ -67,6 +69,7 @@ export function OpenRecordsReassignModal({
         <div className={`mt-6 space-y-4 rounded-2xl p-5 ${isDark ? "bg-[#1E1E1E]" : "bg-[#F4F5F7]"}`}>
           <Row label="Open Leads" value={openLeads} isDark={isDark} />
           <Row label="Open Quotes" value={openQuotes} isDark={isDark} accent />
+          <Row label="Open Post Production" value={openPostProduction} isDark={isDark} />
           <Row label="Total" value={total} isDark={isDark} />
         </div>
 

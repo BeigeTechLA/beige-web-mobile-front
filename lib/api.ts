@@ -3636,7 +3636,7 @@ export const adminApi = {
 
   getUserReassignments: async (
     userId: number | string,
-    options: { search?: string; page?: number; limit?: number; type?: "all" | "Lead" | "Quote" } = {},
+    options: { search?: string; page?: number; limit?: number; type?: "all" | "Lead" | "Quote" | "Post Production" } = {},
   ) => {
     try {
       const params = {
@@ -3644,7 +3644,7 @@ export const adminApi = {
         ...(options.search?.trim() ? { search: options.search.trim() } : {}),
         ...(options.page ? { page: options.page } : {}),
         ...(options.limit ? { limit: options.limit } : {}),
-        ...(options.type && options.type !== "all" ? { type: options.type.toLowerCase() } : {}),
+        ...(options.type && options.type !== "all" ? { type: options.type.toLowerCase().replace(/\s+/g, "_") } : {}),
       };
       const response = await api.get(
         `admin/users/${userId}/reassignments`,
