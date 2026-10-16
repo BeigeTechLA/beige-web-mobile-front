@@ -1,15 +1,23 @@
-import axios from 'axios';
-import Cookies from 'js-cookie';
-import { clearAccessSession, refreshAccessToken } from '@/lib/auth/session';
+import axios from "axios";
+import Cookies from "js-cookie";
+import { clearAccessSession, refreshAccessToken } from "@/lib/auth/session";
 
-import type { Creator, Review, Equipment, PaymentIntentResponse, BookingResponse, BookingFormData } from '@/types/payment';
+import type {
+  Creator,
+  Review,
+  Equipment,
+  PaymentIntentResponse,
+  BookingResponse,
+  BookingFormData,
+} from "@/types/payment";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_ENDPOINT || "https://revure-api.beige.app/v1/";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   withCredentials: true,
 });
@@ -17,7 +25,7 @@ const api = axios.create({
 const publicApi = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   withCredentials: false,
 });
@@ -25,7 +33,7 @@ const publicApi = axios.create({
 // Add request interceptor to include JWT token
 api.interceptors.request.use(
   (config) => {
-    const token = Cookies.get('revure_token');
+    const token = Cookies.get("revure_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -33,15 +41,22 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config as (typeof error.config & { _retried?: boolean }) | undefined;
-    const url = String(originalRequest?.url || '').toLowerCase();
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retried && !url.includes('/auth/refresh')) {
+    const originalRequest = error.config as
+      | (typeof error.config & { _retried?: boolean })
+      | undefined;
+    const url = String(originalRequest?.url || "").toLowerCase();
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retried &&
+      !url.includes("/auth/refresh")
+    ) {
       originalRequest._retried = true;
       const token = await refreshAccessToken();
       if (token) {
@@ -51,13 +66,13 @@ api.interceptors.response.use(
     }
     if (error.response?.status === 401) clearAccessSession();
     return Promise.reject(error);
-  }
+  },
 );
 
 export type GetRolesParams = {
   search?: string;
   sort_by?: string;
-  order?: 'asc' | 'desc' | 'ASC' | 'DESC';
+  order?: "asc" | "desc" | "ASC" | "DESC";
 };
 
 export type AdminRoleRecord = {
@@ -79,7 +94,7 @@ export type GetUsersWithRolesParams = {
   status?: string | number;
   role_id?: string | number;
   sort_by?: string;
-  order?: 'asc' | 'desc' | 'ASC' | 'DESC';
+  order?: "asc" | "desc" | "ASC" | "DESC";
 };
 
 export type UserLoginHistoryEntry = {
@@ -100,8 +115,8 @@ export type UserLoginHistoryEntry = {
   logged_in_at: string;
   browser?: string;
   os?: string;
-  ip_type?: 'public' | 'private' | 'loopback' | 'unknown';
-  session_status?: 'active' | 'inactive' | 'untracked';
+  ip_type?: "public" | "private" | "loopback" | "unknown";
+  session_status?: "active" | "inactive" | "untracked";
   inactive_reason?: string | null;
   is_current_session?: boolean;
   last_seen_at?: string | null;
@@ -113,7 +128,12 @@ export type UserLoginHistoryResponse = {
   success: boolean;
   message?: string;
   data: UserLoginHistoryEntry[];
-  pagination: { page: number; limit: number; total: number; total_pages: number };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
 };
 
 export type AdminUserRoleRecord = {
@@ -125,7 +145,7 @@ export type AdminUserRoleRecord = {
   created_at: string | null;
   updated_at?: string | null;
   is_active: number;
-  status_label: 'Active' | 'In-Active';
+  status_label: "Active" | "In-Active";
   archive_history?: ArchiveHistoryRecord[];
   last_archive_event?: ArchiveHistoryRecord | null;
   deleted_by_name?: string | null;
@@ -141,12 +161,12 @@ export type AdminUsersExportResponse = {
 
 export type AdminMultiUserActionPayload =
   | {
-      action: 'change_role';
+      action: "change_role";
       user_ids: number[];
       role_id: number;
     }
   | {
-      action: 'delete';
+      action: "delete";
       user_ids: number[];
       reason?: string;
     };
@@ -156,7 +176,7 @@ export type AdminMultiUserActionResponse = {
   message?: string;
   error?: string;
   data?: {
-    action?: 'change_role' | 'delete';
+    action?: "change_role" | "delete";
     role_id?: number;
     role_name?: string;
     affected_count?: number;
@@ -173,7 +193,10 @@ export type AdminMultiUserActionResponse = {
   } | null;
 };
 
-export type AdminCreativePartnerBulkAction = 'approve' | 'decline' | 'send_reminder';
+export type AdminCreativePartnerBulkAction =
+  | "approve"
+  | "decline"
+  | "send_reminder";
 
 export type AdminCreativePartnerBulkActionPayload = {
   action: AdminCreativePartnerBulkAction;
@@ -249,7 +272,7 @@ export type UserRoleDetailsResponse = {
     user_type_name: string | null;
     is_internal_member?: number;
     is_active: number;
-    status_label: 'Active' | 'In-Active';
+    status_label: "Active" | "In-Active";
     created_at: string | null;
     updated_at: string | null;
   };
@@ -286,10 +309,10 @@ export type ShiftManagementApiResponse<T = unknown> = {
 };
 
 const shiftRequest = async <T>(
-  method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+  method: "get" | "post" | "put" | "patch" | "delete",
   url: string,
   options?: { data?: unknown; params?: Record<string, unknown> },
-  fallbackError = 'Shift management request failed'
+  fallbackError = "Shift management request failed",
 ): Promise<ShiftManagementApiResponse<T>> => {
   try {
     const response = await api.request<ShiftManagementApiResponse<T>>({
@@ -300,7 +323,10 @@ const shiftRequest = async <T>(
     });
     return response.data;
   } catch (error: any) {
-    console.error(`Shift Management API Error [${method.toUpperCase()} ${url}]:`, error.response?.data || error.message);
+    console.error(
+      `Shift Management API Error [${method.toUpperCase()} ${url}]:`,
+      error.response?.data || error.message,
+    );
     return {
       success: false,
       data: null,
@@ -312,55 +338,185 @@ const shiftRequest = async <T>(
 
 export const shiftManagementApi = {
   getShifts: (params?: Record<string, unknown>) =>
-    shiftRequest<any>('get', '/admin/shifts', { params }, 'Failed to fetch shifts'),
-  createShift: (data: { name: string; start_time: string; end_time: string; active_days: string[]; status: 'active' | 'inactive' }) =>
-    shiftRequest<any>('post', '/admin/shifts', { data }, 'Failed to create shift'),
+    shiftRequest<any>(
+      "get",
+      "/admin/shifts",
+      { params },
+      "Failed to fetch shifts",
+    ),
+  createShift: (data: {
+    name: string;
+    start_time: string;
+    end_time: string;
+    active_days: string[];
+    status: "active" | "inactive";
+  }) =>
+    shiftRequest<any>(
+      "post",
+      "/admin/shifts",
+      { data },
+      "Failed to create shift",
+    ),
   getOverview: (params?: Record<string, unknown>) =>
-    shiftRequest<any>('get', '/admin/shifts/overview', { params }, 'Failed to fetch shift overview'),
+    shiftRequest<any>(
+      "get",
+      "/admin/shifts/overview",
+      { params },
+      "Failed to fetch shift overview",
+    ),
   getActiveNow: (params?: Record<string, unknown>) =>
-    shiftRequest<any>('get', '/admin/shifts/active-now', { params }, 'Failed to fetch active shifts'),
+    shiftRequest<any>(
+      "get",
+      "/admin/shifts/active-now",
+      { params },
+      "Failed to fetch active shifts",
+    ),
   getRecentAssignments: (params?: Record<string, unknown>) =>
-    shiftRequest<any>('get', '/admin/shifts/recent-assignments', { params }, 'Failed to fetch recent assignments'),
+    shiftRequest<any>(
+      "get",
+      "/admin/shifts/recent-assignments",
+      { params },
+      "Failed to fetch recent assignments",
+    ),
   getHourlyLeadVolume: (params?: Record<string, unknown>) =>
-    shiftRequest<any>('get', '/admin/shifts/hourly-lead-volume', { params }, 'Failed to fetch hourly lead volume'),
+    shiftRequest<any>(
+      "get",
+      "/admin/shifts/hourly-lead-volume",
+      { params },
+      "Failed to fetch hourly lead volume",
+    ),
   getShiftDetail: (id: number | string) =>
-    shiftRequest<any>('get', `/admin/shifts/${id}`, undefined, 'Failed to fetch shift detail'),
-  updateShift: (id: number | string, data: { name: string; start_time: string; end_time: string; active_days: string[]; status: 'active' | 'inactive' }) =>
-    shiftRequest<any>('put', `/admin/shifts/${id}`, { data }, 'Failed to update shift'),
+    shiftRequest<any>(
+      "get",
+      `/admin/shifts/${id}`,
+      undefined,
+      "Failed to fetch shift detail",
+    ),
+  updateShift: (
+    id: number | string,
+    data: {
+      name: string;
+      start_time: string;
+      end_time: string;
+      active_days: string[];
+      status: "active" | "inactive";
+    },
+  ) =>
+    shiftRequest<any>(
+      "put",
+      `/admin/shifts/${id}`,
+      { data },
+      "Failed to update shift",
+    ),
   toggleShift: (id: number | string) =>
-    shiftRequest<any>('patch', `/admin/shifts/${id}/toggle`, undefined, 'Failed to toggle shift'),
+    shiftRequest<any>(
+      "patch",
+      `/admin/shifts/${id}/toggle`,
+      undefined,
+      "Failed to toggle shift",
+    ),
   deleteShift: (id: number | string) =>
-    shiftRequest<any>('delete', `/admin/shifts/${id}`, undefined, 'Failed to delete shift'),
+    shiftRequest<any>(
+      "delete",
+      `/admin/shifts/${id}`,
+      undefined,
+      "Failed to delete shift",
+    ),
   getAllSalespeople: (params?: Record<string, unknown>) =>
-    shiftRequest<any>('get', '/admin/shifts/salespeople', { params }, 'Failed to fetch salespeople'),
-  addSalespersonToShift: (shiftId: number | string, sales_rep_id: number | string) =>
-    shiftRequest<any>('post', `/admin/shifts/${shiftId}/salespeople`, { data: { sales_rep_id } }, 'Failed to add salesperson'),
-  getShiftSalespeople: (shiftId: number | string, params?: Record<string, unknown>) =>
-    shiftRequest<any>('get', `/admin/shifts/${shiftId}/salespeople`, { params }, 'Failed to fetch shift salespeople'),
-  toggleShiftSalesperson: (shiftId: number | string, salesRepId: number | string, user_status?: boolean) =>
-    shiftRequest<any>('patch', `/admin/shifts/${shiftId}/salespeople/${salesRepId}/toggle`, { data: user_status === undefined ? {} : { user_status } }, 'Failed to toggle salesperson'),
-  removeShiftSalesperson: (shiftId: number | string, salesRepId: number | string) =>
-    shiftRequest<any>('delete', `/admin/shifts/${shiftId}/salespeople/${salesRepId}`, undefined, 'Failed to remove salesperson'),
+    shiftRequest<any>(
+      "get",
+      "/admin/shifts/salespeople",
+      { params },
+      "Failed to fetch salespeople",
+    ),
+  addSalespersonToShift: (
+    shiftId: number | string,
+    sales_rep_id: number | string,
+  ) =>
+    shiftRequest<any>(
+      "post",
+      `/admin/shifts/${shiftId}/salespeople`,
+      { data: { sales_rep_id } },
+      "Failed to add salesperson",
+    ),
+  getShiftSalespeople: (
+    shiftId: number | string,
+    params?: Record<string, unknown>,
+  ) =>
+    shiftRequest<any>(
+      "get",
+      `/admin/shifts/${shiftId}/salespeople`,
+      { params },
+      "Failed to fetch shift salespeople",
+    ),
+  toggleShiftSalesperson: (
+    shiftId: number | string,
+    salesRepId: number | string,
+    user_status?: boolean,
+  ) =>
+    shiftRequest<any>(
+      "patch",
+      `/admin/shifts/${shiftId}/salespeople/${salesRepId}/toggle`,
+      { data: user_status === undefined ? {} : { user_status } },
+      "Failed to toggle salesperson",
+    ),
+  removeShiftSalesperson: (
+    shiftId: number | string,
+    salesRepId: number | string,
+  ) =>
+    shiftRequest<any>(
+      "delete",
+      `/admin/shifts/${shiftId}/salespeople/${salesRepId}`,
+      undefined,
+      "Failed to remove salesperson",
+    ),
   getRoundRobin: (shiftId: number | string) =>
-    shiftRequest<any>('get', `/admin/shifts/${shiftId}/round-robin`, undefined, 'Failed to fetch round robin configuration'),
-  updateRoundRobin: (shiftId: number | string, data: Array<{ sales_rep_id: number | string; position: number }>) =>
-    shiftRequest<any>('put', `/admin/shifts/${shiftId}/round-robin`, { data }, 'Failed to save round robin order'),
+    shiftRequest<any>(
+      "get",
+      `/admin/shifts/${shiftId}/round-robin`,
+      undefined,
+      "Failed to fetch round robin configuration",
+    ),
+  updateRoundRobin: (
+    shiftId: number | string,
+    data: Array<{ sales_rep_id: number | string; position: number }>,
+  ) =>
+    shiftRequest<any>(
+      "put",
+      `/admin/shifts/${shiftId}/round-robin`,
+      { data },
+      "Failed to save round robin order",
+    ),
   getAssignmentHistory: (params?: Record<string, unknown>) =>
-    shiftRequest<any>('get', '/admin/assignment-history', { params }, 'Failed to fetch assignment history'),
+    shiftRequest<any>(
+      "get",
+      "/admin/assignment-history",
+      { params },
+      "Failed to fetch assignment history",
+    ),
   getSalesRepLeads: (id: number | string, params?: Record<string, unknown>) =>
-    shiftRequest<any>('get', `/admin/sales-reps/${id}/leads`, { params }, 'Failed to fetch salesperson leads'),
+    shiftRequest<any>(
+      "get",
+      `/admin/sales-reps/${id}/leads`,
+      { params },
+      "Failed to fetch salesperson leads",
+    ),
   getSalesRepQuotes: (id: number | string, params?: Record<string, unknown>) =>
-    shiftRequest<any>('get', `/admin/sales-reps/${id}/quotes`, { params }, 'Failed to fetch salesperson quotes'),
+    shiftRequest<any>(
+      "get",
+      `/admin/sales-reps/${id}/quotes`,
+      { params },
+      "Failed to fetch salesperson quotes",
+    ),
 };
-
 
 // Role mapping
 export const ROLE_MAP: Record<number, string> = {
-  1: 'Videographer',
-  2: 'Photographer',
-  3: 'Editor',
-  4: 'Producer',
-  5: 'Director',
+  1: "Videographer",
+  2: "Photographer",
+  3: "Editor",
+  4: "Producer",
+  5: "Director",
 };
 
 export const creatorApi = {
@@ -377,13 +533,14 @@ export const creatorApi = {
     return {
       id: rawCreator.id?.toString() || creatorId,
       name: rawCreator.name,
-      role: ROLE_MAP[rawCreator.role] || 'Creative Professional',
+      role: ROLE_MAP[rawCreator.role] || "Creative Professional",
       price: rawCreator.price,
       hourly_rate: rawCreator.price, // Use price as hourly_rate for backward compatibility
-      location: typeof rawCreator.location === 'string'
-        ? rawCreator.location
-        : rawCreator.location?.address || '',
-      profile_image: rawCreator.image || rawCreator.profile_image || '',
+      location:
+        typeof rawCreator.location === "string"
+          ? rawCreator.location
+          : rawCreator.location?.address || "",
+      profile_image: rawCreator.image || rawCreator.profile_image || "",
       rating: rawCreator.rating || 0,
       reviews_count: reviewsCount,
       bio: rawCreator.bio,
@@ -392,7 +549,10 @@ export const creatorApi = {
 };
 
 export const reviewApi = {
-  getByCreator: async (creatorId: string, limit: number = 5): Promise<Review[]> => {
+  getByCreator: async (
+    creatorId: string,
+    limit: number = 5,
+  ): Promise<Review[]> => {
     const response = await api.get(`/reviews/by-creator/${creatorId}`, {
       params: { limit },
     });
@@ -403,8 +563,8 @@ export const reviewApi = {
       return rawReviews.map((review: any) => ({
         id: review.review_id?.toString() || review.id,
         rating: review.rating,
-        comment: review.review_text || review.comment || '',
-        reviewer_name: review.user_name || review.reviewer_name || 'Anonymous',
+        comment: review.review_text || review.comment || "",
+        reviewer_name: review.user_name || review.reviewer_name || "Anonymous",
         reviewer_image: review.reviewer_image,
         created_at: review.created_at,
       }));
@@ -423,10 +583,14 @@ export const equipmentApi = {
 export const paymentApi = {
   createIntent: async (
     creatorId: string,
-    bookingData: BookingFormData & { guest_email?: string; user_id?: string | number; referral_code?: string },
-    hourlyRate: number
+    bookingData: BookingFormData & {
+      guest_email?: string;
+      user_id?: string | number;
+      referral_code?: string;
+    },
+    hourlyRate: number,
   ): Promise<PaymentIntentResponse> => {
-    const response = await api.post('/payments/create-intent', {
+    const response = await api.post("/payments/create-intent", {
       creator_id: creatorId,
       hours: bookingData.hours,
       hourly_rate: hourlyRate,
@@ -434,7 +598,7 @@ export const paymentApi = {
       shoot_date: bookingData.shoot_date,
       location: bookingData.location,
       shoot_type: bookingData.shoot_type,
-      notes: bookingData.special_requests || '',
+      notes: bookingData.special_requests || "",
       user_id: bookingData.user_id,
       guest_email: bookingData.guest_email,
       referral_code: bookingData.referral_code,
@@ -445,9 +609,16 @@ export const paymentApi = {
 
   confirmBooking: async (
     paymentIntentId: string,
-    bookingData: BookingFormData & { creator_id: string; guest_email?: string; user_id?: string | number; hourly_rate?: number; referral_code?: string; booking_id?: string | number }
+    bookingData: BookingFormData & {
+      creator_id: string;
+      guest_email?: string;
+      user_id?: string | number;
+      hourly_rate?: number;
+      referral_code?: string;
+      booking_id?: string | number;
+    },
   ): Promise<BookingResponse> => {
-    const response = await api.post('/payments/confirm', {
+    const response = await api.post("/payments/confirm", {
       paymentIntentId: paymentIntentId,
       creator_id: bookingData.creator_id,
       user_id: bookingData.user_id,
@@ -457,7 +628,7 @@ export const paymentApi = {
       shoot_date: bookingData.shoot_date,
       location: bookingData.location,
       shoot_type: bookingData.shoot_type,
-      notes: bookingData.special_requests || '',
+      notes: bookingData.special_requests || "",
       guest_email: bookingData.guest_email,
       referral_code: bookingData.referral_code,
       booking_id: bookingData.booking_id,
@@ -478,13 +649,13 @@ export interface AffiliateInfo {
   affiliate_id: number;
   client_id?: number | null;
   referral_code: string;
-  status: 'active' | 'paused' | 'suspended';
+  status: "active" | "paused" | "suspended";
   total_referrals: number;
   successful_referrals: number;
   total_earnings: number;
   pending_earnings: number;
   paid_earnings: number;
-  payout_method?: 'bank_transfer' | 'paypal' | 'stripe';
+  payout_method?: "bank_transfer" | "paypal" | "stripe";
   payout_details?: Record<string, unknown>;
   client?: {
     client_id: number;
@@ -639,10 +810,10 @@ export type QuoteAnalyticsFiltersResponse = {
 };
 
 export type QuoteAnalyticsQuotesParams = {
-  bucket: 'open_pipeline' | 'overdue_follow_ups' | 'deals_won';
-  status?: 'sent' | 'accepted' | 'partially_paid';
+  bucket: "open_pipeline" | "overdue_follow_ups" | "deals_won";
+  status?: "sent" | "accepted" | "partially_paid";
   page?: number;
-  limit?: number | 'all';
+  limit?: number | "all";
   sales_rep_id?: string | number;
   date_preset?: string;
   start_date?: string;
@@ -676,7 +847,12 @@ export type QuoteAnalyticsQuoteRow = {
 
 export type QuoteAnalyticsQuoteListData = {
   rows: QuoteAnalyticsQuoteRow[];
-  pagination: { page: number; limit: number; total: number; total_pages: number };
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
 };
 
 export interface SalesQuoteListUser {
@@ -695,7 +871,10 @@ export interface QuotesListPagination {
   [key: string]: unknown;
 }
 
-export type QuotesListSummary = Record<string, number | string | null | undefined>;
+export type QuotesListSummary = Record<
+  string,
+  number | string | null | undefined
+>;
 
 export interface SalesQuoteListItem {
   id?: number | string;
@@ -1133,7 +1312,10 @@ export interface AdminShootUpdateDateLocationResponse {
 
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
-  validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {
+  validateCode: async (
+    code: string,
+    userId?: string | number | null,
+  ): Promise<AffiliateValidationResponse> => {
     try {
       const url = userId
         ? `/affiliates/validate/${code}?user_id=${userId}`
@@ -1151,22 +1333,24 @@ export const affiliateApi = {
       // FIX: Extract the message from the server error response
       return {
         valid: false,
-        message: error.response?.data?.message || "Invalid referral code"
+        message: error.response?.data?.message || "Invalid referral code",
       };
     }
   },
 
   // Get current user's affiliate info (requires auth)
   getMyAffiliate: async (token: string): Promise<AffiliateInfo> => {
-    const response = await api.get('/affiliates/me', {
+    const response = await api.get("/affiliates/me", {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.data.data;
   },
 
   // Get affiliate dashboard stats (requires auth)
-  getDashboardStats: async (token: string): Promise<AffiliateDashboardStats> => {
-    const response = await api.get('/affiliates/dashboard', {
+  getDashboardStats: async (
+    token: string,
+  ): Promise<AffiliateDashboardStats> => {
+    const response = await api.get("/affiliates/dashboard", {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.data.data;
@@ -1175,9 +1359,17 @@ export const affiliateApi = {
   // Get referral history (requires auth)
   getReferralHistory: async (
     token: string,
-    params: { page?: number; limit?: number; status?: string } = {}
-  ): Promise<{ referrals: ReferralHistoryItem[]; pagination: { total: number; page: number; limit: number; totalPages: number } }> => {
-    const response = await api.get('/affiliates/referrals', {
+    params: { page?: number; limit?: number; status?: string } = {},
+  ): Promise<{
+    referrals: ReferralHistoryItem[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> => {
+    const response = await api.get("/affiliates/referrals", {
       headers: { Authorization: `Bearer ${token}` },
       params,
     });
@@ -1187,32 +1379,34 @@ export const affiliateApi = {
   // Update payout details (requires auth)
   updatePayoutDetails: async (
     token: string,
-    data: { payout_method?: string; payout_details?: Record<string, unknown> }
-  ): Promise<{ payout_method: string; payout_details: Record<string, unknown> }> => {
-    const response = await api.put(
-      "/affiliates/payout-details",
-      data,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+    data: { payout_method?: string; payout_details?: Record<string, unknown> },
+  ): Promise<{
+    payout_method: string;
+    payout_details: Record<string, unknown>;
+  }> => {
+    const response = await api.put("/affiliates/payout-details", data, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     return response.data.data;
   },
 
   // Get client dashboard summary (affiliate dashboard)
-  getDashboardSummary: async (token: string, params: { date_on?: string; range?: string } = {}) => {
+  getDashboardSummary: async (
+    token: string,
+    params: { date_on?: string; range?: string } = {},
+  ) => {
     try {
-      const response = await api.get('/client/get-dashboard-summary', {
+      const response = await api.get("/client/get-dashboard-summary", {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
       return response.data;
     } catch (error) {
-      console.error('Get Affiliate Dashboard Summary Error:', error);
+      console.error("Get Affiliate Dashboard Summary Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch dashboard summary',
+        error: "Failed to fetch dashboard summary",
       };
     }
   },
@@ -1220,16 +1414,16 @@ export const affiliateApi = {
   // Get client credit summary (available/used/pending)
   getClientCreditSummary: async (token: string) => {
     try {
-      const response = await api.get('/client/credit/summary', {
+      const response = await api.get("/client/credit/summary", {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
     } catch (error) {
-      console.error('Get Client Credit Summary Error:', error);
+      console.error("Get Client Credit Summary Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch credit summary',
+        error: "Failed to fetch credit summary",
       };
     }
   },
@@ -1237,77 +1431,91 @@ export const affiliateApi = {
   // Get client credit history (where credit was created/used)
   getClientCreditHistory: async (
     token: string,
-    params: { page?: number; limit?: number } = {}
+    params: { page?: number; limit?: number } = {},
   ) => {
     try {
-      const response = await api.get('/client/credit/history', {
+      const response = await api.get("/client/credit/history", {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
       return response.data;
     } catch (error) {
-      console.error('Get Client Credit History Error:', error);
+      console.error("Get Client Credit History Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch credit history',
+        error: "Failed to fetch credit history",
       };
     }
   },
 
   // Get shoots count by category (affiliate dashboard)
-  getShootsCountByCategory: async (token: string, params: { tab?: string; date_on?: string } = {}) => {
+  getShootsCountByCategory: async (
+    token: string,
+    params: { tab?: string; date_on?: string } = {},
+  ) => {
     try {
       const finalParams: any = { ...params };
-      if (finalParams.tab && finalParams.tab !== 'All') {
+      if (finalParams.tab && finalParams.tab !== "All") {
         finalParams.type = finalParams.tab.toLowerCase();
         delete finalParams.tab;
       }
-      const response = await api.get('/client/get-shoots-count-by-category', {
+      const response = await api.get("/client/get-shoots-count-by-category", {
         headers: { Authorization: `Bearer ${token}` },
         params: finalParams,
       });
       return response.data;
     } catch (error) {
-      console.error('Get Shoots Count By Category Error:', error);
+      console.error("Get Shoots Count By Category Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch shoots count by category',
+        error: "Failed to fetch shoots count by category",
       };
     }
   },
   // Get shoot status (affiliate dashboard)
-  getShootStatus: async (token: string, params: { range?: 'all' | 'monthly' | 'month'; date_on?: string } = {}) => {
+  getShootStatus: async (
+    token: string,
+    params: { range?: "all" | "monthly" | "month"; date_on?: string } = {},
+  ) => {
     try {
-      const response = await api.get('/client/get-shoot-status', {
+      const response = await api.get("/client/get-shoot-status", {
         headers: { Authorization: `Bearer ${token}` },
-        params: { range: 'all', ...params },
+        params: { range: "all", ...params },
       });
       return response.data;
     } catch (error) {
-      console.error('Get Shoot Status Error:', error);
+      console.error("Get Shoot Status Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch shoot status',
+        error: "Failed to fetch shoot status",
       };
     }
   },
   // Get my shoots (affiliate dashboard)
-  getMyShoots: async (token: string, params: { status?: string; range?: string; date_on?: string; search?: string } = {}) => {
+  getMyShoots: async (
+    token: string,
+    params: {
+      status?: string;
+      range?: string;
+      date_on?: string;
+      search?: string;
+    } = {},
+  ) => {
     try {
-      const response = await api.get('/client/get-my-shoots', {
+      const response = await api.get("/client/get-my-shoots", {
         headers: { Authorization: `Bearer ${token}` },
         params,
       });
       return response.data;
     } catch (error) {
-      console.error('Get My Shoots Error:', error);
+      console.error("Get My Shoots Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch shoots',
+        error: "Failed to fetch shoots",
       };
     }
   },
@@ -1318,72 +1526,84 @@ export const affiliateApi = {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
-    } catch (error) {
-    }
+    } catch (error) {}
   },
   // Get recent activity (affiliate dashboard)
-  getRecentActivity: async (token: string, params: { limit?: number; date_on?: string } = {}) => {
+  getRecentActivity: async (
+    token: string,
+    params: { limit?: number; date_on?: string } = {},
+  ) => {
     try {
-      const response = await api.get('/client/get-recent-activity', {
+      const response = await api.get("/client/get-recent-activity", {
         headers: { Authorization: `Bearer ${token}` },
         params: { limit: 10, ...params },
       });
       return response.data;
     } catch (error) {
-      console.error('Get Recent Activity Error:', error);
+      console.error("Get Recent Activity Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch recent activity',
+        error: "Failed to fetch recent activity",
       };
     }
   },
   // Get top creative partners (affiliate dashboard)
-  getTopCreativePartners: async (token: string, params: { range?: 'all' | 'monthly' | 'month'; date_on?: string } = {}) => {
+  getTopCreativePartners: async (
+    token: string,
+    params: { range?: "all" | "monthly" | "month"; date_on?: string } = {},
+  ) => {
     try {
-      const response = await api.get('/client/get-top-creative-partners', {
+      const response = await api.get("/client/get-top-creative-partners", {
         headers: { Authorization: `Bearer ${token}` },
-        params: { range: 'all', ...params },
+        params: { range: "all", ...params },
       });
       return response.data;
     } catch (error) {
-      console.error('Get Top Creative Partners Error:', error);
+      console.error("Get Top Creative Partners Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch top creatives',
+        error: "Failed to fetch top creatives",
       };
     }
   },
   // Get post production members (affiliate dashboard)
   getPostProductionMembers: async (token: string) => {
     try {
-      const response = await api.get('/admin/get-post-production-members', {
+      const response = await api.get("/admin/get-post-production-members", {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
     } catch (error) {
-      console.error('Get Post Production Members Error:', error);
+      console.error("Get Post Production Members Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch post production members',
+        error: "Failed to fetch post production members",
       };
     }
   },
   // Assign post production member (affiliate dashboard)
-  assignPostProductionMember: async (token: string, payload: { post_production_member_id: number; project_id: number }) => {
+  assignPostProductionMember: async (
+    token: string,
+    payload: { post_production_member_id: number; project_id: number },
+  ) => {
     try {
-      const response = await api.post('/client/assign-post-production-member', payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.post(
+        "/client/assign-post-production-member",
+        payload,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       return response.data;
     } catch (error) {
-      console.error('Assign Post Production Member Error:', error);
+      console.error("Assign Post Production Member Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to assign post production member',
+        error: "Failed to assign post production member",
       };
     }
   },
@@ -1391,16 +1611,20 @@ export const affiliateApi = {
   // Submit project form (affiliate dashboard)
   submitProjectForm: async (token: string, payload: any) => {
     try {
-      const response = await api.post('/client/submit-project-form', payload, {
+      const response = await api.post("/client/submit-project-form", payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
     } catch (error: any) {
-      console.error('Submit Project Form Error:', error.response?.data || error.message);
+      console.error(
+        "Submit Project Form Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        message: error.response?.data?.message || 'Failed to submit project form',
+        message:
+          error.response?.data?.message || "Failed to submit project form",
       };
     }
   },
@@ -1408,14 +1632,21 @@ export const affiliateApi = {
   // Submit project form as guest
   submitProjectFormGuest: async (payload: any) => {
     try {
-      const response = await api.post('/client/submit-project-form-guest', payload);
+      const response = await api.post(
+        "/client/submit-project-form-guest",
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Submit Project Form Guest Error:', error.response?.data || error.message);
+      console.error(
+        "Submit Project Form Guest Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        message: error.response?.data?.message || 'Failed to submit project form',
+        message:
+          error.response?.data?.message || "Failed to submit project form",
       };
     }
   },
@@ -1423,14 +1654,20 @@ export const affiliateApi = {
   // Get booking details as guest
   getBookingDetailsGuest: async (projectId: number) => {
     try {
-      const response = await api.get(`/client/get-booking-details/${projectId}`);
+      const response = await api.get(
+        `/client/get-booking-details/${projectId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Get Booking Details Guest Error:', error.response?.data || error.message);
+      console.error(
+        "Get Booking Details Guest Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        message: error.response?.data?.message || 'Failed to fetch booking details',
+        message:
+          error.response?.data?.message || "Failed to fetch booking details",
       };
     }
   },
@@ -1438,66 +1675,67 @@ export const affiliateApi = {
   // Get project form status as guest
   getProjectFormStatusGuest: async (projectId: number) => {
     try {
-      const response = await api.get(`/client/project-form-status/${projectId}`);
+      const response = await api.get(
+        `/client/project-form-status/${projectId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Get Project Form Status Guest Error:', error.response?.data || error.message);
+      console.error(
+        "Get Project Form Status Guest Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        message: error.response?.data?.message || 'Failed to fetch project form status',
+        message:
+          error.response?.data?.message ||
+          "Failed to fetch project form status",
       };
     }
   },
-
 
   // Get project form submission (pending forms)
   getProjectFormSubmission: async (token: string) => {
     try {
-      const response = await api.get('/client/get-project-form-submission', {
+      const response = await api.get("/client/get-project-form-submission", {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Project Form Submission Error:', error.response?.data || error.message);
+      console.error(
+        "Get Project Form Submission Error:",
+        error.response?.data || error.message,
+      );
       return {
         error: true,
-        message: 'Failed to fetch pending project forms',
-        projects: []
+        message: "Failed to fetch pending project forms",
+        projects: [],
       };
     }
   },
 };
 
-
 export const getEquipmentSuggestions = async (queryParams = {}) => {
   try {
-    const response = await api.get(
-      'admin/equipment-autocomplete',
-      {
-        params: queryParams,
-      }
-    );
+    const response = await api.get("admin/equipment-autocomplete", {
+      params: queryParams,
+    });
 
     return response;
   } catch (error) {
-    console.error('Get Equipment Suggestions Error:', error);
+    console.error("Get Equipment Suggestions Error:", error);
     return {
       success: false,
       data: null,
-      error: 'Failed to fetch equipment suggestions',
+      error: "Failed to fetch equipment suggestions",
     };
   }
 };
 
-export const getEquipmentById = async (
-  equipmentId: string | number
-) => {
+export const getEquipmentById = async (equipmentId: string | number) => {
   try {
     const response = await api.get(
-      `admin/get-equipment-by-id/${encodeURIComponent(
-        String(equipmentId)
-      )}`
+      `admin/get-equipment-by-id/${encodeURIComponent(String(equipmentId))}`,
     );
 
     return response;
@@ -1512,17 +1750,16 @@ export const getEquipmentById = async (
   }
 };
 
-export const getStatusCount = async (payload: { crew_member_id: number, creator_id: number }) => {
+export const getStatusCount = async (payload: {
+  crew_member_id: number;
+  creator_id: number;
+}) => {
   try {
-    const response = await api.post(
-      "creator/status-count",
-      payload,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await api.post("creator/status-count", payload, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
     return response.data;
   } catch (error) {
     console.error("Get Status Count Error:", error);
@@ -1534,18 +1771,15 @@ export const getStatusCount = async (payload: { crew_member_id: number, creator_
   }
 };
 
-
-export const getPendingProjects = async (payload: { crew_member_id: number }) => {
+export const getPendingProjects = async (payload: {
+  crew_member_id: number;
+}) => {
   try {
-    const response = await api.post(
-      "creator/pending-projects",
-      payload,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await api.post("creator/pending-projects", payload, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
     return response.data;
   } catch (error) {
     console.error("Get Pending Projects Error:", error);
@@ -1557,7 +1791,9 @@ export const getPendingProjects = async (payload: { crew_member_id: number }) =>
   }
 };
 
-export const GetUpcomingShoots = async (payload: { crew_member_id: number }) => {
+export const GetUpcomingShoots = async (payload: {
+  crew_member_id: number;
+}) => {
   try {
     const response = await api.post(
       "creator/upcoming-accepted-project",
@@ -1566,7 +1802,7 @@ export const GetUpcomingShoots = async (payload: { crew_member_id: number }) => 
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
     return response.data;
   } catch (error) {
@@ -1579,17 +1815,15 @@ export const GetUpcomingShoots = async (payload: { crew_member_id: number }) => 
   }
 };
 
-export const getAcceptedShoots = async (payload: { crew_member_id: number }) => {
+export const getAcceptedShoots = async (payload: {
+  crew_member_id: number;
+}) => {
   try {
-    const response = await api.post(
-      "creator/accepted-shoots",
-      payload,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await api.post("creator/accepted-shoots", payload, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
     return response.data;
   } catch (error) {
     console.error("Get Accepted Shoots Error:", error);
@@ -1601,22 +1835,17 @@ export const getAcceptedShoots = async (payload: { crew_member_id: number }) => 
   }
 };
 
-
 export const acceptOrDeclineProject = async (payload: {
   project_id: number;
   crew_member_id: number;
   crew_accept: 0 | 1 | 2;
 }) => {
   try {
-    const response = await api.post(
-      "creator/accept-project",
-      payload,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await api.post("creator/accept-project", payload, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     return response.data;
   } catch (error) {
@@ -1642,30 +1871,22 @@ export const getProject = async (projectId: number) => {
   }
 };
 
-
 export const updateReferralCode = async (payload: {
   affiliate_id: number;
   referral_code: string;
 }) => {
   try {
-    const response = await api.put(
-      "affiliates/update/referral",
-      payload
-    );
+    const response = await api.put("affiliates/update/referral", payload);
 
     const data = response.data;
-    const message =
-      data?.message ||
-      data?.data?.message ||
-      data?.error ||
-      "";
+    const message = data?.message || data?.data?.message || data?.error || "";
 
     if (
       data?.success === false ||
       String(message).toLowerCase().includes("already in use")
     ) {
       const businessError: any = new Error(
-        message || "Referral code already in use"
+        message || "Referral code already in use",
       );
       businessError.response = {
         data: {
@@ -1687,16 +1908,16 @@ export const getCrewAvailability = async (payload: any) => {
   try {
     const response = await api.post("creator/availability", payload, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
     return response;
   } catch (error) {
-    console.error('Get Crew Availability Error:', error);
+    console.error("Get Crew Availability Error:", error);
     return {
       success: false,
       data: null,
-      error: 'Failed to fetch crew availability',
+      error: "Failed to fetch crew availability",
     };
   }
 };
@@ -1705,110 +1926,135 @@ export const getProjectDetails = async (payload: any) => {
   try {
     const response = await api.post("creator/project-details", payload, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
     return response;
   } catch (error) {
-    console.error('Get Project Details Error:', error);
+    console.error("Get Project Details Error:", error);
     return {
       success: false,
       data: null,
-      error: 'Failed to fetch project details',
+      error: "Failed to fetch project details",
     };
   }
 };
-
 
 export const AddAvailability = async (payload: any) => {
   try {
     const response = await api.post("creator/add-availability", payload, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
     return response;
   } catch (error) {
-    console.error('Add Availability Error:', error);
+    console.error("Add Availability Error:", error);
     throw error;
   }
 };
 
 type CreatorCalendarRequest = Record<string, unknown>;
 
-export const getCreatorCalendarStatus = async (params?: CreatorCalendarRequest) => {
+export const getCreatorCalendarStatus = async (
+  params?: CreatorCalendarRequest,
+) => {
   try {
-    const response = await api.get("creator/calendar/google/status", { params });
-    return response;
-  } catch (error) {
-    console.error('Get Creator Calendar Status Error:', error);
-    throw error;
-  }
-};
-
-export const connectCreatorGoogleCalendar = async (payload?: CreatorCalendarRequest) => {
-  try {
-    const response = await api.post("creator/calendar/google/connect", payload || {}, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const response = await api.get("creator/calendar/google/status", {
+      params,
     });
     return response;
   } catch (error) {
-    console.error('Connect Creator Google Calendar Error:', error);
+    console.error("Get Creator Calendar Status Error:", error);
     throw error;
   }
 };
 
-export const syncCreatorGoogleCalendar = async (payload?: CreatorCalendarRequest) => {
+export const connectCreatorGoogleCalendar = async (
+  payload?: CreatorCalendarRequest,
+) => {
   try {
-    const response = await api.post("creator/calendar/google/sync", payload || {}, {
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await api.post(
+      "creator/calendar/google/connect",
+      payload || {},
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
     return response;
   } catch (error) {
-    console.error('Sync Creator Google Calendar Error:', error);
+    console.error("Connect Creator Google Calendar Error:", error);
     throw error;
   }
 };
 
-export const disconnectCreatorGoogleCalendar = async (payload?: CreatorCalendarRequest) => {
+export const syncCreatorGoogleCalendar = async (
+  payload?: CreatorCalendarRequest,
+) => {
+  try {
+    const response = await api.post(
+      "creator/calendar/google/sync",
+      payload || {},
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+    return response;
+  } catch (error) {
+    console.error("Sync Creator Google Calendar Error:", error);
+    throw error;
+  }
+};
+
+export const disconnectCreatorGoogleCalendar = async (
+  payload?: CreatorCalendarRequest,
+) => {
   try {
     const response = await api.delete("creator/calendar/google", {
       data: payload || {},
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
     return response;
   } catch (error) {
-    console.error('Disconnect Creator Google Calendar Error:', error);
+    console.error("Disconnect Creator Google Calendar Error:", error);
     throw error;
   }
 };
 
-export const getCreatorAvailabilityRules = async (params?: CreatorCalendarRequest) => {
+export const getCreatorAvailabilityRules = async (
+  params?: CreatorCalendarRequest,
+) => {
   try {
     const response = await api.get("creator/availability-rules", { params });
     return response;
   } catch (error) {
-    console.error('Get Creator Availability Rules Error:', error);
+    console.error("Get Creator Availability Rules Error:", error);
     throw error;
   }
 };
 
-export const saveCreatorAvailabilityRules = async (payload?: CreatorCalendarRequest) => {
+export const saveCreatorAvailabilityRules = async (
+  payload?: CreatorCalendarRequest,
+) => {
   try {
-    const response = await api.put("creator/availability-rules", payload || {}, {
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await api.put(
+      "creator/availability-rules",
+      payload || {},
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
     return response;
   } catch (error) {
-    console.error('Save Creator Availability Rules Error:', error);
+    console.error("Save Creator Availability Rules Error:", error);
     throw error;
   }
 };
@@ -1831,22 +2077,21 @@ export const saveCreatorAvailabilityRules = async (payload?: CreatorCalendarRequ
 //   }
 // };
 
-
 export const GetMyProfile = async (payload: any) => {
   try {
     const response = await api.post("creator/get-profile-detail", payload, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
     return response;
-    console.log('Profile Response:', response);
+    console.log("Profile Response:", response);
   } catch (error) {
-    console.error('Get Profile Error:', error);
+    console.error("Get Profile Error:", error);
     return {
       success: false,
       data: null,
-      error: 'Failed to fetch Profile',
+      error: "Failed to fetch Profile",
     };
   }
 };
@@ -1855,22 +2100,25 @@ export const EditMyProfile = async (payload: any) => {
   try {
     const response = await api.post("creator/edit-profile", payload, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
     return response;
-    console.log('Profile Response:', response);
+    console.log("Profile Response:", response);
   } catch (error) {
-    console.error('Get Profile Error:', error);
+    console.error("Get Profile Error:", error);
     return {
       success: false,
       data: null,
-      error: 'Failed to fetch Profile',
+      error: "Failed to fetch Profile",
     };
   }
 };
 
-export const UploadProfilePhoto = async (file: File, crewMemberId: string | number) => {
+export const UploadProfilePhoto = async (
+  file: File,
+  crewMemberId: string | number,
+) => {
   try {
     const formData = new FormData();
     // Backend expects 'profile_photo'
@@ -1878,23 +2126,35 @@ export const UploadProfilePhoto = async (file: File, crewMemberId: string | numb
     formData.append("crew_member_id", crewMemberId.toString());
 
     // Send as multipart/form-data
-    const response = await api.post(`creator/profile/upload-profile-photo`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await api.post(
+      `creator/profile/upload-profile-photo`,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+    );
     return response;
   } catch (error: any) {
-    console.error(`Upload Profile Photo Error:`, error.response?.data || error.message);
+    console.error(
+      `Upload Profile Photo Error:`,
+      error.response?.data || error.message,
+    );
     // Return a consistent error structure that the frontend expects (response.data.error)
     return {
       data: {
         error: true,
-        message: error.response?.data?.message || "Upload failed"
-      }
+        message: error.response?.data?.message || "Upload failed",
+      },
     };
   }
 };
 
-export const UploadProfileFile = async (fileType: string, files: File | File[], crewMemberId: string | number, metadata: any = {}) => {
+export const UploadProfileFile = async (
+  fileType: string,
+  files: File | File[],
+  crewMemberId: string | number,
+  metadata: any = {},
+) => {
   try {
     const formData = new FormData();
 
@@ -1911,11 +2171,16 @@ export const UploadProfileFile = async (fileType: string, files: File | File[], 
 
     // 2. Append metadata
     if (metadata.title) formData.append("title", metadata.title);
-    if (Object.prototype.hasOwnProperty.call(metadata, "tag")) formData.append("tag", metadata.tag || "");
+    if (Object.prototype.hasOwnProperty.call(metadata, "tag"))
+      formData.append("tag", metadata.tag || "");
 
-    const response = await api.post(`creator/profile/files/${fileType}`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await api.post(
+      `creator/profile/files/${fileType}`,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+    );
     return response;
   } catch (error) {
     console.error(`Upload ${fileType} Error:`, error);
@@ -1923,9 +2188,15 @@ export const UploadProfileFile = async (fileType: string, files: File | File[], 
   }
 };
 
-export const AddPortfolioLinks = async (payload: { crew_member_id: number; portfolio_links: { url: string; platform: string }[] }) => {
+export const AddPortfolioLinks = async (payload: {
+  crew_member_id: number;
+  portfolio_links: { url: string; platform: string }[];
+}) => {
   try {
-    const response = await api.post("creator/profile/add-portfolio-links", payload);
+    const response = await api.post(
+      "creator/profile/add-portfolio-links",
+      payload,
+    );
     return response;
   } catch (error) {
     console.error("Add Portfolio Links Error:", error);
@@ -1937,9 +2208,20 @@ export const AddPortfolioLinks = async (payload: { crew_member_id: number; portf
   }
 };
 
-export const EditPortfolioLink = async (crewFilesId: string | number, payload: { crew_member_id: number; url: string; title?: string; platform: string }) => {
+export const EditPortfolioLink = async (
+  crewFilesId: string | number,
+  payload: {
+    crew_member_id: number;
+    url: string;
+    title?: string;
+    platform: string;
+  },
+) => {
   try {
-    const response = await api.post(`creator/profile/edit-portfolio-link/${crewFilesId}`, payload);
+    const response = await api.post(
+      `creator/profile/edit-portfolio-link/${crewFilesId}`,
+      payload,
+    );
     return response;
   } catch (error) {
     console.error("Edit Portfolio Link Error:", error);
@@ -1958,7 +2240,10 @@ export const EditFeaturedWorkProject = async (payload: {
   tag?: string;
 }) => {
   try {
-    const response = await api.post("creator/profile/edit-featured-work", payload);
+    const response = await api.post(
+      "creator/profile/edit-featured-work",
+      payload,
+    );
     return response;
   } catch (error) {
     console.error("Edit Featured Work Error:", error);
@@ -1971,17 +2256,22 @@ export const EditFeaturedWorkProject = async (payload: {
   }
 };
 
-export const DeleteProfileFile = async (crewFilesId: string | number, payload: any) => {
+export const DeleteProfileFile = async (
+  crewFilesId: string | number,
+  payload: any,
+) => {
   try {
     // Note: We use api.delete and pass the ID in the URL string
-    const response = await api.delete(`creator/profile-file/${crewFilesId}`, { data: payload });
+    const response = await api.delete(`creator/profile-file/${crewFilesId}`, {
+      data: payload,
+    });
     return response;
   } catch (error) {
-    console.error('Delete File Error:', error);
+    console.error("Delete File Error:", error);
     return {
       success: false,
       data: null,
-      error: 'Failed to delete file',
+      error: "Failed to delete file",
     };
   }
 };
@@ -2008,9 +2298,7 @@ export interface CreateRolePayload {
 // ==================== Creator Earnings Dashboard ====================
 export const getCreatorEarningsDashboard = async () => {
   try {
-    const response = await api.get(
-      "creator-earnings/me/dashboard"
-    );
+    const response = await api.get("creator-earnings/me/dashboard");
 
     return response.data;
   } catch (error) {
@@ -2030,15 +2318,12 @@ export const getCreatorEarningsList = async (
     limit: 10,
     status: "all",
     search: "",
-  }
+  },
 ) => {
   try {
-    const response = await api.get(
-      "creator-earnings/me/earnings",
-      {
-        params: queryParams,
-      }
-    );
+    const response = await api.get("creator-earnings/me/earnings", {
+      params: queryParams,
+    });
 
     return response.data;
   } catch (error) {
@@ -2052,13 +2337,9 @@ export const getCreatorEarningsList = async (
 };
 
 // ==================== Creator Earning Details ====================
-export const getCreatorEarningDetails = async (
-  earningId: number
-) => {
+export const getCreatorEarningDetails = async (earningId: number) => {
   try {
-    const response = await api.get(
-      `creator-earnings/me/earnings/${earningId}`
-    );
+    const response = await api.get(`creator-earnings/me/earnings/${earningId}`);
 
     return response.data;
   } catch (error) {
@@ -2071,14 +2352,20 @@ export const getCreatorEarningDetails = async (
   }
 };
 
-
-
 export const adminApi = {
   getUserLoginHistory: async (
-    params: { user_id: number; page?: number; limit?: number; status?: 'active' | 'all' },
+    params: {
+      user_id: number;
+      page?: number;
+      limit?: number;
+      status?: "active" | "all";
+    },
     signal?: AbortSignal,
   ): Promise<UserLoginHistoryResponse> => {
-    const response = await api.get<UserLoginHistoryResponse>('admin/login-history', { params, signal });
+    const response = await api.get<UserLoginHistoryResponse>(
+      "admin/login-history",
+      { params, signal },
+    );
     return response.data;
   },
   createInternalCredential: async (payload: {
@@ -2089,90 +2376,122 @@ export const adminApi = {
     user_type: number;
   }) => {
     try {
-      const response = await api.post('/auth/admin/create-internal-credential', payload);
+      const response = await api.post(
+        "/auth/admin/create-internal-credential",
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Create Internal Credential Error:', error.response?.data || error.message);
+      console.error(
+        "Create Internal Credential Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to create internal credential',
+        error:
+          error.response?.data?.message ||
+          "Failed to create internal credential",
       };
     }
   },
-  getCreditPointsDashboard: async (params: {
-    range?: string;
-    start_date?: string;
-    end_date?: string;
-    date_on?: string;
-    page?: number;
-    limit?: number;
-    search?: string;
-    status?: string;
-    history_status?: string;
-    date_from?: string;
-    date_to?: string;
-  } = {}) => {
+  getCreditPointsDashboard: async (
+    params: {
+      range?: string;
+      start_date?: string;
+      end_date?: string;
+      date_on?: string;
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+      history_status?: string;
+      date_from?: string;
+      date_to?: string;
+    } = {},
+  ) => {
     try {
-      const response = await api.get('finance/admin/credit-points/dashboard', {
+      const response = await api.get("finance/admin/credit-points/dashboard", {
         params,
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Credit Points Dashboard Error:', error.response?.data || error.message);
+      console.error(
+        "Get Credit Points Dashboard Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch credit points dashboard',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch credit points dashboard",
       };
     }
   },
   getCreditPointsUserById: async (
     userId: string | number,
-    params: { page?: number; limit?: number } = {}
+    params: { page?: number; limit?: number } = {},
   ) => {
     try {
-      const response = await api.get(`finance/admin/credit-points/users/${userId}`, {
-        params,
-      });
+      const response = await api.get(
+        `finance/admin/credit-points/users/${userId}`,
+        {
+          params,
+        },
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Get Credit Points User Error:', error.response?.data || error.message);
+      console.error(
+        "Get Credit Points User Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch credit points user details',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch credit points user details",
       };
     }
   },
   getCreditPointsUserByGuestEmail: async (
     guestEmail: string,
-    params: { page?: number; limit?: number } = {}
+    params: { page?: number; limit?: number } = {},
   ) => {
     try {
-      const response = await api.get('finance/admin/credit-points/users', {
+      const response = await api.get("finance/admin/credit-points/users", {
         params: { guest_email: guestEmail, ...params },
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Credit Points User By Guest Email Error:', error.response?.data || error.message);
+      console.error(
+        "Get Credit Points User By Guest Email Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch credit points user details',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch credit points user details",
       };
     }
   },
   exportCreditPoints: async () => {
     try {
-      const response = await api.get('finance/admin/credit-points/export');
+      const response = await api.get("finance/admin/credit-points/export");
       return response.data;
     } catch (error: any) {
-      console.error('Export Credit Points Error:', error.response?.data || error.message);
+      console.error(
+        "Export Credit Points Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to export credit points',
+        error:
+          error.response?.data?.message || "Failed to export credit points",
       };
     }
   },
@@ -2189,42 +2508,65 @@ export const adminApi = {
     notify_user: boolean;
   }) => {
     try {
-      const response = await api.post('finance/admin/credit-points/manual', payload);
+      const response = await api.post(
+        "finance/admin/credit-points/manual",
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Create Manual Credit Point Error:', error.response?.data || error.message);
+      console.error(
+        "Create Manual Credit Point Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to create credit point',
+        error: error.response?.data?.message || "Failed to create credit point",
       };
     }
   },
   getSignupCreditPromotion: async () => {
     try {
-      const response = await api.get('finance/admin/credit-points/signup-promotion');
+      const response = await api.get(
+        "finance/admin/credit-points/signup-promotion",
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Get Signup Credit Promotion Error:', error.response?.data || error.message);
+      console.error(
+        "Get Signup Credit Promotion Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch signup credit promotion',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch signup credit promotion",
       };
     }
   },
-  getSignupCreditPromotionHistory: async (params: { page?: number; limit?: number } = {}) => {
+  getSignupCreditPromotionHistory: async (
+    params: { page?: number; limit?: number } = {},
+  ) => {
     try {
-      const response = await api.get('finance/admin/credit-points/signup-promotion/history', {
-        params,
-      });
+      const response = await api.get(
+        "finance/admin/credit-points/signup-promotion/history",
+        {
+          params,
+        },
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Get Signup Credit Promotion History Error:', error.response?.data || error.message);
+      console.error(
+        "Get Signup Credit Promotion History Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch signup credit promotion history',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch signup credit promotion history",
       };
     }
   },
@@ -2235,80 +2577,124 @@ export const adminApi = {
     end_date?: string | null;
   }) => {
     try {
-      const response = await api.patch('finance/admin/credit-points/signup-promotion', payload);
+      const response = await api.patch(
+        "finance/admin/credit-points/signup-promotion",
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Update Signup Credit Promotion Error:', error.response?.data || error.message);
+      console.error(
+        "Update Signup Credit Promotion Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update signup credit promotion',
+        error:
+          error.response?.data?.message ||
+          "Failed to update signup credit promotion",
       };
     }
   },
   getInternalPasswordExpirySettings: async () => {
     try {
-      return (await api.get('admin/settings/internal-password-expiry')).data;
+      return (await api.get("admin/settings/internal-password-expiry")).data;
     } catch (error: any) {
-      return { success: false, error: error.response?.data?.message || 'Failed to fetch password expiry settings' };
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch password expiry settings",
+      };
     }
   },
-  updateInternalPasswordExpirySettings: async (payload: { is_enabled: boolean; expiry_days: number }) => {
+  updateInternalPasswordExpirySettings: async (payload: {
+    is_enabled: boolean;
+    expiry_days: number;
+  }) => {
     try {
-      return (await api.patch('admin/settings/internal-password-expiry', payload)).data;
+      return (
+        await api.patch("admin/settings/internal-password-expiry", payload)
+      ).data;
     } catch (error: any) {
-      return { success: false, error: error.response?.data?.message || 'Failed to update password expiry settings' };
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          "Failed to update password expiry settings",
+      };
     }
   },
-  getDashboardSummary: async (params: { range?: string; start_date?: string; end_date?: string; date_on?: string } = {}) => {
+  getDashboardSummary: async (
+    params: {
+      range?: string;
+      start_date?: string;
+      end_date?: string;
+      date_on?: string;
+    } = {},
+  ) => {
     try {
-      const response = await api.get('admin/get-dashboard-summary', { params });
+      const response = await api.get("admin/get-dashboard-summary", { params });
       return response.data;
     } catch (error) {
-      console.error('Get Dashboard Summary Error:', error);
+      console.error("Get Dashboard Summary Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch dashboard summary',
+        error: "Failed to fetch dashboard summary",
       };
     }
   },
   getTotalRevenue: async () => {
     try {
-      const response = await api.get('admin/dashboard/revenue/total');
+      const response = await api.get("admin/dashboard/revenue/total");
       return response.data;
     } catch (error) {
-      console.error('Get Total Revenue Error:', error);
+      console.error("Get Total Revenue Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch total revenue',
+        error: "Failed to fetch total revenue",
       };
     }
   },
   getClientFullDetails: async (userId: string | number) => {
     try {
-      const response = await api.get(`admin/get-client-details-with-shoots/${userId}`);
+      const response = await api.get(
+        `admin/get-client-details-with-shoots/${userId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Get Client Full Details Error:', error.response?.data || error.message);
+      console.error(
+        "Get Client Full Details Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch client profile and shoots',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch client profile and shoots",
       };
     }
   },
   getProjectFulfillmentStats: async (projectId: string | number) => {
     try {
-      const response = await api.post(`admin/get-project-fullfillment-stats/${projectId}`);
+      const response = await api.post(
+        `admin/get-project-fullfillment-stats/${projectId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Get Project Fulfillment Stats Error:', error.response?.data || error.message);
+      console.error(
+        "Get Project Fulfillment Stats Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch project fulfillment stats',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch project fulfillment stats",
       };
     }
   },
@@ -2317,120 +2703,169 @@ export const adminApi = {
       const response = await api.get(`admin/shoots/${bookingId}/notes`);
       return response.data;
     } catch (error: any) {
-      console.error('Get Shoot Notes Error:', error.response?.data || error.message);
+      console.error(
+        "Get Shoot Notes Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: [],
-        error: error.response?.data?.message || 'Failed to fetch shoot notes',
+        error: error.response?.data?.message || "Failed to fetch shoot notes",
       };
     }
   },
-  addShootNote: async (bookingId: string | number, payload: { note: string; attachments?: File[] }) => {
+  addShootNote: async (
+    bookingId: string | number,
+    payload: { note: string; attachments?: File[] },
+  ) => {
     try {
-      const hasFiles = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
+      const hasFiles =
+        Array.isArray(payload?.attachments) && payload.attachments.length > 0;
       const requestPayload = hasFiles
         ? (() => {
-          const formData = new FormData();
-          formData.append('note', payload.note || '');
-          payload.attachments?.forEach((file) => formData.append('attachments', file));
-          return formData;
-        })()
+            const formData = new FormData();
+            formData.append("note", payload.note || "");
+            payload.attachments?.forEach((file) =>
+              formData.append("attachments", file),
+            );
+            return formData;
+          })()
         : { note: payload.note };
       const response = await api.post(
         `admin/shoots/${bookingId}/notes`,
         requestPayload,
-        hasFiles ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
+        hasFiles
+          ? { headers: { "Content-Type": "multipart/form-data" } }
+          : undefined,
       );
       return response.data;
     } catch (error: any) {
-      console.error('Add Shoot Note Error:', error.response?.data || error.message);
+      console.error(
+        "Add Shoot Note Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to add shoot note',
+        error: error.response?.data?.message || "Failed to add shoot note",
       };
     }
   },
-  replyToShootNote: async (bookingId: string | number, noteId: string | number, payload: { note: string; attachments?: File[] }) => {
+  replyToShootNote: async (
+    bookingId: string | number,
+    noteId: string | number,
+    payload: { note: string; attachments?: File[] },
+  ) => {
     try {
-      const hasFiles = Array.isArray(payload?.attachments) && payload.attachments.length > 0;
+      const hasFiles =
+        Array.isArray(payload?.attachments) && payload.attachments.length > 0;
       const requestPayload = hasFiles
         ? (() => {
-          const formData = new FormData();
-          formData.append('note', payload.note || '');
-          payload.attachments?.forEach((file) => formData.append('attachments', file));
-          return formData;
-        })()
+            const formData = new FormData();
+            formData.append("note", payload.note || "");
+            payload.attachments?.forEach((file) =>
+              formData.append("attachments", file),
+            );
+            return formData;
+          })()
         : { note: payload.note };
       const response = await api.post(
         `admin/shoots/${bookingId}/notes/${noteId}/replies`,
         requestPayload,
-        hasFiles ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
+        hasFiles
+          ? { headers: { "Content-Type": "multipart/form-data" } }
+          : undefined,
       );
       return response.data;
     } catch (error: any) {
-      console.error('Reply Shoot Note Error:', error.response?.data || error.message);
+      console.error(
+        "Reply Shoot Note Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to reply on shoot note',
+        error: error.response?.data?.message || "Failed to reply on shoot note",
       };
     }
   },
-  reactToShootNote: async (bookingId: string | number, noteId: string | number, payload: { reaction: string }) => {
+  reactToShootNote: async (
+    bookingId: string | number,
+    noteId: string | number,
+    payload: { reaction: string },
+  ) => {
     try {
-      const response = await api.post(`admin/shoots/${bookingId}/notes/${noteId}/reactions`, payload);
+      const response = await api.post(
+        `admin/shoots/${bookingId}/notes/${noteId}/reactions`,
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('React Shoot Note Error:', error.response?.data || error.message);
+      console.error(
+        "React Shoot Note Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to react on shoot note',
+        error: error.response?.data?.message || "Failed to react on shoot note",
       };
     }
   },
-  deleteShootNote: async (bookingId: string | number, noteId: string | number) => {
+  deleteShootNote: async (
+    bookingId: string | number,
+    noteId: string | number,
+  ) => {
     try {
-      const response = await api.delete(`admin/shoots/${bookingId}/notes/${noteId}`);
+      const response = await api.delete(
+        `admin/shoots/${bookingId}/notes/${noteId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Delete Shoot Note Error:', error.response?.data || error.message);
+      console.error(
+        "Delete Shoot Note Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to delete shoot note',
+        error: error.response?.data?.message || "Failed to delete shoot note",
       };
     }
   },
   getCrewForShoot: async (params: {
-    project_id: number | string,
-    role_type: string,
-    search_query?: string,
-    radius?: number,
-    latitude?: number,
-    longitude?: number
+    project_id: number | string;
+    role_type: string;
+    search_query?: string;
+    radius?: number;
+    latitude?: number;
+    longitude?: number;
   }) => {
     try {
-      const response = await api.get('admin/get-crew-for-shoot/', { params });
+      const response = await api.get("admin/get-crew-for-shoot/", { params });
       return response.data;
     } catch (error) {
-      console.error('Get Crew For Shoot Error:', error);
+      console.error("Get Crew For Shoot Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch crew for shoot',
+        error: "Failed to fetch crew for shoot",
       };
     }
   },
-  getCrewForBooking: async (params: { booking_id: number | string, role_type: string, search_query: string, radius?: number }) => {
+  getCrewForBooking: async (params: {
+    booking_id: number | string;
+    role_type: string;
+    search_query: string;
+    radius?: number;
+  }) => {
     try {
-      const response = await api.get('admin/get-crew-for-booking/', { params });
+      const response = await api.get("admin/get-crew-for-booking/", { params });
       return response.data;
     } catch (error: any) {
       // Backward-compatible fallback for environments still using project_id.
       try {
-        const fallbackResponse = await api.get('admin/get-crew-for-shoot/', {
+        const fallbackResponse = await api.get("admin/get-crew-for-shoot/", {
           params: {
             project_id: params.booking_id,
             role_type: params.role_type,
@@ -2440,64 +2875,64 @@ export const adminApi = {
         });
         return fallbackResponse.data;
       } catch (fallbackError) {
-        console.error('Get Crew For Booking Error:', error);
+        console.error("Get Crew For Booking Error:", error);
         return {
           success: false,
           data: null,
-          error: 'Failed to fetch crew for booking',
+          error: "Failed to fetch crew for booking",
         };
       }
     }
   },
   getMonthlyRevenue: async () => {
     try {
-      const response = await api.get('admin/dashboard/revenue/monthly');
+      const response = await api.get("admin/dashboard/revenue/monthly");
       return response.data;
     } catch (error) {
-      console.error('Get Monthly Revenue Error:', error);
+      console.error("Get Monthly Revenue Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch monthly revenue',
+        error: "Failed to fetch monthly revenue",
       };
     }
   },
   getWeeklyRevenue: async () => {
     try {
-      const response = await api.get('admin/dashboard/revenue/weekly');
+      const response = await api.get("admin/dashboard/revenue/weekly");
       return response.data;
     } catch (error) {
-      console.error('Get Weekly Revenue Error:', error);
+      console.error("Get Weekly Revenue Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch weekly revenue',
+        error: "Failed to fetch weekly revenue",
       };
     }
   },
   getPayoutTotal: async () => {
     try {
-      const response = await api.get('admin/dashboard/payout/total');
+      const response = await api.get("admin/dashboard/payout/total");
       return response.data;
     } catch (error) {
-      console.error('Get Payout Total Error:', error);
+      console.error("Get Payout Total Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch payout total',
+        error: "Failed to fetch payout total",
       };
     }
   },
   getPayoutWeeklyGraph: async () => {
     try {
-      const response = await api.get('admin/dashboard/payout/weekly-graph');
+      const response = await api.get("admin/dashboard/payout/weekly-graph");
       return response.data;
     } catch (error) {
-      console.error('Get Payout Weekly Graph Error:', error);
+      console.error("Get Payout Weekly Graph Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch payout weekly graph',
+        error: "Failed to fetch payout weekly graph",
       };
     }
   },
@@ -2506,11 +2941,11 @@ export const adminApi = {
       const response = await api.delete(`admin/delete-project/${projectId}`);
       return response.data;
     } catch (error) {
-      console.error('Delete Project Error:', error);
+      console.error("Delete Project Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to delete project',
+        error: "Failed to delete project",
       };
     }
   },
@@ -2522,11 +2957,11 @@ export const adminApi = {
       const responseMessage = axios.isAxiosError<{ message?: string }>(error)
         ? error.response?.data?.message
         : undefined;
-      console.error('Restore Project Error:', error);
+      console.error("Restore Project Error:", error);
       return {
         success: false,
         data: null,
-        error: responseMessage || 'Failed to restore project',
+        error: responseMessage || "Failed to restore project",
       };
     }
   },
@@ -2538,139 +2973,151 @@ export const adminApi = {
       const responseMessage = axios.isAxiosError<{ message?: string }>(error)
         ? error.response?.data?.message
         : undefined;
-      console.error('Get Project History Error:', error);
+      console.error("Get Project History Error:", error);
       return {
         success: false,
         data: null,
-        error: responseMessage || 'Failed to fetch project history',
+        error: responseMessage || "Failed to fetch project history",
       };
     }
   },
   getPayoutPending: async () => {
     try {
-      const response = await api.get('admin/dashboard/payout/pending');
+      const response = await api.get("admin/dashboard/payout/pending");
       return response.data;
     } catch (error) {
-      console.error('Get Payout Pending Error:', error);
+      console.error("Get Payout Pending Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch payout pending',
+        error: "Failed to fetch payout pending",
       };
     }
   },
   getCPCount: async () => {
     try {
-      const response = await api.get('admin/dashboard/cp/count');
+      const response = await api.get("admin/dashboard/cp/count");
       return response.data;
     } catch (error) {
-      console.error('Get CP Count Error:', error);
+      console.error("Get CP Count Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch CP count',
+        error: "Failed to fetch CP count",
       };
     }
   },
   getCategoryWiseCPCount: async () => {
     try {
-      const response = await api.get('admin/dashboard/category-wise-cp/count');
+      const response = await api.get("admin/dashboard/category-wise-cp/count");
       return response.data;
     } catch (error) {
-      console.error('Get Category Wise CP Count Error:', error);
+      console.error("Get Category Wise CP Count Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch category wise CP count',
+        error: "Failed to fetch category wise CP count",
       };
     }
   },
-  getProjects: async (params: {
-    status?: string;
-    range?: string;
-    start_date?: string;
-    end_date?: string;
-    date_on?: string;
-    search?: string;
-    category?: string;
-    cp_assignment?: string;
-    post_production_user_id?: string | number;
-    payment_filter?: string;
-    production_filter?: string;
-    summary_only?: boolean;
-    page?: number;
-    limit?: number;
-  } = {}) => {
+  getProjects: async (
+    params: {
+      status?: string;
+      range?: string;
+      start_date?: string;
+      end_date?: string;
+      date_on?: string;
+      search?: string;
+      category?: string;
+      cp_assignment?: string;
+      post_production_user_id?: string | number;
+      payment_filter?: string;
+      production_filter?: string;
+      summary_only?: boolean;
+      page?: number;
+      limit?: number;
+    } = {},
+  ) => {
     try {
-      const response = await api.get('admin/get-projects', {
+      const response = await api.get("admin/get-projects", {
         params,
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Projects Error:', {
+      console.error("Get Projects Error:", {
         status: error.response?.status,
         data: error.response?.data,
-        message: error.message
+        message: error.message,
       });
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || error.message || 'Failed to fetch projects',
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch projects",
       };
     }
   },
-  getProjectsBoard: async (params: {
-    status?: string;
-    range?: string;
-    start_date?: string;
-    end_date?: string;
-    date_on?: string;
-    search?: string;
-    category?: string;
-    cp_assignment?: string;
-    post_production_user_id?: string | number;
-    payment_filter?: string;
-    production_filter?: string;
-  } = {}) => {
+  getProjectsBoard: async (
+    params: {
+      status?: string;
+      range?: string;
+      start_date?: string;
+      end_date?: string;
+      date_on?: string;
+      search?: string;
+      category?: string;
+      cp_assignment?: string;
+      post_production_user_id?: string | number;
+      payment_filter?: string;
+      production_filter?: string;
+    } = {},
+  ) => {
     try {
-      const response = await api.get('admin/get-projects-board', {
+      const response = await api.get("admin/get-projects-board", {
         params,
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Projects Board Error:', {
+      console.error("Get Projects Board Error:", {
         status: error.response?.status,
         data: error.response?.data,
-        message: error.message
+        message: error.message,
       });
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || error.message || 'Failed to fetch projects board',
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch projects board",
       };
     }
   },
-  getGlobalShoots: async (params: {
-    range?:
-      | 'upcoming'
-      | 'all'
-      | 'tbd'
-      | 'today'
-      | 'next_7_days'
-      | 'next_15_days'
-      | 'next_30_days'
-      | 'last_7_days'
-      | 'last_15_days'
-      | 'last_30_days';
-    start_date?: string;
-    end_date?: string;
-  } = {}) => {
+  getGlobalShoots: async (
+    params: {
+      range?:
+        | "upcoming"
+        | "all"
+        | "tbd"
+        | "today"
+        | "next_7_days"
+        | "next_15_days"
+        | "next_30_days"
+        | "last_7_days"
+        | "last_15_days"
+        | "last_30_days";
+      start_date?: string;
+      end_date?: string;
+    } = {},
+  ) => {
     try {
-      const response = await api.get('admin/global-shoots', { params });
+      const response = await api.get("admin/global-shoots", { params });
       return response.data;
     } catch (error: any) {
       console.error(
-        'Get Global Shoots Error:',
+        "Get Global Shoots Error:",
         error.response?.data || error.message,
       );
       return {
@@ -2678,7 +3125,7 @@ export const adminApi = {
         message:
           error.response?.data?.message ||
           error.message ||
-          'Failed to fetch global shoots',
+          "Failed to fetch global shoots",
         data: {
           total_records: 0,
           projects: [],
@@ -2698,14 +3145,19 @@ export const adminApi = {
     cp_assignment?: string;
   }) => {
     try {
-      const response = await api.get('admin/shoots/calendar/month', { params });
+      const response = await api.get("admin/shoots/calendar/month", { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Shoot Calendar Month Error:', error.response?.data || error.message);
+      console.error(
+        "Get Shoot Calendar Month Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch month calendar shoots',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch month calendar shoots",
       };
     }
   },
@@ -2719,14 +3171,19 @@ export const adminApi = {
     cp_assignment?: string;
   }) => {
     try {
-      const response = await api.get('admin/shoots/calendar/week', { params });
+      const response = await api.get("admin/shoots/calendar/week", { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Shoot Calendar Week Error:', error.response?.data || error.message);
+      console.error(
+        "Get Shoot Calendar Week Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch week calendar shoots',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch week calendar shoots",
       };
     }
   },
@@ -2740,19 +3197,23 @@ export const adminApi = {
     cp_assignment?: string;
   }) => {
     try {
-      const response = await api.get('admin/shoots/calendar/day', { params });
+      const response = await api.get("admin/shoots/calendar/day", { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Shoot Calendar Day Error:', error.response?.data || error.message);
+      console.error(
+        "Get Shoot Calendar Day Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch day calendar shoots',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch day calendar shoots",
       };
     }
   },
-  exportShootsCsv: async (
-  params: {
+  exportShootsCsv: async (params: {
     start_date?: string;
     end_date?: string;
     search?: string;
@@ -2763,71 +3224,59 @@ export const adminApi = {
     cp_assignment?: string;
     post_production_user_id?: string | number;
     production_filter?: string;
-  }
-  ): Promise<Blob> => {
+  }): Promise<Blob> => {
     try {
-      const response = await api.get<Blob>(
-        "admin/shoots/export",
-        {
-          params,
-          responseType: "blob",
+      const response = await api.get<Blob>("admin/shoots/export", {
+        params,
+        responseType: "blob",
+      });
+
+      return response.data;
+    } catch (error: unknown) {
+      let message = "Failed to export shoots.";
+
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
+
+        if (responseData instanceof Blob) {
+          try {
+            const errorText = await responseData.text();
+            const parsedError = JSON.parse(errorText);
+
+            message = parsedError?.message || parsedError?.error || message;
+          } catch {
+            // Keep fallback message.
+          }
+        } else if (responseData && typeof responseData === "object") {
+          const data = responseData as {
+            message?: string;
+            error?: string;
+          };
+
+          message = data.message || data.error || message;
         }
-      );
-
-    return response.data;
-  } catch (error: unknown) {
-    let message = "Failed to export shoots.";
-
-    if (axios.isAxiosError(error)) {
-      const responseData = error.response?.data;
-
-      if (responseData instanceof Blob) {
-        try {
-          const errorText = await responseData.text();
-          const parsedError = JSON.parse(errorText);
-
-          message =
-            parsedError?.message ||
-            parsedError?.error ||
-            message;
-        } catch {
-          // Keep fallback message.
-        }
-      } else if (
-        responseData &&
-        typeof responseData === "object"
-      ) {
-        const data = responseData as {
-          message?: string;
-          error?: string;
-        };
-
-        message =
-          data.message ||
-          data.error ||
-          message;
       }
+
+      console.error("Export Shoots CSV Error:", error);
+
+      throw new Error(message);
     }
-
-    console.error(
-      "Export Shoots CSV Error:",
-      error
-    );
-
-    throw new Error(message);
-  }
-},
+  },
 
   getProjectDetails: async (id: string) => {
     try {
       const response = await api.get(`admin/get-project/${id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Get Project Details Error:', error.response?.data || error.message);
+      console.error(
+        "Get Project Details Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch project details',
+        error:
+          error.response?.data?.message || "Failed to fetch project details",
       };
     }
   },
@@ -2837,72 +3286,122 @@ export const adminApi = {
       const response = await api.get(`admin/crew-member/${id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Get Crew Member Detail Error:', error.response?.data || error.message);
+      console.error(
+        "Get Crew Member Detail Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch crew member details',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch crew member details",
       };
     }
   },
 
   getCrewMemberOnboardingStatus: async (id: string | number) => {
     try {
-      const response = await api.get(`admin/crew-member-onboarding-status/${id}`);
+      const response = await api.get(
+        `admin/crew-member-onboarding-status/${id}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Get Crew Onboarding Status Error:', error.response?.data || error.message);
+      console.error(
+        "Get Crew Onboarding Status Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch onboarding status',
+        error:
+          error.response?.data?.message || "Failed to fetch onboarding status",
       };
     }
   },
 
-  updateCrewMemberProfile: async (id: string | number, payload: Record<string, unknown>) => {
+  updateCrewMemberProfile: async (
+    id: string | number,
+    payload: Record<string, unknown>,
+  ) => {
     try {
-      const response = await api.put(`admin/crew-member/${id}/profile`, payload);
+      const response = await api.put(
+        `admin/crew-member/${id}/profile`,
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Update Crew Member Profile Error:', error.response?.data || error.message);
+      console.error(
+        "Update Crew Member Profile Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update crew member profile',
+        error:
+          error.response?.data?.message ||
+          "Failed to update crew member profile",
       };
     }
   },
-  updateCrewMemberProfilePhoto: async (id: string | number, file: File | Blob) => {
+  updateCrewMemberProfilePhoto: async (
+    id: string | number,
+    file: File | Blob,
+  ) => {
     try {
       const formData = new FormData();
-      formData.append("files[]", file, file instanceof File ? file.name : "profile-photo.jpg");
+      formData.append(
+        "files[]",
+        file,
+        file instanceof File ? file.name : "profile-photo.jpg",
+      );
 
-      const response = await api.post(`admin/crew-member/${id}/profile/files/profile_photo`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await api.post(
+        `admin/crew-member/${id}/profile/files/profile_photo`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
       return response.data;
     } catch (error: any) {
-      console.error("Update Crew Member Profile Photo Error:", error.response?.data || error.message);
+      console.error(
+        "Update Crew Member Profile Photo Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || "Failed to update crew member profile photo",
+        error:
+          error.response?.data?.message ||
+          "Failed to update crew member profile photo",
       };
     }
   },
-  deleteCrewMemberProfileFile: async (id: string | number, crewFilesId: string | number, payload: Record<string, unknown> = {}) => {
+  deleteCrewMemberProfileFile: async (
+    id: string | number,
+    crewFilesId: string | number,
+    payload: Record<string, unknown> = {},
+  ) => {
     try {
-      const response = await api.delete(`admin/crew-member/${id}/profile-file/${crewFilesId}`, {
-        data: payload,
-      });
+      const response = await api.delete(
+        `admin/crew-member/${id}/profile-file/${crewFilesId}`,
+        {
+          data: payload,
+        },
+      );
       return response.data;
     } catch (error: any) {
-      console.error("Delete Crew Member Profile File Error:", error.response?.data || error.message);
+      console.error(
+        "Delete Crew Member Profile File Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || "Failed to delete crew member profile file",
+        error:
+          error.response?.data?.message ||
+          "Failed to delete crew member profile file",
       };
     }
   },
@@ -2918,7 +3417,7 @@ export const adminApi = {
       | "featurework"
       | "feature_work",
     files: File | File[],
-    metadata: { title?: string; tag?: string } = {}
+    metadata: { title?: string; tag?: string } = {},
   ) => {
     try {
       const formData = new FormData();
@@ -2929,29 +3428,48 @@ export const adminApi = {
       }
 
       if (metadata.title) formData.append("title", metadata.title);
-      if (Object.prototype.hasOwnProperty.call(metadata, "tag")) formData.append("tag", metadata.tag || "");
+      if (Object.prototype.hasOwnProperty.call(metadata, "tag"))
+        formData.append("tag", metadata.tag || "");
 
-      const response = await api.post(`admin/crew-member/${id}/profile/files/${fileType}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await api.post(
+        `admin/crew-member/${id}/profile/files/${fileType}`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
       return response.data;
     } catch (error: any) {
-      console.error("Upload Crew Member Profile Files Error:", error.response?.data || error.message);
+      console.error(
+        "Upload Crew Member Profile Files Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || `Failed to upload crew member ${fileType}`,
+        error:
+          error.response?.data?.message ||
+          `Failed to upload crew member ${fileType}`,
       };
     }
   },
-  addCrewMemberPortfolioLinks: async (id: string | number, portfolioLinks: Array<{ url: string; title: string; platform: string }>) => {
+  addCrewMemberPortfolioLinks: async (
+    id: string | number,
+    portfolioLinks: Array<{ url: string; title: string; platform: string }>,
+  ) => {
     try {
-      const response = await api.post(`admin/crew-member/${id}/profile/portfolio-links`, {
-        portfolio_links: portfolioLinks,
-      });
+      const response = await api.post(
+        `admin/crew-member/${id}/profile/portfolio-links`,
+        {
+          portfolio_links: portfolioLinks,
+        },
+      );
       return response.data;
     } catch (error: any) {
-      console.error("Add Crew Member Portfolio Links Error:", error.response?.data || error.message);
+      console.error(
+        "Add Crew Member Portfolio Links Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
@@ -2962,66 +3480,92 @@ export const adminApi = {
   updateCrewMemberPortfolioLink: async (
     id: string | number,
     crewFileId: string | number,
-    payload: { url: string; title: string; platform: string }
+    payload: { url: string; title: string; platform: string },
   ) => {
     try {
-      const response = await api.put(`admin/crew-member/${id}/profile/portfolio-links/${crewFileId}`, payload);
+      const response = await api.put(
+        `admin/crew-member/${id}/profile/portfolio-links/${crewFileId}`,
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error("Update Crew Member Portfolio Link Error:", error.response?.data || error.message);
+      console.error(
+        "Update Crew Member Portfolio Link Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || "Failed to update portfolio link",
+        error:
+          error.response?.data?.message || "Failed to update portfolio link",
       };
     }
   },
   getSkills: async () => {
     try {
-      const response = await api.get('admin/skills');
+      const response = await api.get("admin/skills");
       return response.data;
     } catch (error: any) {
-      console.error('Get Skills Error:', error.response?.data || error.message);
+      console.error("Get Skills Error:", error.response?.data || error.message);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch skills',
+        error: error.response?.data?.message || "Failed to fetch skills",
       };
     }
   },
-  getShootStatus: async (range: 'all' | 'monthly' = 'all') => {
+  getShootStatus: async (range: "all" | "monthly" = "all") => {
     try {
-      const response = await api.get('admin/dashboard/shoot-status', {
+      const response = await api.get("admin/dashboard/shoot-status", {
         params: { range },
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Shoot Status Error:', error.response?.data || error.message);
+      console.error(
+        "Get Shoot Status Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch shoot status',
+        error: error.response?.data?.message || "Failed to fetch shoot status",
       };
     }
   },
-  getTopCreativePartners: async (params: { range?: string; start_date?: string; end_date?: string } = {}) => {
+  getTopCreativePartners: async (
+    params: { range?: string; start_date?: string; end_date?: string } = {},
+  ) => {
     try {
-      const response = await api.get('admin/dashboard/top-creative-partners', {
+      const response = await api.get("admin/dashboard/top-creative-partners", {
         params,
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Top Creative Partners Error:', error.response?.data || error.message);
+      console.error(
+        "Get Top Creative Partners Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch top creative partners',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch top creative partners",
       };
     }
   },
-  getCrewMembers: async (params: { page?: number; limit?: number; search?: string; location?: string; status?: string; fetch_all?: boolean } = {}) => {
+  getCrewMembers: async (
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      location?: string;
+      status?: string;
+      fetch_all?: boolean;
+    } = {},
+  ) => {
     try {
-      const response = await api.get('admin/get-crew-members', {
+      const response = await api.get("admin/get-crew-members", {
         params: {
           page: params.page || 1,
           limit: params.limit || 20,
@@ -3033,80 +3577,69 @@ export const adminApi = {
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Crew Members Error:', error.response?.data || error);
+      console.error("Get Crew Members Error:", error.response?.data || error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || error.message || 'Failed to fetch crew members',
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch crew members",
       };
     }
   },
 
-  exportCrewMembersCsv: async (
-  params: {
+  exportCrewMembersCsv: async (params: {
     start_date?: string;
     end_date?: string;
     status?: string;
     search?: string;
     location?: string;
-  }
-): Promise<Blob> => {
-  try {
-    const response = await api.get<Blob>(
-      "admin/crew-members/export",
-      {
+  }): Promise<Blob> => {
+    try {
+      const response = await api.get<Blob>("admin/crew-members/export", {
         params,
         responseType: "blob",
-      }
-    );
+      });
 
-    return response.data;
-  } catch (error: unknown) {
-    let message =
-      "Failed to export creative partners.";
+      return response.data;
+    } catch (error: unknown) {
+      let message = "Failed to export creative partners.";
 
-    if (axios.isAxiosError(error)) {
-      const responseData =
-        error.response?.data;
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
 
-      if (responseData instanceof Blob) {
-        try {
-          const errorText =
-            await responseData.text();
+        if (responseData instanceof Blob) {
+          try {
+            const errorText = await responseData.text();
 
-          const parsedError =
-            JSON.parse(errorText);
+            const parsedError = JSON.parse(errorText);
 
-          message =
-            parsedError?.message ||
-            parsedError?.error ||
-            message;
-        } catch {
+            message = parsedError?.message || parsedError?.error || message;
+          } catch {}
         }
       }
-    }
 
-    console.error(
-      "Export Creative Partners CSV Error:",
-      error
-    );
+      console.error("Export Creative Partners CSV Error:", error);
 
-    throw new Error(message);
+      throw new Error(message);
     }
   },
 
-  getapprovedCrewMembers: async (params: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    status?: string;
-    sort_by?: string;
-    sort_order?: string;
-    start_date?: string;
-    end_date?: string;
-  } = {}) => {
+  getapprovedCrewMembers: async (
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+      sort_by?: string;
+      sort_order?: string;
+      start_date?: string;
+      end_date?: string;
+    } = {},
+  ) => {
     try {
-      const response = await api.post('admin/get-approved-crew-members', {
+      const response = await api.post("admin/get-approved-crew-members", {
         page: params.page || 1,
         limit: params.limit || 50,
         search: params.search,
@@ -3114,28 +3647,37 @@ export const adminApi = {
         sort_by: params.sort_by,
         sort_order: params.sort_order,
         start_date: params.start_date,
-        end_date: params.end_date
+        end_date: params.end_date,
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Crew Members Error:', error.response?.data || error);
+      console.error("Get Crew Members Error:", error.response?.data || error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || error.message || 'Failed to fetch crew members',
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch crew members",
       };
     }
   },
-  verifyCrewMember: async (payload: { crew_member_id: number; status: number }) => {
+  verifyCrewMember: async (payload: {
+    crew_member_id: number;
+    status: number;
+  }) => {
     try {
-      const response = await api.post('admin/verify-crew-member', payload);
+      const response = await api.post("admin/verify-crew-member", payload);
       return response.data;
     } catch (error: any) {
-      console.error('Verify Crew Member Error:', error.response?.data || error);
+      console.error("Verify Crew Member Error:", error.response?.data || error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || error.message || 'Failed to verify crew member',
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to verify crew member",
       };
     }
   },
@@ -3155,13 +3697,13 @@ export const adminApi = {
       return {
         success: false,
         data: null,
-        error: 'No valid creative partners selected',
+        error: "No valid creative partners selected",
       };
     }
 
     try {
       const response = await api.post<AdminCreativePartnerBulkActionResponse>(
-        'admin/creative-partners/bulk-action',
+        "admin/creative-partners/bulk-action",
         {
           action: payload.action,
           crew_member_ids: crewMemberIds,
@@ -3171,159 +3713,228 @@ export const adminApi = {
       return response.data;
     } catch (error: unknown) {
       const message = axios.isAxiosError(error)
-        ? error.response?.data?.message || error.response?.data?.error || error.message
+        ? error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message
         : error instanceof Error
           ? error.message
-          : 'Failed to perform bulk creative partner action';
+          : "Failed to perform bulk creative partner action";
 
-      console.error('Creative Partner Bulk Action Error:', error);
+      console.error("Creative Partner Bulk Action Error:", error);
 
       return {
         success: false,
-        data: axios.isAxiosError(error) ? error.response?.data?.data || null : null,
-        message: axios.isAxiosError(error) ? error.response?.data?.message : undefined,
+        data: axios.isAxiosError(error)
+          ? error.response?.data?.data || null
+          : null,
+        message: axios.isAxiosError(error)
+          ? error.response?.data?.message
+          : undefined,
         error: message,
       };
     }
   },
-  getAdminDashboardDetail: async (payload: { crew_member_id: string | number }) => {
+  getAdminDashboardDetail: async (payload: {
+    crew_member_id: string | number;
+  }) => {
     try {
-      const response = await api.post('admin/dashboard-detail', payload);
+      const response = await api.post("admin/dashboard-detail", payload);
       return response.data;
     } catch (error: any) {
       // Suppress error logging for 401/403 as this happens when non-admins (e.g. Sales Reps) view CP profiles
       const status = error.response?.status;
       if (status !== 401 && status !== 403) {
-        console.error('Get Admin Dashboard Detail Error:', error.response?.data || error.message);
+        console.error(
+          "Get Admin Dashboard Detail Error:",
+          error.response?.data || error.message,
+        );
       }
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch dashboard detail',
+        error:
+          error.response?.data?.message || "Failed to fetch dashboard detail",
       };
     }
   },
   getCrewMemberAssignedProjects: async (crewMemberId: string | number) => {
     try {
-      const response = await api.get(`admin/crew-member-assigned-projects/${crewMemberId}`);
+      const response = await api.get(
+        `admin/crew-member-assigned-projects/${crewMemberId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error("Get Crew Member Assigned Projects Error:",error.response?.data || error.message);
+      console.error(
+        "Get Crew Member Assigned Projects Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error:error.response?.data?.message || "Failed to fetch assigned projects",
+        error:
+          error.response?.data?.message || "Failed to fetch assigned projects",
       };
     }
   },
 
   getRecentActivity: async (limit: number = 10) => {
     try {
-      const response = await api.get('admin/recent-activity', {
+      const response = await api.get("admin/recent-activity", {
         params: { limit },
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Recent Activity Error:', error.response?.data || error.message);
+      console.error(
+        "Get Recent Activity Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch recent activity',
+        error:
+          error.response?.data?.message || "Failed to fetch recent activity",
       };
     }
   },
 
   getShootCategoryCount: async (tab?: string) => {
     try {
-      const response = await api.get('admin/shoot-category-count', {
+      const response = await api.get("admin/shoot-category-count", {
         params: tab ? { tab } : {},
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Shoot Category Count Error:', error.response?.data || error.message);
+      console.error(
+        "Get Shoot Category Count Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch shoot category count',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch shoot category count",
       };
     }
   },
 
   getPostProductionMembers: async () => {
     try {
-      const response = await api.get('admin/get-post-production-members');
+      const response = await api.get("admin/get-post-production-members");
       return response.data;
     } catch (error: any) {
-      console.error('Get Post Production Members Error:', error.response?.data || error.message);
+      console.error(
+        "Get Post Production Members Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch post production members',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch post production members",
       };
     }
   },
 
   getPostProductionTeamOptions: async (projectId?: number) => {
     try {
-      const response = await api.get('admin/post-production-team-options', {
+      const response = await api.get("admin/post-production-team-options", {
         params: projectId ? { project_id: projectId } : undefined,
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Post Production Team Options Error:', error.response?.data || error.message);
+      console.error(
+        "Get Post Production Team Options Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch post-production team options',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch post-production team options",
       };
     }
   },
 
-  assignPostProductionMember: async (payload: { post_production_member_id: number; project_id: number }) => {
+  assignPostProductionMember: async (payload: {
+    post_production_member_id: number;
+    project_id: number;
+  }) => {
     try {
-      const response = await api.post('admin/assign-post-production-member', payload);
+      const response = await api.post(
+        "admin/assign-post-production-member",
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Assign Post Production Member Error:', error.response?.data || error.message);
+      console.error(
+        "Assign Post Production Member Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to assign post production member',
+        error:
+          error.response?.data?.message ||
+          "Failed to assign post production member",
       };
     }
   },
-  removePostProductionMember: async (payload: { project_id: number; post_production_member_id: number }) => {
+  removePostProductionMember: async (payload: {
+    project_id: number;
+    post_production_member_id: number;
+  }) => {
     try {
-      const response = await api.post('admin/remove-post-production-member', payload);
+      const response = await api.post(
+        "admin/remove-post-production-member",
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Remove Post Production Member Error:', error.response?.data || error.message);
+      console.error(
+        "Remove Post Production Member Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to remove post production member',
+        error:
+          error.response?.data?.message ||
+          "Failed to remove post production member",
       };
     }
   },
-  removeProjectCrew: async (payload: { project_id: number; crew_member_id: number }) => {
+  removeProjectCrew: async (payload: {
+    project_id: number;
+    crew_member_id: number;
+  }) => {
     try {
-      const response = await api.post('admin/remove-project-crew', payload);
+      const response = await api.post("admin/remove-project-crew", payload);
       return response.data;
     } catch (error: any) {
-      console.error('Remove Project Crew Error:', error.response?.data || error.message);
+      console.error(
+        "Remove Project Crew Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to remove assigned creative partner',
+        error:
+          error.response?.data?.message ||
+          "Failed to remove assigned creative partner",
       };
     }
   },
-  getDashboardChartData: async (params: { range?: string; date_on?: string } = {}) => {
+  getDashboardChartData: async (
+    params: { range?: string; date_on?: string } = {},
+  ) => {
     try {
-      const response = await api.get('admin/dashboard-chart-data', { params });
+      const response = await api.get("admin/dashboard-chart-data", { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Dashboard Chart Data Error:', {
+      console.error("Get Dashboard Chart Data Error:", {
         status: error.response?.status,
         data: error.response?.data,
         message: error.message,
@@ -3332,114 +3943,145 @@ export const adminApi = {
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch dashboard chart data',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch dashboard chart data",
       };
     }
   },
-  getClients: async (params: { page?: number; limit?: number; search?: string; status?: string; assigned_to?: string } = {}) => {
-    try {
-      const response = await api.get('sales/client-leads', { params });
-      return response.data;
-    } catch (error: any) {
-      console.error('Get Client Leads Error:', error.response?.data || error.message);
-      return {
-        success: false,
-        data: null,
-        error: error.response?.data?.message || 'Failed to fetch client leads',
-      };
-    }
-  },
-  getAdminClients: async (params: { page?: number; limit?: number; search?: string; status?: string; range?: string; start_date?: string; end_date?: string; include_archived?: boolean; archived_only?: boolean; fetch_all?: boolean } = {}) => {
-    try {
-      const response = await api.get('admin/get-clients', { params });
-      return response.data;
-    } catch (error: any) {
-      console.error('Get Admin Clients Error:', error.response?.data || error.message);
-      return {
-        success: false,
-        data: null,
-        error: error.response?.data?.message || 'Failed to fetch clients',
-      };
-    }
-  },
-  exportClientsCsv: async (
+  getClients: async (
     params: {
-        start_date?: string;
-        end_date?: string;
-        status?: string;
-        search?: string;
-        client_type?: string;
-    }
-): Promise<Blob> => {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+      assigned_to?: string;
+    } = {},
+  ) => {
     try {
-        const response = await api.get<Blob>(
-            "admin/clients/export",
-            {
-                params,
-                responseType: "blob",
-            }
-        );
-
-        return response.data;
-    } catch (error: unknown) {
-        let message =
-            "Failed to export clients.";
-
-        if (axios.isAxiosError(error)) {
-            const responseData =
-                error.response?.data;
-
-            if (responseData instanceof Blob) {
-                try {
-                    const errorText =
-                        await responseData.text();
-
-                    const parsedError =
-                        JSON.parse(errorText);
-
-                    message =
-                        parsedError?.message ||
-                        parsedError?.error ||
-                        message;
-                } catch {
-                }
-            }
-        }
-
-        console.error(
-            "Export Clients CSV Error:",
-            error
-        );
-
-        throw new Error(message);
-    }
-  },
-
-  getPendingCP: async (params: { page?: number; limit?: number; search?: string; location?: string; onboarding_status?: string; fetch_all?: boolean } = {}) => {
-    try {
-      const response = await api.get('admin/get-pending-cp', { params });
+      const response = await api.get("sales/client-leads", { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Pending CP Error:', error.response?.data || error.message);
+      console.error(
+        "Get Client Leads Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch pending creative partners',
+        error: error.response?.data?.message || "Failed to fetch client leads",
+      };
+    }
+  },
+  getAdminClients: async (
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+      range?: string;
+      start_date?: string;
+      end_date?: string;
+      include_archived?: boolean;
+      archived_only?: boolean;
+      fetch_all?: boolean;
+    } = {},
+  ) => {
+    try {
+      const response = await api.get("admin/get-clients", { params });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        "Get Admin Clients Error:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || "Failed to fetch clients",
+      };
+    }
+  },
+  exportClientsCsv: async (params: {
+    start_date?: string;
+    end_date?: string;
+    status?: string;
+    search?: string;
+    client_type?: string;
+  }): Promise<Blob> => {
+    try {
+      const response = await api.get<Blob>("admin/clients/export", {
+        params,
+        responseType: "blob",
+      });
+
+      return response.data;
+    } catch (error: unknown) {
+      let message = "Failed to export clients.";
+
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
+
+        if (responseData instanceof Blob) {
+          try {
+            const errorText = await responseData.text();
+
+            const parsedError = JSON.parse(errorText);
+
+            message = parsedError?.message || parsedError?.error || message;
+          } catch {}
+        }
+      }
+
+      console.error("Export Clients CSV Error:", error);
+
+      throw new Error(message);
+    }
+  },
+
+  getPendingCP: async (
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      location?: string;
+      onboarding_status?: string;
+      fetch_all?: boolean;
+    } = {},
+  ) => {
+    try {
+      const response = await api.get("admin/get-pending-cp", { params });
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        "Get Pending CP Error:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch pending creative partners",
       };
     }
   },
 
-  sendCreativePartnerProfileReminder: async (crew_member_id: string | number) => {
+  sendCreativePartnerProfileReminder: async (
+    crew_member_id: string | number,
+  ) => {
     try {
-      const response = await api.post(`admin/crew-member/${crew_member_id}/profile-reminder`);
+      const response = await api.post(
+        `admin/crew-member/${crew_member_id}/profile-reminder`,
+      );
       return response.data;
     } catch (error: unknown) {
       const message = axios.isAxiosError(error)
         ? error.response?.data?.message || error.message
         : error instanceof Error
           ? error.message
-          : 'Failed to send profile reminder';
-      console.error('Send Creative Partner Profile Reminder Error:', error);
+          : "Failed to send profile reminder";
+      console.error("Send Creative Partner Profile Reminder Error:", error);
       return {
         success: false,
         data: null,
@@ -3451,15 +4093,19 @@ export const adminApi = {
   checkCpDeleteStatus: async (crew_member_id: string | number) => {
     try {
       const response = await api.get(`admin/check-cp-delete-status`, {
-        params: { crew_member_id }
+        params: { crew_member_id },
       });
       return response.data;
     } catch (error: any) {
-      console.error('Check CP Delete Status Error:', error.response?.data || error.message);
+      console.error(
+        "Check CP Delete Status Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to check CP delete status',
+        error:
+          error.response?.data?.message || "Failed to check CP delete status",
       };
     }
   },
@@ -3467,15 +4113,37 @@ export const adminApi = {
   deleteCp: async (crew_member_id: string | number) => {
     try {
       const response = await api.post(`admin/delete-cp`, {
-        crew_member_id: Number(crew_member_id)
+        crew_member_id: Number(crew_member_id),
       });
       return response.data;
     } catch (error: any) {
-      console.error('Delete CP Error:', error.response?.data || error.message);
+      console.error("Delete CP Error:", error.response?.data || error.message);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to delete creative partner',
+        error:
+          error.response?.data?.message || "Failed to delete creative partner",
+      };
+    }
+  },
+
+  updateClientProfile: async (
+    id: string | number,
+    payload: { name?: string; email?: string; phone_number?: string | null },
+  ) => {
+    try {
+      const response = await api.put(`admin/edit-client/${id}`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        "Update Client Profile Error:",
+        error.response?.data || error.message,
+      );
+      return {
+        success: false,
+        data: null,
+        error:
+          error.response?.data?.message || "Failed to update client profile",
       };
     }
   },
@@ -3485,11 +4153,15 @@ export const adminApi = {
       const response = await api.get(`admin/get-client-by-id/${id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Get Client By ID Error:', error.response?.data || error.message);
+      console.error(
+        "Get Client By ID Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch client details',
+        error:
+          error.response?.data?.message || "Failed to fetch client details",
       };
     }
   },
@@ -3499,16 +4171,23 @@ export const adminApi = {
       const response = await api.delete(`admin/delete-client/${clientId}`);
       return response.data;
     } catch (error: any) {
-      console.error('Delete Client Error:', error.response?.data || error.message);
+      console.error(
+        "Delete Client Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to delete client',
+        error: error.response?.data?.message || "Failed to delete client",
       };
     }
   },
 
-  restoreClient: async (clientId: string | number, reason = "Archived by mistake.", mode = "normal") => {
+  restoreClient: async (
+    clientId: string | number,
+    reason = "Archived by mistake.",
+    mode = "normal",
+  ) => {
     try {
       const response = await api.post(`admin/restore-client/${clientId}`, {
         reason,
@@ -3516,11 +4195,14 @@ export const adminApi = {
       });
       return response.data;
     } catch (error: any) {
-      console.error('Restore Client Error:', error.response?.data || error.message);
+      console.error(
+        "Restore Client Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to restore client',
+        error: error.response?.data?.message || "Failed to restore client",
       };
     }
   },
@@ -3530,11 +4212,14 @@ export const adminApi = {
       const response = await api.get(`admin/get-clients-shoots/${id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Get Client Shoots Error:', error.response?.data || error.message);
+      console.error(
+        "Get Client Shoots Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch client shoots',
+        error: error.response?.data?.message || "Failed to fetch client shoots",
       };
     }
   },
@@ -3543,66 +4228,75 @@ export const adminApi = {
       const response = await api.get(`admin/get-project-form/${id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Get Project Form Error:', {
+      console.error("Get Project Form Error:", {
         message: error.message,
         status: error.response?.status,
         data: error.response?.data,
-        id
+        id,
       });
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || error.message || 'Failed to fetch project form details',
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch project form details",
       };
     }
   },
   getRoles: async (params: GetRolesParams = {}) => {
     try {
-      const response = await api.get('admin/roles', { params });
+      const response = await api.get("admin/roles", { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Roles Error:', error.response?.data || error.message);
+      console.error("Get Roles Error:", error.response?.data || error.message);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch roles',
+        error: error.response?.data?.message || "Failed to fetch roles",
       };
     }
   },
 
   getUsersWithRoles: async (params: GetUsersWithRolesParams = {}) => {
     try {
-      const response = await api.get('admin/users/roles', { params });
+      const response = await api.get("admin/users/roles", { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Users With Roles Error:', error.response?.data || error.message);
+      console.error(
+        "Get Users With Roles Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch users with roles',
+        error:
+          error.response?.data?.message || "Failed to fetch users with roles",
       };
     }
   },
 
   exportUsers: async (): Promise<AdminUsersExportResponse> => {
-    const response = await api.get('admin/users/export', {
-      responseType: 'blob',
+    const response = await api.get("admin/users/export", {
+      responseType: "blob",
     });
 
     return {
       blob: response.data,
-      contentDisposition: response.headers['content-disposition'],
+      contentDisposition: response.headers["content-disposition"],
     };
   },
 
-  exportRoleUsers: async (roleId: number | string): Promise<AdminUsersExportResponse> => {
+  exportRoleUsers: async (
+    roleId: number | string,
+  ): Promise<AdminUsersExportResponse> => {
     const response = await api.get(`admin/roles/${roleId}/users/export`, {
-      responseType: 'blob',
+      responseType: "blob",
     });
 
     return {
       blob: response.data,
-      contentDisposition: response.headers['content-disposition'],
+      contentDisposition: response.headers["content-disposition"],
     };
   },
 
@@ -3611,11 +4305,14 @@ export const adminApi = {
       const response = await api.get(`admin/roles/${id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Get Role By ID Error:', error.response?.data || error.message);
+      console.error(
+        "Get Role By ID Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch role details',
+        error: error.response?.data?.message || "Failed to fetch role details",
       };
     }
   },
@@ -3625,25 +4322,33 @@ export const adminApi = {
       const response = await api.get(`admin/users/${userId}/role-details`);
       return response.data;
     } catch (error: any) {
-      console.error('Get User Role Details Error:', error.response?.data || error.message);
+      console.error(
+        "Get User Role Details Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch user role details',
+        error:
+          error.response?.data?.message || "Failed to fetch user role details",
       };
     }
   },
 
   getPermissionModules: async (params: { scope?: string } = {}) => {
     try {
-      const response = await api.get('admin/permissions/modules', { params });
+      const response = await api.get("admin/permissions/modules", { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Permission Modules Error:', error.response?.data || error.message);
+      console.error(
+        "Get Permission Modules Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch permission modules',
+        error:
+          error.response?.data?.message || "Failed to fetch permission modules",
       };
     }
   },
@@ -3653,25 +4358,35 @@ export const adminApi = {
       const response = await api.get(`admin/users/${userId}/permissions`);
       return response.data;
     } catch (error: any) {
-      console.error('Get User Permissions Error:', error.response?.data || error.message);
+      console.error(
+        "Get User Permissions Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch user permissions',
+        error:
+          error.response?.data?.message || "Failed to fetch user permissions",
       };
     }
   },
 
-  assignRoleToUser: async (payload: { user_id: number | string; role_id: number | string }) => {
+  assignRoleToUser: async (payload: {
+    user_id: number | string;
+    role_id: number | string;
+  }) => {
     try {
-      const response = await api.post('admin/users/assign-role', payload);
+      const response = await api.post("admin/users/assign-role", payload);
       return response.data;
     } catch (error: any) {
-      console.error('Assign Role To User Error:', error.response?.data || error.message);
+      console.error(
+        "Assign Role To User Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to assign role',
+        error: error.response?.data?.message || "Failed to assign role",
       };
     }
   },
@@ -3681,12 +4396,15 @@ export const adminApi = {
   ): Promise<AdminMultiUserActionResponse> => {
     try {
       const response = await api.post<AdminMultiUserActionResponse>(
-        'admin/users/multi-action',
+        "admin/users/multi-action",
         payload,
       );
       return response.data;
     } catch (error: any) {
-      console.error('Multi User Action Error:', error.response?.data || error.message);
+      console.error(
+        "Multi User Action Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: error.response?.data?.data || null,
@@ -3694,35 +4412,52 @@ export const adminApi = {
         error:
           error.response?.data?.message ||
           error.response?.data?.error ||
-          'Failed to perform action on selected users',
+          "Failed to perform action on selected users",
       };
     }
   },
 
-  assignUserPermissions: async (payload: { user_id: number | string; permissions: UserPermissionsMap }) => {
+  assignUserPermissions: async (payload: {
+    user_id: number | string;
+    permissions: UserPermissionsMap;
+  }) => {
     try {
-      const response = await api.post('admin/users/permissions/assign', payload);
+      const response = await api.post(
+        "admin/users/permissions/assign",
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Assign User Permissions Error:', error.response?.data || error.message);
+      console.error(
+        "Assign User Permissions Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to assign user permissions',
+        error:
+          error.response?.data?.message || "Failed to assign user permissions",
       };
     }
   },
 
-  updateUserPermissions: async (payload: { user_id: number | string; permissions: UserPermissionsMap }) => {
+  updateUserPermissions: async (payload: {
+    user_id: number | string;
+    permissions: UserPermissionsMap;
+  }) => {
     try {
-      const response = await api.put('admin/users/permissions/update', payload);
+      const response = await api.put("admin/users/permissions/update", payload);
       return response.data;
     } catch (error: any) {
-      console.error('Update User Permissions Error:', error.response?.data || error.message);
+      console.error(
+        "Update User Permissions Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update user permissions',
+        error:
+          error.response?.data?.message || "Failed to update user permissions",
       };
     }
   },
@@ -3738,11 +4473,15 @@ export const adminApi = {
       );
       return response.data;
     } catch (error: any) {
-      console.error('Delete User Permission Error:', error.response?.data || error.message);
+      console.error(
+        "Delete User Permission Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to delete user permission',
+        error:
+          error.response?.data?.message || "Failed to delete user permission",
       };
     }
   },
@@ -3752,56 +4491,76 @@ export const adminApi = {
       const response = await api.delete(`admin/delete-user/${userId}`);
       return response.data;
     } catch (error: any) {
-      console.error('Delete User Error:', error.response?.data || error.message);
+      console.error(
+        "Delete User Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to delete user',
+        error: error.response?.data?.message || "Failed to delete user",
       };
     }
   },
 
-  restoreUser: async (userId: number | string, reason = "Restored from roles and permissions") => {
+  restoreUser: async (
+    userId: number | string,
+    reason = "Restored from roles and permissions",
+  ) => {
     try {
-      const response = await api.post(`admin/restore-user/${userId}`, { reason });
+      const response = await api.post(`admin/restore-user/${userId}`, {
+        reason,
+      });
       return response.data;
     } catch (error: any) {
-      console.error('Restore User Error:', error.response?.data || error.message);
+      console.error(
+        "Restore User Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to restore user',
+        error: error.response?.data?.message || "Failed to restore user",
       };
     }
   },
 
   createRole: async (payload: CreateRolePayload) => {
     try {
-      const response = await api.post('admin/roles/create', payload);
+      const response = await api.post("admin/roles/create", payload);
       return response.data;
     } catch (error: any) {
-      console.error('Create Role Error:', error.response?.data || error.message);
+      console.error(
+        "Create Role Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to create role',
+        error: error.response?.data?.message || "Failed to create role",
       };
     }
   },
 
-  updateRole: async (id: number | string, payload: Partial<CreateRolePayload>) => {
+  updateRole: async (
+    id: number | string,
+    payload: Partial<CreateRolePayload>,
+  ) => {
     try {
-      const response = await api.put('admin/roles/update', {
+      const response = await api.put("admin/roles/update", {
         role_id: id,
         ...payload,
       });
       return response.data;
     } catch (error: any) {
-      console.error('Update Role Error:', error.response?.data || error.message);
+      console.error(
+        "Update Role Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update role',
+        error: error.response?.data?.message || "Failed to update role",
       };
     }
   },
@@ -3811,95 +4570,124 @@ export const adminApi = {
       const response = await api.delete(`admin/roles/delete/${id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Delete Role Error:', error.response?.data || error.message);
+      console.error(
+        "Delete Role Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to delete role',
+        error: error.response?.data?.message || "Failed to delete role",
       };
     }
   },
 
   updateShootDateLocation: async (
     shootId: string | number,
-    payload: AdminShootUpdateDateLocationPayload
+    payload: AdminShootUpdateDateLocationPayload,
   ) => {
     try {
       const response = await api.put<AdminShootUpdateDateLocationResponse>(
         `admin/shoots/update-date-location/${shootId}`,
-        payload
+        payload,
       );
       return response.data;
     } catch (error: any) {
-      console.error('Update Shoot Date Location Error:', error.response?.data || error.message);
+      console.error(
+        "Update Shoot Date Location Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update shoot date and location',
+        error:
+          error.response?.data?.message ||
+          "Failed to update shoot date and location",
       };
     }
   },
   updateShootProjectName: async (
     shootId: string | number,
-    project_name: string
+    project_name: string,
   ) => {
     try {
-      const response = await api.put(
-        `admin/shoots/${shootId}/project-name`,
-        { project_name }
-      );
+      const response = await api.put(`admin/shoots/${shootId}/project-name`, {
+        project_name,
+      });
       return response.data;
     } catch (error: any) {
-      console.error('Update Shoot Project Name Error:', error.response?.data || error.message);
+      console.error(
+        "Update Shoot Project Name Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update project name',
+        error: error.response?.data?.message || "Failed to update project name",
       };
     }
   },
   updateShootDescription: async (
     shootId: string | number,
-    description: string
+    description: string,
   ) => {
     try {
       const response = await api.put(
         `admin/update-project-description/${shootId}`,
-        { description }
+        { description },
       );
       return response.data;
     } catch (error: any) {
-      console.error('Update Shoot Description Error:', error.response?.data || error.message);
+      console.error(
+        "Update Shoot Description Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update project description',
+        error:
+          error.response?.data?.message ||
+          "Failed to update project description",
       };
     }
   },
   updateShootOnboardingForm: async (payload: Record<string, unknown>) => {
     try {
-      const response = await api.post('admin/shoots/update-onboarding-form', payload);
+      const response = await api.post(
+        "admin/shoots/update-onboarding-form",
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Update Shoot Onboarding Form Error:', error.response?.data || error.message);
+      console.error(
+        "Update Shoot Onboarding Form Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update shoot onboarding form',
+        error:
+          error.response?.data?.message ||
+          "Failed to update shoot onboarding form",
       };
     }
   },
   remindOnboardingForm: async (shootId: string | number) => {
     try {
-      const response = await api.post(`admin/shoots/remind-onboarding-form/${shootId}`);
+      const response = await api.post(
+        `admin/shoots/remind-onboarding-form/${shootId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Remind Onboarding Form Error:', error.response?.data || error.message);
+      console.error(
+        "Remind Onboarding Form Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to send onboarding reminder',
+        error:
+          error.response?.data?.message || "Failed to send onboarding reminder",
       };
     }
   },
@@ -3913,13 +4701,18 @@ export const adminApi = {
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Admin Profile Error:',error.response?.data || error.message,);
+      console.error(
+        "Get Admin Profile Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
         status: error.response?.status,
         error:
-          error.response?.data?.message || error.message || 'Failed to fetch admin profile',
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch admin profile",
       };
     }
   },
@@ -3936,18 +4729,24 @@ export const adminApi = {
       const response = await api.put(`admin/profile/${id}`, payload, {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
       return response.data;
     } catch (error: any) {
-      console.error('Update Admin Profile Error:',error.response?.data || error.message,);
+      console.error(
+        "Update Admin Profile Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
         status: error.response?.status,
         error:
-          error.response?.data?.message || error.message || 'Failed to update admin profile', };
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to update admin profile",
+      };
     }
   },
 
@@ -3961,24 +4760,30 @@ export const adminApi = {
   ) => {
     try {
       const response = await api.post(
-        'admin/profile/change-password',
+        "admin/profile/change-password",
         payload,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         },
       );
       return response.data;
     } catch (error: any) {
-      console.error('Change Admin Password Error:', error.response?.data || error.message,);
+      console.error(
+        "Change Admin Password Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
         status: error.response?.status,
         error:
-          error.response?.data?.message || error.message || 'Failed to change admin password',};
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to change admin password",
+      };
     }
   },
 };
@@ -3987,16 +4792,16 @@ export const GetCreatorDashboardCount = async (payload: any) => {
   try {
     const response = await api.post("creator/dashboard-count", payload, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
     return response;
   } catch (error) {
-    console.error('Get Dashboard Count Error:', error);
+    console.error("Get Dashboard Count Error:", error);
     return {
       success: false,
       data: null,
-      error: 'Failed to fetch Dashboard Count',
+      error: "Failed to fetch Dashboard Count",
     };
   }
 };
@@ -4005,16 +4810,16 @@ export const GetCreatorDashboardDetails = async (payload: any) => {
   try {
     const response = await api.post("creator/dashboard-details", payload, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
     return response;
   } catch (error) {
-    console.error('Get Dashboard Details Error:', error);
+    console.error("Get Dashboard Details Error:", error);
     return {
       success: false,
       data: null,
-      error: 'Failed to fetch Dashboard Details',
+      error: "Failed to fetch Dashboard Details",
     };
   }
 };
@@ -4023,52 +4828,64 @@ export const GetCreatorStats = async (payload: any) => {
   try {
     const response = await api.post("creator/get-crew-stats", payload, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
     return response;
   } catch (error) {
-    console.error('Get Crew Stats Error:', error);
+    console.error("Get Crew Stats Error:", error);
     return {
       success: false,
       data: null,
-      error: 'Failed to fetch Crew Stats',
+      error: "Failed to fetch Crew Stats",
     };
   }
 };
 
-export const getAvailabilityDetails = async (payload: { year: string, month: string, crew_member_id: string | number }) => {
+export const getAvailabilityDetails = async (payload: {
+  year: string;
+  month: string;
+  crew_member_id: string | number;
+}) => {
   try {
     const response = await api.post("creator/availability", payload, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
     return response.data;
   } catch (error: any) {
-    console.error('Get Availability Details Error:', error);
+    console.error("Get Availability Details Error:", error);
     return {
       success: false,
       data: null,
-      error: error.response?.data?.message || 'Failed to fetch availability details',
+      error:
+        error.response?.data?.message || "Failed to fetch availability details",
     };
   }
 };
 
-export const CheckVerificationStatus = async (payload: { crew_member_id: any }) => {
+export const CheckVerificationStatus = async (payload: {
+  crew_member_id: any;
+}) => {
   try {
-    const response = await api.post("creator/check-verification-status", payload, {
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await api.post(
+      "creator/check-verification-status",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
     return response;
   } catch (error: any) {
-    console.error('Check Verification Status Error:', error);
+    console.error("Check Verification Status Error:", error);
     return {
       success: false,
       data: null,
-      error: error.response?.data?.message || 'Failed to fetch verification status',
+      error:
+        error.response?.data?.message || "Failed to fetch verification status",
     };
   }
 };
@@ -4083,88 +4900,100 @@ export const CheckCPStatus = async () => {
       return {
         success: false,
         is_deleted: true,
-        error: "Unauthorized"
+        error: "Unauthorized",
       };
     }
-    console.error('Check CP Status Error:', error);
+    console.error("Check CP Status Error:", error);
     return {
       success: false,
       data: null,
-      error: error.response?.data?.message || 'Failed to check CP status',
+      error: error.response?.data?.message || "Failed to check CP status",
     };
   }
 };
 
 export const ConfirmCPEventLocation = async () => {
   try {
-    const response = await api.post("auth/cp-event-location/confirm", {}, {
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await api.post(
+      "auth/cp-event-location/confirm",
+      {},
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
     return response;
   } catch (error: any) {
-    console.error('Confirm CP Event Location Error:', error);
+    console.error("Confirm CP Event Location Error:", error);
     return {
       success: false,
       data: null,
-      error: error.response?.data?.message || 'Failed to confirm event location',
+      error:
+        error.response?.data?.message || "Failed to confirm event location",
     };
   }
 };
 
 export const salesApi = {
-  getLeads: async (params: {
-    page?: number;
-    limit?: number;
-    status?: string;
-    lead_type?: string;
-    assigned_to?: string;
-    search?: string;
-    start_date?: string;
-    end_date?: string;
-    created_start_date?: string;
-    created_end_date?: string;
-    intent?: string;
-    cp_assignment?: string;
-    production_filter?: string;
-  } = {}) => {
+  getLeads: async (
+    params: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      lead_type?: string;
+      assigned_to?: string;
+      search?: string;
+      start_date?: string;
+      end_date?: string;
+      created_start_date?: string;
+      created_end_date?: string;
+      intent?: string;
+      cp_assignment?: string;
+      production_filter?: string;
+    } = {},
+  ) => {
     try {
-      const response = await api.get('/sales/leads', { params });
+      const response = await api.get("/sales/leads", { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Leads Error:', error.response?.data || error.message);
+      console.error("Get Leads Error:", error.response?.data || error.message);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch leads',
+        error: error.response?.data?.message || "Failed to fetch leads",
       };
     }
   },
-  getLeadsBoard: async (params: {
-    page?: number;
-    limit?: number;
-    status?: string;
-    lead_type?: string;
-    assigned_to?: string;
-    search?: string;
-    start_date?: string;
-    end_date?: string;
-    created_start_date?: string;
-    created_end_date?: string;
-    intent?: string;
-    cp_assignment?: string;
-    production_filter?: string;
-  } = {}) => {
+  getLeadsBoard: async (
+    params: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      lead_type?: string;
+      assigned_to?: string;
+      search?: string;
+      start_date?: string;
+      end_date?: string;
+      created_start_date?: string;
+      created_end_date?: string;
+      intent?: string;
+      cp_assignment?: string;
+      production_filter?: string;
+    } = {},
+  ) => {
     try {
-      const response = await api.get('/sales/leads/board', { params });
+      const response = await api.get("/sales/leads/board", { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Leads Board Error:', error.response?.data || error.message);
+      console.error(
+        "Get Leads Board Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch leads board',
+        error: error.response?.data?.message || "Failed to fetch leads board",
       };
     }
   },
@@ -4173,11 +5002,11 @@ export const salesApi = {
       const response = await api.get(`/sales/get-lead-stats/${leadId}`);
       return response.data;
     } catch (error) {
-      console.error('Get Lead Stats Error:', error);
+      console.error("Get Lead Stats Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch lead stats',
+        error: "Failed to fetch lead stats",
       };
     }
   },
@@ -4186,57 +5015,63 @@ export const salesApi = {
       const response = await api.get(`/sales/get-client-lead-stats/${leadId}`);
       return response.data;
     } catch (error) {
-      console.error('Get Client Lead Stats Error:', error);
+      console.error("Get Client Lead Stats Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch client lead stats',
+        error: "Failed to fetch client lead stats",
       };
     }
   },
   getCrewForLead: async (params: {
-    lead_id: number | string,
-    role_type: string,
-    search_query?: string,
-    radius?: number,
-    latitude?: number,
-    longitude?: number
+    lead_id: number | string;
+    role_type: string;
+    search_query?: string;
+    radius?: number;
+    latitude?: number;
+    longitude?: number;
   }) => {
     try {
-      const response = await api.get('admin/get-crew-for-lead/', { params });
+      const response = await api.get("admin/get-crew-for-lead/", { params });
       return response.data;
     } catch (error) {
-      console.error('Get Crew For Lead Error:', error);
+      console.error("Get Crew For Lead Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch crew for lead',
+        error: "Failed to fetch crew for lead",
       };
     }
   },
   createQuoteDraft: async (data: Record<string, unknown>) => {
     try {
-      const response = await api.post('/sales/quotes', data);
+      const response = await api.post("/sales/quotes", data);
       return response.data;
     } catch (error: any) {
-      console.error('Create Quote Draft Error:', error);
+      console.error("Create Quote Draft Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to create quote draft',
+        error: error.response?.data?.message || "Failed to create quote draft",
       };
     }
   },
-  updateQuote: async (quoteId: number | string, data: Record<string, unknown>) => {
+  updateQuote: async (
+    quoteId: number | string,
+    data: Record<string, unknown>,
+  ) => {
     try {
-      const response = await api.put<SalesQuoteDetailResponse>(`/sales/quotes/${quoteId}`, data);
+      const response = await api.put<SalesQuoteDetailResponse>(
+        `/sales/quotes/${quoteId}`,
+        data,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Update Quote Error:', error);
+      console.error("Update Quote Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update quote',
+        error: error.response?.data?.message || "Failed to update quote",
       };
     }
   },
@@ -4244,104 +5079,104 @@ export const salesApi = {
     try {
       const response = await api.post<SalesQuoteDetailResponse>(
         `/sales/quotes/${quoteId}/duplicate`,
-        {}
+        {},
       );
       return response.data;
     } catch (error: any) {
-      console.error('Duplicate Quote Error:', error);
+      console.error("Duplicate Quote Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to duplicate quote',
+        error: error.response?.data?.message || "Failed to duplicate quote",
       };
     }
   },
   getQuoteAnalytics: async (
-    params: QuoteAnalyticsParams = {}
+    params: QuoteAnalyticsParams = {},
   ): Promise<QuoteAnalyticsResponse> => {
     try {
       const response = await api.get<QuoteAnalyticsResponse>(
-        '/sales/quotes/analytics',
-        { params }
+        "/sales/quotes/analytics",
+        { params },
       );
 
       return response.data;
     } catch (error: any) {
-      console.error('Get Quote Analytics Error:', error);
+      console.error("Get Quote Analytics Error:", error);
 
       return {
         success: false,
         data: null,
         error:
-          error.response?.data?.message ||
-          'Failed to fetch quote analytics',
+          error.response?.data?.message || "Failed to fetch quote analytics",
       };
     }
   },
 
-  getQuoteAnalyticsFilters: async (): Promise<QuoteAnalyticsFiltersResponse> => {
-    try {
-      const response = await api.get<QuoteAnalyticsFiltersResponse>(
-        '/sales/quotes/analytics/filters'
-      );
+  getQuoteAnalyticsFilters:
+    async (): Promise<QuoteAnalyticsFiltersResponse> => {
+      try {
+        const response = await api.get<QuoteAnalyticsFiltersResponse>(
+          "/sales/quotes/analytics/filters",
+        );
 
-      return response.data;
-    } catch (error: any) {
-      console.error('Get Quote Analytics Filters Error:', error);
+        return response.data;
+      } catch (error: any) {
+        console.error("Get Quote Analytics Filters Error:", error);
 
-      return {
-        success: false,
-        data: null,
-        error:
-          error.response?.data?.message ||
-          'Failed to fetch quote analytics filters',
-      };
-    }
-  },
+        return {
+          success: false,
+          data: null,
+          error:
+            error.response?.data?.message ||
+            "Failed to fetch quote analytics filters",
+        };
+      }
+    },
 
   getQuoteAnalyticsByRep: async (
     salesRepId: number | string,
-    params: QuoteAnalyticsParams = {}
+    params: QuoteAnalyticsParams = {},
   ): Promise<QuoteAnalyticsResponse> => {
     try {
       const response = await api.get<QuoteAnalyticsResponse>(
         `/sales/quotes/analytics/reps/${salesRepId}`,
-        { params }
+        { params },
       );
 
       return response.data;
     } catch (error: any) {
-      console.error('Get Quote Analytics By Rep Error:', error);
+      console.error("Get Quote Analytics By Rep Error:", error);
 
       return {
         success: false,
         data: null,
         error:
           error.response?.data?.message ||
-          'Failed to fetch sales rep analytics',
+          "Failed to fetch sales rep analytics",
       };
     }
   },
 
   getQuoteAnalyticsQuotes: async (
-    params: QuoteAnalyticsQuotesParams
+    params: QuoteAnalyticsQuotesParams,
   ): Promise<QuoteAnalyticsQuotesResponse> => {
     try {
       const response = await api.get<QuoteAnalyticsQuotesResponse>(
-        '/sales/quotes/analytics/quotes',
-        { params }
+        "/sales/quotes/analytics/quotes",
+        { params },
       );
 
       return response.data;
     } catch (error: any) {
-      console.error('Get Quote Analytics Quotes Error:', error);
+      console.error("Get Quote Analytics Quotes Error:", error);
 
       return {
         success: false,
         data: null,
         error:
           error.response?.data?.message ||
-          'Failed to fetch quote analytics quotes',
+          "Failed to fetch quote analytics quotes",
       };
     }
   },
@@ -4352,17 +5187,20 @@ export const salesApi = {
       date_on?: string;
       status?: string;
       assigned_sales_rep_id?: number | string;
-    } = {}
+    } = {},
   ) => {
     try {
-      const response = await api.get<QuotesDashboardResponse>('/sales/quotes/dashboard', { params });
+      const response = await api.get<QuotesDashboardResponse>(
+        "/sales/quotes/dashboard",
+        { params },
+      );
       return response.data;
     } catch (error) {
-      console.error('Get Quotes Dashboard Error:', error);
+      console.error("Get Quotes Dashboard Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch quotes dashboard data',
+        error: "Failed to fetch quotes dashboard data",
       };
     }
   },
@@ -4376,22 +5214,24 @@ export const salesApi = {
       range?: string;
       date_on?: string;
       assigned_sales_rep_id?: number | string;
-    } = {}
+    } = {},
   ) => {
     try {
-      const response = await api.get<QuotesListResponse>('/sales/quotes', { params });
+      const response = await api.get<QuotesListResponse>("/sales/quotes", {
+        params,
+      });
       return response.data;
     } catch (error) {
-      console.error('Get Quotes List Error:', error);
+      console.error("Get Quotes List Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch quotes list',
+        error: "Failed to fetch quotes list",
       };
     }
   },
 
-    exportQuotesCsv: async (params: {
+  exportQuotesCsv: async (params: {
     start_date?: string;
     end_date?: string;
     search?: string;
@@ -4401,17 +5241,14 @@ export const salesApi = {
     assigned_sales_rep_id?: number | string;
   }): Promise<Blob> => {
     try {
-      const response = await api.get<Blob>(
-        '/sales/quotes/export',
-        {
-          params,
-          responseType: 'blob',
-        }
-      );
+      const response = await api.get<Blob>("/sales/quotes/export", {
+        params,
+        responseType: "blob",
+      });
 
       return response.data;
     } catch (error: unknown) {
-      let message = 'Failed to export quotes';
+      let message = "Failed to export quotes";
 
       if (axios.isAxiosError(error)) {
         const responseData = error.response?.data;
@@ -4426,17 +5263,16 @@ export const salesApi = {
           }
         } else if (
           responseData &&
-          typeof responseData === 'object' &&
-          'message' in responseData
+          typeof responseData === "object" &&
+          "message" in responseData
         ) {
           message =
-            String(
-              (responseData as { message?: unknown }).message || ''
-            ) || message;
+            String((responseData as { message?: unknown }).message || "") ||
+            message;
         }
       }
 
-      console.error('Export Quotes CSV Error:', error);
+      console.error("Export Quotes CSV Error:", error);
       throw new Error(message);
     }
   },
@@ -4450,10 +5286,10 @@ export const salesApi = {
       range?: string;
       date_on?: string;
       assigned_sales_rep_id?: number | string;
-    } = {}
+    } = {},
   ) => {
     try {
-      const response = await api.get<QuotesListResponse>('/sales/quotes', {
+      const response = await api.get<QuotesListResponse>("/sales/quotes", {
         params: {
           ...params,
           client_user_id: clientUserId,
@@ -4463,40 +5299,47 @@ export const salesApi = {
       });
       return response.data;
     } catch (error) {
-      console.error('Get Client Quotes List Error:', error);
+      console.error("Get Client Quotes List Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch client quotes list',
+        error: "Failed to fetch client quotes list",
       };
     }
   },
-  updateAffiliateQuoteStatus: async (quoteId: number | string, status: string) => {
+  updateAffiliateQuoteStatus: async (
+    quoteId: number | string,
+    status: string,
+  ) => {
     try {
       void status;
       const response = await api.get<SalesQuoteStatusUpdateResponse>(
-        `/sales/quotes/reject/${quoteId}`
+        `/sales/quotes/reject/${quoteId}`,
       );
       return response.data;
     } catch (error: any) {
-      console.error('Update Affiliate Quote Status Error:', error);
+      console.error("Update Affiliate Quote Status Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update affiliate quote status',
+        error:
+          error.response?.data?.message ||
+          "Failed to update affiliate quote status",
       };
     }
   },
   getQuoteDetail: async (quoteId: number | string) => {
     try {
-      const response = await api.get<SalesQuoteDetailResponse>(`/sales/quotes/${quoteId}`);
+      const response = await api.get<SalesQuoteDetailResponse>(
+        `/sales/quotes/${quoteId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Get Quote Detail Error:', error);
+      console.error("Get Quote Detail Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch quote detail',
+        error: error.response?.data?.message || "Failed to fetch quote detail",
       };
     }
   },
@@ -4505,65 +5348,91 @@ export const salesApi = {
       const response = await api.get(`/sales/quotes/${quoteId}/versions`);
       return response.data;
     } catch (error: any) {
-      console.error('Get Quote Versions Error:', error);
+      console.error("Get Quote Versions Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch quote versions',
+        error:
+          error.response?.data?.message || "Failed to fetch quote versions",
       };
     }
   },
-  getQuoteVersionDetail: async (quoteId: number | string, versionId: number | string) => {
+  getQuoteVersionDetail: async (
+    quoteId: number | string,
+    versionId: number | string,
+  ) => {
     try {
-      const response = await api.get(`/sales/quotes/${quoteId}/versions/${versionId}`);
+      const response = await api.get(
+        `/sales/quotes/${quoteId}/versions/${versionId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Get Quote Version Detail Error:', error);
+      console.error("Get Quote Version Detail Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch quote version detail',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch quote version detail",
       };
     }
   },
   getPublicQuoteDetail: async (quoteId: number | string) => {
     try {
       const response = await publicApi.get<SalesQuoteDetailResponse>(
-        `/sales/quotes/public/${quoteId}`
+        `/sales/quotes/public/${quoteId}`,
       );
       return response.data;
     } catch (error: any) {
-      console.error('Get Public Quote Detail Error:', error);
+      console.error("Get Public Quote Detail Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch public quote detail',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch public quote detail",
       };
     }
   },
   sendQuoteProposal: async (quoteId: number | string) => {
     try {
-      const response = await api.post<SalesQuoteSendResponse>(`/sales/quotes/${quoteId}/send`, {});
+      const response = await api.post<SalesQuoteSendResponse>(
+        `/sales/quotes/${quoteId}/send`,
+        {},
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Send Quote Proposal Error:', error);
+      console.error("Send Quote Proposal Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to send quote proposal',
+        error: error.response?.data?.message || "Failed to send quote proposal",
       };
     }
   },
-  getInvoiceHistory: async (params: { page?: number; limit?: number; search?: string; status?: string } = {}) => {
+  getInvoiceHistory: async (
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      status?: string;
+    } = {},
+  ) => {
     try {
-      const response = await api.get('/sales/dashboard/invoice-history', { params });
+      const response = await api.get("/sales/dashboard/invoice-history", {
+        params,
+      });
       return response.data;
     } catch (error: any) {
-      console.error('Get Invoice History Error:', error.response?.data || error.message);
+      console.error(
+        "Get Invoice History Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch invoice history',
+        error:
+          error.response?.data?.message || "Failed to fetch invoice history",
       };
     }
   },
@@ -4574,12 +5443,12 @@ export const salesApi = {
       search?: string;
       approval_status?: string;
       request_type?: string;
-    } = {}
+    } = {},
   ) => {
     try {
       const response = await api.get<QuoteChangeRequestsResponse>(
-        '/sales/dashboard/quote-change-requests',
-        { params }
+        "/sales/dashboard/quote-change-requests",
+        { params },
       );
       return response.data;
     } catch (error: unknown) {
@@ -4588,23 +5457,25 @@ export const salesApi = {
         : undefined;
 
       console.error(
-        'Get Quote Change Requests Error:',
-        axios.isAxiosError(error) ? error.response?.data || error.message : error
+        "Get Quote Change Requests Error:",
+        axios.isAxiosError(error)
+          ? error.response?.data || error.message
+          : error,
       );
 
       return {
         success: false,
         data: null,
-        message: errorMessage || 'Failed to fetch quote change requests',
-        error: errorMessage || 'Failed to fetch quote change requests',
+        message: errorMessage || "Failed to fetch quote change requests",
+        error: errorMessage || "Failed to fetch quote change requests",
       } satisfies QuoteChangeRequestsResponse;
     }
   },
   approveQuoteChangeRequest: async (activityId: number | string) => {
     try {
       const response = await api.post<QuoteChangeRequestReviewResponse>(
-        '/sales/dashboard/quote-change-requests/approve',
-        { activity_id: activityId }
+        "/sales/dashboard/quote-change-requests/approve",
+        { activity_id: activityId },
       );
       return response.data;
     } catch (error: unknown) {
@@ -4613,23 +5484,25 @@ export const salesApi = {
         : undefined;
 
       console.error(
-        'Approve Quote Change Request Error:',
-        axios.isAxiosError(error) ? error.response?.data || error.message : error
+        "Approve Quote Change Request Error:",
+        axios.isAxiosError(error)
+          ? error.response?.data || error.message
+          : error,
       );
 
       return {
         success: false,
         data: null,
-        message: errorMessage || 'Failed to approve quote change request',
-        error: errorMessage || 'Failed to approve quote change request',
+        message: errorMessage || "Failed to approve quote change request",
+        error: errorMessage || "Failed to approve quote change request",
       } satisfies QuoteChangeRequestReviewResponse;
     }
   },
   rejectQuoteChangeRequest: async (activityId: number | string) => {
     try {
       const response = await api.post<QuoteChangeRequestReviewResponse>(
-        '/sales/dashboard/quote-change-requests/reject',
-        { activity_id: activityId }
+        "/sales/dashboard/quote-change-requests/reject",
+        { activity_id: activityId },
       );
       return response.data;
     } catch (error: unknown) {
@@ -4638,15 +5511,17 @@ export const salesApi = {
         : undefined;
 
       console.error(
-        'Reject Quote Change Request Error:',
-        axios.isAxiosError(error) ? error.response?.data || error.message : error
+        "Reject Quote Change Request Error:",
+        axios.isAxiosError(error)
+          ? error.response?.data || error.message
+          : error,
       );
 
       return {
         success: false,
         data: null,
-        message: errorMessage || 'Failed to reject quote change request',
-        error: errorMessage || 'Failed to reject quote change request',
+        message: errorMessage || "Failed to reject quote change request",
+        error: errorMessage || "Failed to reject quote change request",
       } satisfies QuoteChangeRequestReviewResponse;
     }
   },
@@ -4654,15 +5529,16 @@ export const salesApi = {
     try {
       const response = await api.post<SalesQuoteInvoiceResponse>(
         `/sales/quotes/${quoteId}/preview-invoice`,
-        {}
+        {},
       );
       return response.data;
     } catch (error: any) {
-      console.error('Preview Quote Invoice Error:', error);
+      console.error("Preview Quote Invoice Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to preview quote invoice',
+        error:
+          error.response?.data?.message || "Failed to preview quote invoice",
       };
     }
   },
@@ -4670,15 +5546,15 @@ export const salesApi = {
     try {
       const response = await api.post<SalesQuoteInvoiceResponse>(
         `/sales/quotes/${quoteId}/send-invoice`,
-        {}
+        {},
       );
       return response.data;
     } catch (error: any) {
-      console.error('Send Quote Invoice Error:', error);
+      console.error("Send Quote Invoice Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to send quote invoice',
+        error: error.response?.data?.message || "Failed to send quote invoice",
       };
     }
   },
@@ -4686,66 +5562,68 @@ export const salesApi = {
     try {
       const response = await api.patch<SalesQuoteStatusUpdateResponse>(
         `/sales/quotes/${quoteId}/status`,
-        { status }
+        { status },
       );
       return response.data;
     } catch (error: any) {
-      console.error('Update Quote Status Error:', error);
+      console.error("Update Quote Status Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update quote status',
+        error: error.response?.data?.message || "Failed to update quote status",
       };
     }
   },
   convertQuoteToBooking: async (
     quoteId: number | string,
-    payload: SalesQuoteConvertToBookingPayload
+    payload: SalesQuoteConvertToBookingPayload,
   ) => {
     try {
       const response = await api.post<SalesQuoteConvertToBookingResponse>(
         `/sales/quotes/${quoteId}/convert-to-booking`,
-        payload
+        payload,
       );
       return response.data;
     } catch (error: any) {
-      console.error('Convert Quote To Booking Error:', error);
+      console.error("Convert Quote To Booking Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to convert quote to booking',
+        error:
+          error.response?.data?.message || "Failed to convert quote to booking",
       };
     }
   },
   updateLeadBookingSchedule: async (
     leadId: number | string,
-    payload: LeadBookingSchedulePayload
+    payload: LeadBookingSchedulePayload,
   ) => {
     try {
       const response = await api.put<SalesLeadUpdateBookingScheduleResponse>(
         `/sales/leads/${leadId}/booking-schedule`,
-        payload
+        payload,
       );
       return response.data;
     } catch (error: any) {
-      console.error('Update Lead Booking Schedule Error:', error);
+      console.error("Update Lead Booking Schedule Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update booking schedule',
+        error:
+          error.response?.data?.message || "Failed to update booking schedule",
       };
     }
   },
   getQuoteCatalog: async () => {
     try {
-      const response = await api.get('/sales/quotes/catalog');
+      const response = await api.get("/sales/quotes/catalog");
       return response.data;
     } catch (error) {
-      console.error('Get Quote Catalog Error:', error);
+      console.error("Get Quote Catalog Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch quote catalog',
+        error: "Failed to fetch quote catalog",
       };
     }
   },
@@ -4757,14 +5635,14 @@ export const salesApi = {
     rate_unit: string | null;
   }) => {
     try {
-      const response = await api.post('/sales/quotes/catalog', data);
+      const response = await api.post("/sales/quotes/catalog", data);
       return response.data;
     } catch (error: any) {
-      console.error('Create Quote Catalog Error:', error);
+      console.error("Create Quote Catalog Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to create catalog item',
+        error: error.response?.data?.message || "Failed to create catalog item",
       };
     }
   },
@@ -4782,24 +5660,24 @@ export const salesApi = {
       const response = await api.put(`/sales/quotes/catalog/${id}`, data);
       return response.data;
     } catch (error: any) {
-      console.error('Update Quote Catalog Error:', error);
+      console.error("Update Quote Catalog Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update catalog item',
+        error: error.response?.data?.message || "Failed to update catalog item",
       };
     }
   },
   createShootType: async (data: { name: string; content_type: number }) => {
     try {
-      const response = await api.post('/sales/quotes/shoot-types', data);
+      const response = await api.post("/sales/quotes/shoot-types", data);
       return response.data;
     } catch (error: any) {
-      console.error('Create Shoot Type Error:', error);
+      console.error("Create Shoot Type Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to create shoot type',
+        error: error.response?.data?.message || "Failed to create shoot type",
       };
     }
   },
@@ -4817,14 +5695,17 @@ export const salesApi = {
     },
   ) => {
     try {
-      const response = await api.put(`/sales/quotes/shoot-types/${shootTypeId}`, data);
+      const response = await api.put(
+        `/sales/quotes/shoot-types/${shootTypeId}`,
+        data,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Update Shoot Type Error:', error);
+      console.error("Update Shoot Type Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update shoot type',
+        error: error.response?.data?.message || "Failed to update shoot type",
       };
     }
   },
@@ -4833,37 +5714,41 @@ export const salesApi = {
       const response = await api.get(`/sales/quotes/shoot-types/${id}`);
       return response.data;
     } catch (error) {
-      console.error('Get Shoot Types Error:', error);
+      console.error("Get Shoot Types Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch shoot types',
+        error: "Failed to fetch shoot types",
       };
     }
   },
   getAiEditingTypes: async () => {
     try {
-      const response = await api.get('/sales/quotes/ai-editing-types');
+      const response = await api.get("/sales/quotes/ai-editing-types");
       return response.data;
     } catch (error) {
-      console.error('Get AI Editing Types Error:', error);
+      console.error("Get AI Editing Types Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch AI editing types',
+        error: "Failed to fetch AI editing types",
       };
     }
   },
-  createAiEditingType: async (data: { category: "video" | "photo"; label: string }) => {
+  createAiEditingType: async (data: {
+    category: "video" | "photo";
+    label: string;
+  }) => {
     try {
-      const response = await api.post('/sales/quotes/ai-editing-types', data);
+      const response = await api.post("/sales/quotes/ai-editing-types", data);
       return response.data;
     } catch (error: any) {
-      console.error('Create AI Editing Type Error:', error);
+      console.error("Create AI Editing Type Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to create AI editing type',
+        error:
+          error.response?.data?.message || "Failed to create AI editing type",
       };
     }
   },
@@ -4879,14 +5764,18 @@ export const salesApi = {
     },
   ) => {
     try {
-      const response = await api.put(`/sales/quotes/ai-editing-types/${id}`, data);
+      const response = await api.put(
+        `/sales/quotes/ai-editing-types/${id}`,
+        data,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Update AI Editing Type Error:', error);
+      console.error("Update AI Editing Type Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update AI editing type',
+        error:
+          error.response?.data?.message || "Failed to update AI editing type",
       };
     }
   },
@@ -4898,18 +5787,21 @@ export const salesApi = {
         return {
           success: false,
           data: null,
-          error: 'Invalid AI editing type id',
+          error: "Invalid AI editing type id",
         };
       }
 
-      const response = await api.delete(`/sales/quotes/ai-editing-types/${editingTypeId}`);
+      const response = await api.delete(
+        `/sales/quotes/ai-editing-types/${editingTypeId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Delete AI Editing Type Error:', error);
+      console.error("Delete AI Editing Type Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to delete AI editing type',
+        error:
+          error.response?.data?.message || "Failed to delete AI editing type",
       };
     }
   },
@@ -4921,90 +5813,108 @@ export const salesApi = {
         return {
           success: false,
           data: null,
-          error: 'Invalid shoot type id',
+          error: "Invalid shoot type id",
         };
       }
 
-      const response = await api.delete(`/sales/quotes/shoot-types/${shootTypeId}`);
+      const response = await api.delete(
+        `/sales/quotes/shoot-types/${shootTypeId}`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Delete Shoot Type Error:', error);
+      console.error("Delete Shoot Type Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to delete shoot type',
+        error: error.response?.data?.message || "Failed to delete shoot type",
       };
     }
   },
   getClientDropdown: async (search?: string) => {
     try {
-      const url = search ? `/sales/client-dropdown?search=${search}` : '/sales/client-dropdown';
+      const url = search
+        ? `/sales/client-dropdown?search=${search}`
+        : "/sales/client-dropdown";
       const response = await api.get(url);
       return response.data;
     } catch (error) {
-      console.error('Get Client Dropdown Error:', error);
+      console.error("Get Client Dropdown Error:", error);
       return {
         success: false,
         data: null,
-        error: 'Failed to fetch client dropdown',
+        error: "Failed to fetch client dropdown",
       };
     }
   },
-  createClient: async (data: { name: string; email: string; phone_number: string }) => {
+  createClient: async (data: {
+    name: string;
+    email: string;
+    phone_number: string;
+  }) => {
     try {
-      const response = await api.post('/sales/create-client', data);
+      const response = await api.post("/sales/create-client", data);
       return response.data;
     } catch (error: unknown) {
       const apiError = error as { response?: { data?: { message?: string } } };
-      console.error('Create Client Error:', error);
+      console.error("Create Client Error:", error);
       return {
         success: false,
         data: null,
-        error: apiError.response?.data?.message || 'Failed to create client',
+        error: apiError.response?.data?.message || "Failed to create client",
       };
     }
   },
   getSalesReps: async (options?: { includeInactive?: boolean }) => {
     try {
-      const response = await api.get('/sales/sales-reps', {
-        params: options?.includeInactive ? { include_inactive: true } : undefined,
+      const response = await api.get("/sales/sales-reps", {
+        params: options?.includeInactive
+          ? { include_inactive: true }
+          : undefined,
       });
       return response.data;
     } catch (error: any) {
-      console.error('Get Sales Reps Error:', error.response?.data || error.message);
+      console.error(
+        "Get Sales Reps Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch sales representatives',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch sales representatives",
       };
     }
   },
-  getSalesRepStatusDetails: async (
-    params: {
-      sales_rep_id: number | string;
-      date?: string;
-      start_date?: string;
-      end_date?: string;
-      search?: string;
-      lead_status?: string;
-      lead_type?: string;
-    }
-  ) => {
+  getSalesRepStatusDetails: async (params: {
+    sales_rep_id: number | string;
+    date?: string;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+    lead_status?: string;
+    lead_type?: string;
+  }) => {
     try {
-      const response = await api.get('/sales/status-details', { params });
+      const response = await api.get("/sales/status-details", { params });
       return response.data;
     } catch (error: any) {
-      console.error('Get Sales Rep Status Details Error:', error.response?.data || error.message);
+      console.error(
+        "Get Sales Rep Status Details Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch sales representative status details',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch sales representative status details",
       };
     }
   },
-  getDashboardOverview: async (period: string = 'all_time') => {
+  getDashboardOverview: async (period: string = "all_time") => {
     try {
-      const response = await api.get('/sales/dashboard/overview', {
+      const response = await api.get("/sales/dashboard/overview", {
         params: { period },
       });
       return response.data;
@@ -5013,58 +5923,84 @@ export const salesApi = {
       const isLogoutLikeFailure =
         status === 401 ||
         status === 403 ||
-        error?.code === 'ERR_CANCELED' ||
-        error?.message === 'canceled';
+        error?.code === "ERR_CANCELED" ||
+        error?.message === "canceled";
 
       if (!isLogoutLikeFailure) {
-        console.error('Get Dashboard Overview Error:', error.response?.data || error.message);
+        console.error(
+          "Get Dashboard Overview Error:",
+          error.response?.data || error.message,
+        );
       }
 
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch dashboard overview',
+        error:
+          error.response?.data?.message || "Failed to fetch dashboard overview",
       };
     }
   },
   getCurrentSalesStatus: async () => {
     try {
-      const response = await api.get('/sales/current-status');
+      const response = await api.get("/sales/current-status");
       return response.data;
     } catch (error: any) {
-      console.error('Get Current Sales Status Error:', error.response?.data || error.message);
+      console.error(
+        "Get Current Sales Status Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch current sales status',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch current sales status",
       };
     }
   },
-  toggleSalesStatus: async (payload: { is_available: 0 | 1; reason?: string }) => {
+  toggleSalesStatus: async (payload: {
+    is_available: 0 | 1;
+    reason?: string;
+  }) => {
     try {
-      const response = await api.post('/sales/toggle-status', payload);
+      const response = await api.post("/sales/toggle-status", payload);
       return response.data;
     } catch (error: any) {
-      console.error('Toggle Sales Status Error:', error.response?.data || error.message);
+      console.error(
+        "Toggle Sales Status Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update sales status',
+        error: error.response?.data?.message || "Failed to update sales status",
       };
     }
   },
-  changeLeadSalesRep: async (leadId: number | string, sales_rep_id: number | string) => {
+  changeLeadSalesRep: async (
+    leadId: number | string,
+    sales_rep_id: number | string,
+  ) => {
     try {
-      const response = await api.put(`/sales/leads/${leadId}/change-sales-rep`, {
-        sales_rep_id: Number(sales_rep_id),
-      });
+      const response = await api.put(
+        `/sales/leads/${leadId}/change-sales-rep`,
+        {
+          sales_rep_id: Number(sales_rep_id),
+        },
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Change Lead Sales Rep Error:', error.response?.data || error.message);
+      console.error(
+        "Change Lead Sales Rep Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update assigned sales representative',
+        error:
+          error.response?.data?.message ||
+          "Failed to update assigned sales representative",
       };
     }
   },
@@ -5073,11 +6009,15 @@ export const salesApi = {
       const response = await api.put(`/sales/leads/${leadId}/assign-self`);
       return response.data;
     } catch (error: any) {
-      console.error('Assign Lead To Self Error:', error.response?.data || error.message);
+      console.error(
+        "Assign Lead To Self Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to assign lead to yourself',
+        error:
+          error.response?.data?.message || "Failed to assign lead to yourself",
       };
     }
   },
@@ -5086,38 +6026,63 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other" | "net30";
+      payment_mode:
+        | "cash"
+        | "wire"
+        | "ach"
+        | "zelle"
+        | "venmo"
+        | "cashapp"
+        | "applepay"
+        | "stripe"
+        | "other"
+        | "net30";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;
-    }
+    },
   ) => {
     try {
-      const response = await api.post(`/sales/leads/${leadId}/manual-payment`, payload);
+      const response = await api.post(
+        `/sales/leads/${leadId}/manual-payment`,
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Record Lead Manual Payment Error:', error.response?.data || error.message);
+      console.error(
+        "Record Lead Manual Payment Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to record manual payment',
+        error:
+          error.response?.data?.message || "Failed to record manual payment",
       };
     }
   },
   editLeadManualPayment: async (
     leadId: number | string,
     paymentId: number | string,
-    payload: { amount: number }
+    payload: { amount: number },
   ) => {
     try {
-      const response = await api.put(`/sales/leads/${leadId}/manual-payment/${paymentId}`, payload);
+      const response = await api.put(
+        `/sales/leads/${leadId}/manual-payment/${paymentId}`,
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Edit Lead Manual Payment Error:', error.response?.data || error.message);
+      console.error(
+        "Edit Lead Manual Payment Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update manual payment amount',
+        error:
+          error.response?.data?.message ||
+          "Failed to update manual payment amount",
       };
     }
   },
@@ -5126,21 +6091,38 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other" | "net30";
+      payment_mode:
+        | "cash"
+        | "wire"
+        | "ach"
+        | "zelle"
+        | "venmo"
+        | "cashapp"
+        | "applepay"
+        | "stripe"
+        | "other"
+        | "net30";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;
-    }
+    },
   ) => {
     try {
-      const response = await api.post(`/sales/client-leads/${leadId}/manual-payment`, payload);
+      const response = await api.post(
+        `/sales/client-leads/${leadId}/manual-payment`,
+        payload,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Record Client Lead Manual Payment Error:', error.response?.data || error.message);
+      console.error(
+        "Record Client Lead Manual Payment Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to record manual payment',
+        error:
+          error.response?.data?.message || "Failed to record manual payment",
       };
     }
   },
@@ -5148,22 +6130,31 @@ export const salesApi = {
     try {
       const formData = new FormData();
       formData.append("proof_file", file);
-      const response = await api.post('/sales/leads/manual-payment/upload-proof', formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await api.post(
+        "/sales/leads/manual-payment/upload-proof",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Upload Manual Payment Proof Error:', error.response?.data || error.message);
+      console.error(
+        "Upload Manual Payment Proof Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to upload proof file',
+        error: error.response?.data?.message || "Failed to upload proof file",
       };
     }
   },
   getLeadPaymentMeta: async (leadId: number | string, isClientLead = false) => {
     try {
-      const endpoint = isClientLead ? `/sales/client-leads/${leadId}` : `/sales/leads/${leadId}`;
+      const endpoint = isClientLead
+        ? `/sales/client-leads/${leadId}`
+        : `/sales/leads/${leadId}`;
       const response = await api.get(endpoint);
       const lead = response?.data?.data || null;
       return {
@@ -5171,39 +6162,62 @@ export const salesApi = {
         data: lead,
       };
     } catch (error: any) {
-      console.error('Get Lead Payment Meta Error:', error.response?.data || error.message);
+      console.error(
+        "Get Lead Payment Meta Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch lead payment details',
+        error:
+          error.response?.data?.message ||
+          "Failed to fetch lead payment details",
       };
     }
   },
-  changeClientLeadSalesRep: async (leadId: number | string, sales_rep_id: number | string) => {
+  changeClientLeadSalesRep: async (
+    leadId: number | string,
+    sales_rep_id: number | string,
+  ) => {
     try {
-      const response = await api.put(`/sales/client-leads/${leadId}/change-sales-rep`, {
-        sales_rep_id: Number(sales_rep_id),
-      });
+      const response = await api.put(
+        `/sales/client-leads/${leadId}/change-sales-rep`,
+        {
+          sales_rep_id: Number(sales_rep_id),
+        },
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Change Client Lead Sales Rep Error:', error.response?.data || error.message);
+      console.error(
+        "Change Client Lead Sales Rep Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to update assigned sales representative',
+        error:
+          error.response?.data?.message ||
+          "Failed to update assigned sales representative",
       };
     }
   },
   assignClientLeadToSelf: async (leadId: number | string) => {
     try {
-      const response = await api.put(`/sales/client-leads/${leadId}/assign-self`);
+      const response = await api.put(
+        `/sales/client-leads/${leadId}/assign-self`,
+      );
       return response.data;
     } catch (error: any) {
-      console.error('Assign Client Lead To Self Error:', error.response?.data || error.message);
+      console.error(
+        "Assign Client Lead To Self Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to assign client lead to yourself',
+        error:
+          error.response?.data?.message ||
+          "Failed to assign client lead to yourself",
       };
     }
   },
@@ -5212,11 +6226,11 @@ export const salesApi = {
       const response = await api.delete(`/sales/quotes/catalog/${id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Delete Quote Catalog Error:', error);
+      console.error("Delete Quote Catalog Error:", error);
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to delete catalog item',
+        error: error.response?.data?.message || "Failed to delete catalog item",
       };
     }
   },
@@ -5228,14 +6242,17 @@ export const salesApi = {
     signature_base64: string;
   }) => {
     try {
-      const response = await publicApi.post('/signatures/sign', payload);
+      const response = await publicApi.post("/signatures/sign", payload);
       return response.data;
     } catch (error: any) {
-      console.error('Save Signature Error:', error.response?.data || error.message);
+      console.error(
+        "Save Signature Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to save signature',
+        error: error.response?.data?.message || "Failed to save signature",
       };
     }
   },
@@ -5248,21 +6265,25 @@ export const salesApi = {
   }) => {
     try {
       const formData = new FormData();
-      formData.append('quote_id', String(payload.quote_id));
-      formData.append('signature', payload.signature);
-      formData.append('signer_email', payload.signer_email);
-      formData.append('signer_name', payload.signer_name);
+      formData.append("quote_id", String(payload.quote_id));
+      formData.append("signature", payload.signature);
+      formData.append("signer_email", payload.signer_email);
+      formData.append("signer_name", payload.signer_name);
 
-      const response = await publicApi.post('/signatures/sign', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const response = await publicApi.post("/signatures/sign", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
       return response.data;
     } catch (error: any) {
-      console.error('Sign And Accept Quote Error:', error.response?.data || error.message);
+      console.error(
+        "Sign And Accept Quote Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to sign and accept quote',
+        error:
+          error.response?.data?.message || "Failed to sign and accept quote",
       };
     }
   },
@@ -5272,17 +6293,22 @@ export const salesApi = {
       const response = await publicApi.get(`/signatures/quote/${quote_id}`);
       return response.data;
     } catch (error: any) {
-      console.error('Get Signature Error:', error.response?.data || error.message);
+      console.error(
+        "Get Signature Error:",
+        error.response?.data || error.message,
+      );
       return {
         success: false,
         data: null,
-        error: error.response?.data?.message || 'Failed to fetch signature',
+        error: error.response?.data?.message || "Failed to fetch signature",
       };
     }
   },
 
   downloadSignedPdf: (quote_id: number | string) => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_ENDPOINT || 'https://revure-api.beige.app/v1/';
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_ENDPOINT ||
+      "https://revure-api.beige.app/v1/";
     return `${baseUrl}signatures/download/${quote_id}`;
   },
 };
