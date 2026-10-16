@@ -32,6 +32,16 @@ export function OpenRecordsReassignModal({
   const { isDark } = useResolvedTheme();
 
   const total = openLeads + openQuotes + openPostProduction;
+  const recordCounts = [
+    openLeads > 0 ? `${openLeads} open ${openLeads === 1 ? "lead" : "leads"}` : null,
+    openQuotes > 0 ? `${openQuotes} open ${openQuotes === 1 ? "quote" : "quotes"}` : null,
+    openPostProduction > 0
+      ? `${openPostProduction} active post-production ${openPostProduction === 1 ? "record" : "records"}`
+      : null,
+  ].filter((count): count is string => count !== null);
+  const recordSummary = recordCounts.length < 2
+    ? recordCounts[0]
+    : `${recordCounts.slice(0, -1).join(", ")} and ${recordCounts[recordCounts.length - 1]}`;
 
   return (
     <Dialog
@@ -61,8 +71,8 @@ export function OpenRecordsReassignModal({
 
         <DialogDescription asChild>
           <p className={`mt-5 text-base leading-relaxed ${isDark ? "text-[#9A9A9A]" : "text-[#32323299]"}`}>
-            <span className={isDark ? "text-white" : "text-[#101010]"}>{userName}</span> currently has{" "}
-            <span className="text-[#F5A524]">{total} open records</span> assigned. Reassign these before deactivating.
+            This Sales Rep currently has{" "}
+            <span className="text-[#F5A524]">{recordSummary}</span> assigned to them. Reassign these records to {openPostProduction > 0 ? "eligible active owners" : "another active Sales Rep"} before deactivating this user.
           </p>
         </DialogDescription>
 
