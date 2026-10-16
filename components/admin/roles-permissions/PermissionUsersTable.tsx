@@ -86,7 +86,7 @@ const buildPaginationItems = (currentPage: number, totalPages: number) => {
 
 function StatusPill({ status }: { status: PermissionStatus }) {
   const active = status === "Active";
-  const displayStatus = active ? "Active" : "Archived";
+  const displayStatus = active ? "Active" : "Inactive";
 
   return (
     <span
@@ -585,7 +585,7 @@ export function PermissionUsersTable({
                 <SelectContent className={selectContentClass}>
                   <SelectItem value="all">Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="in-active">Archived</SelectItem>
+                  <SelectItem value="in-active">Inactive</SelectItem>
                 </SelectContent>
               </Select>
 

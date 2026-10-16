@@ -184,6 +184,7 @@ export default function AdminRoleEditDetailsRoute() {
   const [isOpenRecordsModalOpen, setIsOpenRecordsModalOpen] = useState(false);
   const [openLeadsCount, setOpenLeadsCount] = useState(0);
   const [openQuotesCount, setOpenQuotesCount] = useState(0);
+  const [openPostProductionCount, setOpenPostProductionCount] = useState(0); 
   const [error, setError] = useState("");
   const [rows, setRows] = useState<PermissionMatrixRow[]>([]);
   const [roleName, setRoleName] = useState("Role");
@@ -584,10 +585,14 @@ export default function AdminRoleEditDetailsRoute() {
       }
       const leadsCount = Number(response.count ?? response.data.leads?.length ?? 0);
       const quotesCount = Number(response.quote_count ?? response.data.quotes?.length ?? 0);
+      const postProductionCount = Number(
+        response.post_production_count ?? response.data.post_production?.length ?? 0,
+      );
       setOpenLeadsCount(leadsCount);
       setOpenQuotesCount(quotesCount);
+      setOpenPostProductionCount(postProductionCount);
 
-      if (leadsCount + quotesCount > 0) {
+      if (leadsCount + quotesCount + postProductionCount > 0) {
         setIsOpenRecordsModalOpen(true);
       } else {
         setIsDeleteModalOpen(true);
@@ -612,8 +617,8 @@ export default function AdminRoleEditDetailsRoute() {
   const deleteDescription =
     mode === "role"
       ? `Are you sure you want to delete ${roleName}? This action cannot be undone.`
-      : openLeadsCount === 0 && openQuotesCount === 0
-        ? "This Sales Rep has no open leads or quotes assigned to them. You can deactivate this user."
+      : openLeadsCount === 0 && openQuotesCount === 0 && openPostProductionCount === 0
+        ? "This user has no open records assigned to them. You can deactivate this user."
         : `Are you sure you want to delete ${userName}? This action cannot be undone.`;
   const deleteLabel = mode === "role" ? "Delete Role" : "Delete User";
   const primaryActionLabel = useMemo(() => {
@@ -725,6 +730,7 @@ export default function AdminRoleEditDetailsRoute() {
         userName={userName}
         openLeads={openLeadsCount}
         openQuotes={openQuotesCount}
+        openPostProduction={openPostProductionCount}
       />
 
       <ActionModal

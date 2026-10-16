@@ -60,6 +60,14 @@ const BOOKING_STATUS_STYLES: Record<
   // --- Ready Group ---
   "Ready for Payment": { bg: "bg-[#FFCA9E]", text: "text-[#BE5C0B]" },
 
+  // --- Shoot production stages ---
+  "Pre Production": { bg: "bg-[#AAD0FF]", text: "text-[#0C52A8]" },
+  "Shoot Day": { bg: "bg-[#86DAFF]", text: "text-[#0F77A6]" },
+  "Post Production": { bg: "bg-[#E6DBFF]", text: "text-[#744EE6]" },
+  "Revision": { bg: "bg-[#FFF4C9]", text: "text-[#BA6605]" },
+  "Completed": { bg: "bg-[#D4FFE4]", text: "text-[#16A34A]" },
+  "Assets Delivered": { bg: "bg-[#D4FFE4]", text: "text-[#16A34A]" },
+
   // --- Success Group ---
   "Booked": { bg: "bg-[#D4FFE4]", text: "text-[#16A34A]" },
   "Paid": { bg: "bg-[#D4FFE4]", text: "text-[#16A34A]" },

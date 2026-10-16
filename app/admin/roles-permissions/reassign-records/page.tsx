@@ -55,7 +55,17 @@ const mapReassignmentRecords = (data: any): ReassignRecord[] => {
         ...(data?.quotes ?? []).map((quote: any) => ({ ...quote, record_type: "quote" })),
       ];
 
-  return orderedRecords.map((record: any) => record.record_type === "lead"
+  return orderedRecords.map((record: any) => record.record_type === "post_production"
+    ? {
+        id: record.record_id, // "P-<projectId>", matches the backend prefix
+        displayId: record.project_id ?? "-",
+        href: `/admin/shoots/${encodeURIComponent(record.project_id)}`, // change to your shoot details route
+        clientName: record.client_name || "—",
+        type: "Post Production",
+        status: record.timeline_label || "—",
+        amount: Number(record.total_value_amount ?? record.budget ?? 0),
+      }
+    : record.record_type === "lead"
     ? {
         id: `L-${record.lead_id}`,
         displayId: record.booking_id ?? "-",
@@ -83,16 +93,18 @@ function ReassignRecordsContent() {
   const [user, setUser] = useState({ name: "User", roleLabel: "" });
   const [records, setRecords] = useState<ReassignRecord[]>([]);
   const [reps, setReps] = useState<SalesRep[]>([]);
+  const [postProductionReps, setPostProductionReps] = useState<SalesRep[]>([]);
   const [history, setHistory] = useState<AssignmentHistoryItem[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
   const [recordsError, setRecordsError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [typeFilter, setTypeFilter] = useState<"all" | "Lead" | "Quote">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "Lead" | "Quote" | "Post Production">("all");
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalLeads, setTotalLeads] = useState(0);
   const [totalQuotes, setTotalQuotes] = useState(0);
+  const [totalPostProduction, setTotalPostProduction] = useState(0);
   const { allowed, isLoading } = useRequireModulePermission(
     "roles_permissions",
     "edit",
@@ -136,7 +148,7 @@ function ReassignRecordsContent() {
       }
       setHistory(response.data.map((row: any) => ({
         recordId: row.display_record_id ?? "—",
-        action: `${String(row.record_type || "record").replace(/^./, (letter: string) => letter.toUpperCase())} reassigned${row.actor_name ? ` by ${row.actor_name}` : ""}`,
+        action: `${formatRoleLabel(row.record_type) || "Record"} reassigned${row.actor_name ? ` by ${row.actor_name}` : ""}`,
         from: row.from_name || "Unknown user",
         to: row.to_name || "Unknown user",
         date: (row.created_at_utc || row.created_at) ? new Date(row.created_at_utc || row.created_at).toLocaleString("en-US", {
@@ -182,6 +194,7 @@ function ReassignRecordsContent() {
       setTotalRecords(Number(response.total_count ?? (response.count || 0) + (response.quote_count || 0)));
       setTotalLeads(Number(response.count || 0));
       setTotalQuotes(Number(response.quote_count || 0));
+      setTotalPostProduction(Number(response.post_production_count || 0));
       if (Number(response.page) && Number(response.page) !== page) setPage(Number(response.page));
       setRecordsLoading(false);
     };
@@ -216,7 +229,24 @@ function ReassignRecordsContent() {
       );
     };
 
+    const loadPostProductionReps = async () => {
+      const response = await adminApi.getPostProductionTeamOptions();
+      if (!isActive) return;
+      const list = Array.isArray(response?.data) ? response.data : [];
+      setPostProductionReps(
+        list
+          .filter((member: any) => String(member.id) !== String(userId))
+          .map((member: any) => ({
+            id: String(member.id),
+            name: member.name || `User #${member.id}`,
+            email: member.email || "",
+            roleLabel: formatRoleLabel(member.role_name) || "Post Production",
+          })),
+      );
+    };
+
     void loadSalesReps();
+    void loadPostProductionReps();
     return () => {
       isActive = false;
     };
@@ -237,6 +267,8 @@ function ReassignRecordsContent() {
         user={user}
         records={records}
         reps={reps}
+        totalPostProduction={totalPostProduction}
+        postProductionReps={postProductionReps}
         totalRecords={totalRecords}
         totalLeads={totalLeads}
         totalQuotes={totalQuotes}
@@ -271,6 +303,7 @@ function ReassignRecordsContent() {
             setTotalRecords(Number(refreshedRecordsResponse.total_count || 0));
             setTotalLeads(Number(refreshedRecordsResponse.count || 0));
             setTotalQuotes(Number(refreshedRecordsResponse.quote_count || 0));
+            setTotalPostProduction(Number(refreshedRecordsResponse.post_production_count || 0));
             if (Number(refreshedRecordsResponse.page) && Number(refreshedRecordsResponse.page) !== page) {
               setPage(Number(refreshedRecordsResponse.page));
             }
@@ -280,7 +313,7 @@ function ReassignRecordsContent() {
           if (historyResponse?.success && Array.isArray(historyResponse.data)) {
             setHistory(historyResponse.data.map((row: any) => ({
               recordId: row.display_record_id ?? "—",
-              action: `${String(row.record_type || "record").replace(/^./, (letter: string) => letter.toUpperCase())} reassigned${row.actor_name ? ` by ${row.actor_name}` : ""}`,
+              action: `${formatRoleLabel(row.record_type) || "Record"} reassigned${row.actor_name ? ` by ${row.actor_name}` : ""}`,
               from: row.from_name || "Unknown user",
               to: row.to_name || "Unknown user",
               date: (row.created_at_utc || row.created_at) ? new Date(row.created_at_utc || row.created_at).toLocaleString("en-US", {
