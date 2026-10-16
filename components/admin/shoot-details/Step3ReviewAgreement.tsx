@@ -20,6 +20,7 @@ interface Step3ReviewAgreementProps {
   onOpenSendDialog: () => void;
   onPrevious: () => void;
   onSave: () => void;
+  receiverType?: "cp" | "editor";
 }
 
 export function Step3ReviewAgreement({
@@ -36,6 +37,7 @@ export function Step3ReviewAgreement({
   onOpenSendDialog,
   onPrevious,
   onSave,
+  receiverType = "cp",
 }: Step3ReviewAgreementProps) {
   const reviewCP = cpList[reviewCpIndex];
   const isCommon = selectedMode === "common";

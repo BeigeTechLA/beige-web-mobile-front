@@ -45,6 +45,7 @@ interface Step2AgreementDetailsProps {
   updateSectionContent: (id: string, content: string) => void;
   onNext: () => void;
   onPrevious: () => void;
+  receiverType?: "cp" | "editor";
 }
 
 export function Step2AgreementDetails({
@@ -66,6 +67,7 @@ export function Step2AgreementDetails({
   updateSectionContent,
   onNext,
   onPrevious,
+  receiverType = "cp",
 }: Step2AgreementDetailsProps) {
   const isCommon = selectedMode === "common";
 
@@ -155,32 +157,35 @@ export function Step2AgreementDetails({
       {isCommon ? (
         <>
           {/* Agreement Recipients Card */}
-          <div className={`border rounded-2xl ${isDark ? "bg-[#101010] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
-            <h2 className={`p-5 lg:p-9 text-base lg:text-xl font-medium rounded-2xl ${isDark ? "bg-[#090909] text-white" : "bg-[#E2E8F0]/40 text-black"}`}>
-              Agreement Recipients
-            </h2>
-            <div className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`} />
-            <div className="px-5 py-3 lg:p-9 flex flex-wrap items-center gap-6">
-              {cpList.map((cp) => (
-                <div key={cp.id} className="flex items-center gap-3">
-                  <div
-                    className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-medium border ${isDark
-                      ? "bg-[#1E1E1C] text-[#A8A8A6] border-[#2A2A28]"
-                      : "bg-[#F0F0F0] text-black/80"
-                      }`}
-                  >
-                    {cp.initials}
+          {
+            receiverType === "cp" &&
+            <div className={`border rounded-2xl ${isDark ? "bg-[#101010] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
+              <h2 className={`p-5 lg:p-9 text-base lg:text-xl font-medium rounded-2xl ${isDark ? "bg-[#090909] text-white" : "bg-[#E2E8F0]/40 text-black"}`}>
+                Agreement Recipients
+              </h2>
+              <div className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`} />
+              <div className="px-5 py-3 lg:p-9 flex flex-wrap items-center gap-6">
+                {cpList.map((cp) => (
+                  <div key={cp.id} className="flex items-center gap-3">
+                    <div
+                      className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-medium border ${isDark
+                        ? "bg-[#1E1E1C] text-[#A8A8A6] border-[#2A2A28]"
+                        : "bg-[#F0F0F0] text-black/80"
+                        }`}
+                    >
+                      {cp.initials}
+                    </div>
+                    <p className={`text-sm lg:text-base font-medium ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
+                      {cp.name}{""}
+                      <span className={`ml-4 ${isDark ? "text-[#E8D1AB]" : "text-black/50"}`}>
+                        {cp.role}
+                      </span>
+                    </p>
                   </div>
-                  <p className={`text-sm lg:text-base font-medium ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
-                    {cp.name}{""}
-                    <span className={`ml-4 ${isDark ? "text-[#E8D1AB]" : "text-black/50"}`}>
-                      {cp.role}
-                    </span>
-                  </p>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          }
 
           {/* Project Detail Card */}
           <div className={`border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
@@ -211,107 +216,128 @@ export function Step2AgreementDetails({
                   </span>
                 </p>
               </div>
-              <p className={isDark ? "text-[#AAA7A7]" : "text-black/60"}>
-                Creative Partner :{" "}
-                <span className={isDark ? "text-[#E8D1AB]" : "text-black"}>
-                  {cpList.map((cp, index) => (
-                    <React.Fragment key={cp.id || index}>
-                      <span>{cp.name}</span>
-                      <span className={isDark ? "text-white/60" : "text-gray-500"}>
-                        {` (${cp.role})`}
-                      </span>
-                      {index < cpList.length - 1 && (
-                        <span className={isDark ? "text-white/60" : "text-gray-500"}>, </span>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </span>
-              </p>
+              {
+                receiverType === "cp" ? <>
+                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/60"}>
+                    Creative Partner :{" "}
+                    <span className={isDark ? "text-[#E8D1AB]" : "text-black"}>
+                      {cpList.map((cp, index) => (
+                        <React.Fragment key={cp.id || index}>
+                          <span>{cp.name}</span>
+                          <span className={isDark ? "text-white/60" : "text-gray-500"}>
+                            {` (${cp.role})`}
+                          </span>
+                          {index < cpList.length - 1 && (
+                            <span className={isDark ? "text-white/60" : "text-gray-500"}>, </span>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </span>
+                  </p>
+                </> : <>
+                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/60"}>
+                    External Editors :{" "}
+                    <span className={isDark ? "text-[#C3B9FD]" : "text-black"}>
+                      {cpList.map((cp, index) => (
+                        <React.Fragment key={cp.id || index}>
+                          <span>{cp.name}</span>
+                          {index < cpList.length - 1 && (
+                            <span className={isDark ? "text-white/60" : "text-gray-500"}>, </span>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </span>
+                  </p>
+                </>
+              }
             </div>
           </div>
 
-           {/* Production Information Card */}
-          <div className={`border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
-            <h2 className={`p-4 lg:p-8 text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-              Production Information
-            </h2>
-            <div className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`} />
-            <div className="px-4 py-6 lg:p-8 grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-10">
-              <DatePickerFloating
-                selectedDate={productionDate}
-                onDateChange={setProductionDate}
-                width="w-full"
-                classnames={`pointer-none w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] relative rounded-xl border ${isDark
-                  ? "text-white placeholder:text-white/20"
-                  : "text-black placeholder:text-gray-400"
-                  }`}
-                labelClasses={`${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
-                  } text-sm lg:text-base z-10 px-2`}
-                label="Production Date"
-              />
-
-              <div
-                className={`relative rounded-xl border ${isDark
-                  ? "border-white/20 bg-[#171717]"
-                  : "border-gray-300 bg-white"
-                  }`}
-              >
-                <label className={`text-sm lg:text-base absolute -top-2.5 lg:-top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"}`}>
-                  Location
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. General Terms of Service"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
+          {/* Production Information Card */}
+          {
+            receiverType === "cp" &&
+            <div className={`border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
+              <h2 className={`p-4 lg:p-8 text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                Production Information
+              </h2>
+              <div className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`} />
+              <div className="px-4 py-6 lg:p-8 grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-10">
+                <DatePickerFloating
+                  selectedDate={productionDate}
+                  onDateChange={setProductionDate}
+                  width="w-full"
+                  classnames={`pointer-none w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] relative rounded-xl border ${isDark
                     ? "text-white placeholder:text-white/20"
                     : "text-black placeholder:text-gray-400"
                     }`}
+                  labelClasses={`${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
+                    } text-sm lg:text-base z-10 px-2`}
+                  label="Production Date"
                 />
-              </div>
 
-              <div
-                className={`relative rounded-xl border ${isDark
-                  ? "border-white/20 bg-[#171717]"
-                  : "border-gray-300 bg-white"
-                  }`}
-              >
-                <label className={`text-sm lg:text-base absolute -top-2.5 lg:-top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"}`}>
-                  Call Time
-                </label>
-                <input
-                  type="text"
-                  value={callTime}
-                  onChange={(e) => setCallTime(e.target.value)}
-                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
-                    ? "text-white placeholder:text-white/20"
-                    : "text-black placeholder:text-gray-400"
+                <div
+                  className={`relative rounded-xl border ${isDark
+                    ? "border-white/20 bg-[#171717]"
+                    : "border-gray-300 bg-white"
                     }`}
-                />
-              </div>
+                >
+                  <label className={`text-sm lg:text-base absolute -top-2.5 lg:-top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"}`}>
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. General Terms of Service"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
+                      ? "text-white placeholder:text-white/20"
+                      : "text-black placeholder:text-gray-400"
+                      }`}
+                  />
+                </div>
 
-              <div
-                className={`relative rounded-xl border ${isDark
-                  ? "border-white/20 bg-[#171717]"
-                  : "border-gray-300 bg-white"
-                  }`}
-              >
-                <label className={`text-sm lg:text-base absolute -top-2.5 lg:-top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"}`}>
-                  Expected End Time / Duration
-                </label>
-                <input
-                  type="text"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
-                    ? "text-white placeholder:text-white/20"
-                    : "text-black placeholder:text-gray-400"
+                <div
+                  className={`relative rounded-xl border ${isDark
+                    ? "border-white/20 bg-[#171717]"
+                    : "border-gray-300 bg-white"
                     }`}
-                />
+                >
+                  <label className={`text-sm lg:text-base absolute -top-2.5 lg:-top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"}`}>
+                    Call Time
+                  </label>
+                  <input
+                    type="text"
+                    value={callTime}
+                    onChange={(e) => setCallTime(e.target.value)}
+                    className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
+                      ? "text-white placeholder:text-white/20"
+                      : "text-black placeholder:text-gray-400"
+                      }`}
+                  />
+                </div>
+
+                <div
+                  className={`relative rounded-xl border ${isDark
+                    ? "border-white/20 bg-[#171717]"
+                    : "border-gray-300 bg-white"
+                    }`}
+                >
+                  <label className={`text-sm lg:text-base absolute -top-2.5 lg:-top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"}`}>
+                    Expected End Time / Duration
+                  </label>
+                  <input
+                    type="text"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
+                      ? "text-white placeholder:text-white/20"
+                      : "text-black placeholder:text-gray-400"
+                      }`}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          }
 
           {/* Compensation Card */}
           <div className={`border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
@@ -350,155 +376,239 @@ export function Step2AgreementDetails({
         </>
       ) : (
         <>
-          { /* Individual Mode Project Detail Card */}
-          <div className={`border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
-            <h2 className={`p-4 lg:p-8 text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-              Project Detail
-            </h2>
-            <div className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`} />
-            <div className="p-4 lg:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div
-                className={`w-14 h-14 lg:w-21 lg:h-21 rounded-2xl flex items-center justify-center font-semibold text-lg lg:text-3xl shrink-0 ${isDark
-                  ? "bg-[#363434] text-[#E8D1AB]"
-                  : "bg-[#E0E0E0] text-black/80"
-                  }`}
-              >
-                {currentCP.initials}
-              </div>
-              <div className="space-y-1.5 lg:space-y-3">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h3 className={`text-lg lg:text-2xl font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                    {currentCP.name} ({currentCP.role})
-                  </h3>
-                  <div className="bg-[#E8D1AB] text-black px-4 py-1 rounded-full text-xs flex items-center gap-1">
-                    <span className="font-semibold text-sm">
-                      {currentCP.compensation}
-                    </span>
-                    <span className="opacity-70">Total Compensation</span>
+          {
+            receiverType === "cp" ?
+              <>
+                { /* Individual Mode Project Detail Card */}
+                <div className={`border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
+                  <h2 className={`p-4 lg:p-8 text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                    Project Detail
+                  </h2>
+                  <div className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`} />
+                  <div className="p-4 lg:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div
+                      className={`w-14 h-14 lg:w-21 lg:h-21 rounded-2xl flex items-center justify-center font-semibold text-lg lg:text-3xl shrink-0 ${isDark
+                        ? "bg-[#363434] text-[#E8D1AB]"
+                        : "bg-[#E0E0E0] text-black/80"
+                        }`}
+                    >
+                      {currentCP.initials}
+                    </div>
+                    <div className="space-y-1.5 lg:space-y-3">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className={`text-lg lg:text-2xl font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                          {currentCP.name} ({currentCP.role})
+                        </h3>
+                        <div className="bg-[#E8D1AB] text-black px-4 py-1 rounded-full text-xs flex items-center gap-1">
+                          <span className="font-semibold text-sm">
+                            {currentCP.compensation}
+                          </span>
+                          <span className="opacity-70">Total Compensation</span>
+                        </div>
+                      </div>
+
+                      <div className={`flex gap-4 text-xs lg:text-sm ${isDark ? "text-[#AAA7A7]" : "text-black/60"}`}>
+                        <p>
+                          Project Name :{" "}
+                          <span className={isDark ? "text-white" : "text-black"}>
+                            {currentCP.projectName}
+                          </span>
+                        </p>
+                        <span className="hidden lg:block">|</span>
+                        <p>
+                          Project ID :{" "}
+                          <span className={isDark ? "text-white" : "text-black"}>
+                            {currentCP.projectId}
+                          </span>
+                        </p>
+                        <span className="hidden lg:block">|</span>
+                        <p>
+                          Assignment ID :{" "}
+                          <span className={isDark ? "text-white" : "text-black"}>
+                            {currentCP.assignmentId}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
+                {/* Production Information Card */}
+                <div className={`border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
+                  <h2 className={`p-4 lg:p-8 text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                    Production Information
+                  </h2>
+                  <div
+                    className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`}
+                  />
+                  <div className="p-4 lg:p-8 grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-10">
+                    <DatePickerFloating
+                      selectedDate={productionDate}
+                      onDateChange={setProductionDate}
+                      width="w-full"
+                      classnames={`pointer-none w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] relative rounded-xl border ${isDark
+                        ? "text-white placeholder:text-white/20"
+                        : "text-black placeholder:text-gray-400"
+                        }`}
+                      labelClasses={`${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
+                        } text-sm lg:text-base z-10 px-2`}
+                      label="Production Date"
+                    />
 
-                <div className={`flex gap-4 text-xs lg:text-sm ${isDark ? "text-[#AAA7A7]" : "text-black/60"}`}>
-                  <p>
-                    Project Name :{" "}
-                    <span className={isDark ? "text-white" : "text-black"}>
-                      {currentCP.projectName}
-                    </span>
-                  </p>
-                  <span className="hidden lg:block">|</span>
-                  <p>
-                    Project ID :{" "}
-                    <span className={isDark ? "text-white" : "text-black"}>
-                      {currentCP.projectId}
-                    </span>
-                  </p>
-                  <span className="hidden lg:block">|</span>
-                  <p>
-                    Assignment ID :{" "}
-                    <span className={isDark ? "text-white" : "text-black"}>
-                      {currentCP.assignmentId}
-                    </span>
-                  </p>
+                    <div
+                      className={`relative rounded-xl border ${isDark
+                        ? "border-white/20 bg-[#171717]"
+                        : "border-gray-300 bg-white"
+                        }`}
+                    >
+                      <label
+                        className={`absolute -top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
+                          }`}
+                      >
+                        Location
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. General Terms of Service"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
+                          ? "text-white placeholder:text-white/20"
+                          : "text-black placeholder:text-gray-400"
+                          }`}
+                      />
+                    </div>
+
+                    <div
+                      className={`relative rounded-xl border ${isDark
+                        ? "border-white/20 bg-[#171717]"
+                        : "border-gray-300 bg-white"
+                        }`}
+                    >
+                      <label
+                        className={`absolute -top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
+                          }`}
+                      >
+                        Call Time
+                      </label>
+                      <input
+                        type="text"
+                        value={callTime}
+                        onChange={(e) => setCallTime(e.target.value)}
+                        className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
+                          ? "text-white placeholder:text-white/20"
+                          : "text-black placeholder:text-gray-400"
+                          }`}
+                      />
+                    </div>
+
+                    <div
+                      className={`relative rounded-xl border ${isDark
+                        ? "border-white/20 bg-[#171717]"
+                        : "border-gray-300 bg-white"
+                        }`}
+                    >
+                      <label
+                        className={`absolute -top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
+                          }`}
+                      >
+                        Expected End Time / Duration
+                      </label>
+                      <input
+                        type="text"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
+                          ? "text-white placeholder:text-white/20"
+                          : "text-black placeholder:text-gray-400"
+                          }`}
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
+              </> : <>
+                {/* Project Detail Card */}
+                <div className={`border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
+                  <h2 className={`p-4 lg:p-9 text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                    Project Detail
+                  </h2>
+                  <div className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`} />
+                  <div className="p-4 lg:p-9 space-y-3 text-xs lg:text-sm">
+                    <div className={`flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-3 lg:gap-5 ${isDark ? "text-[#AAA7A7]" : "text-black/60"}`}>
+                      <p>
+                        Project Name :{" "}
+                        <span className={isDark ? "text-white" : "text-black"}>
+                          {cpList[0]?.projectName || "Wedding Videography"}
+                        </span>
+                      </p>
+                      <span className="hidden lg:block">|</span>
+                      <p>
+                        Project ID :{" "}
+                        <span className={isDark ? "text-white" : "text-black"}>
+                          {cpList[0]?.projectId || "PRJ-1024"}
+                        </span>
+                      </p>
+                      <span className="hidden lg:block">|</span>
+                      <p>
+                        Assignment ID :{" "}
+                        <span className={isDark ? "text-white" : "text-black"}>
+                          {cpList[0]?.assignmentId || "ASN-2012"}
+                        </span>
+                      </p>
+                      <span className="hidden lg:block">|</span>
+                      <p>
+                        Editor Name :{" "}
+                        <span className={isDark ? "text-[#E8D1AB]" : "text-black"}>
+                          {cpList[0]?.name || "ASN-2012"}
+                        </span>
+                      </p>
+                      <span className="hidden lg:block">|</span>
+                      <p>
+                        Role :{" "}
+                        <span className={isDark ? "text-[#C3B9FD]" : "text-black"}>
+                          External Editor
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {/* Compensation Card */}
+                <div className={`border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
+                  <h2 className={`p-4 lg:p-9 text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
+                    Compensation
+                  </h2>
+                  <div className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`} />
+                  <div className="p-4 lg:p-9 space-y-4">
+                    
+                      <div
+                        key={cpList[0].id}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-medium ${isDark
+                              ? "bg-[#1E1E1C] text-[#A8A8A6]"
+                              : "bg-[#F0F0F0] text-black/80"
+                              }`}
+                          >
+                            {cpList[0].initials}
+                          </div>
+                          <span className={`text-sm lg:text-base font-medium ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
+                            {cpList[0].name}
+                          </span>
+                        </div>
 
-          {/* Production Information Card */}
-          <div className={`border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E2E8F0]"}`}>
-            <h2 className={`p-4 lg:p-8 text-base lg:text-xl font-medium ${isDark ? "text-white" : "text-black"}`}>
-              Production Information
-            </h2>
-            <div
-              className={`h-[1px] w-full border-b ${isDark ? "border-[#3D3D3D]" : "border-black/10"}`}
-            />
-            <div className="p-4 lg:p-8 grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-10">
-              <DatePickerFloating
-                selectedDate={productionDate}
-                onDateChange={setProductionDate}
-                width="w-full"
-                classnames={`pointer-none w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] relative rounded-xl border ${isDark
-                  ? "text-white placeholder:text-white/20"
-                  : "text-black placeholder:text-gray-400"
-                  }`}
-                labelClasses={`${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
-                  } text-sm lg:text-base z-10 px-2`}
-                label="Production Date"
-              />
-
-              <div
-                className={`relative rounded-xl border ${isDark
-                  ? "border-white/20 bg-[#171717]"
-                  : "border-gray-300 bg-white"
-                  }`}
-              >
-                <label
-                  className={`absolute -top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
-                    }`}
-                >
-                  Location
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. General Terms of Service"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
-                    ? "text-white placeholder:text-white/20"
-                    : "text-black placeholder:text-gray-400"
-                    }`}
-                />
-              </div>
-
-              <div
-                className={`relative rounded-xl border ${isDark
-                  ? "border-white/20 bg-[#171717]"
-                  : "border-gray-300 bg-white"
-                  }`}
-              >
-                <label
-                  className={`absolute -top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
-                    }`}
-                >
-                  Call Time
-                </label>
-                <input
-                  type="text"
-                  value={callTime}
-                  onChange={(e) => setCallTime(e.target.value)}
-                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
-                    ? "text-white placeholder:text-white/20"
-                    : "text-black placeholder:text-gray-400"
-                    }`}
-                />
-              </div>
-
-              <div
-                className={`relative rounded-xl border ${isDark
-                  ? "border-white/20 bg-[#171717]"
-                  : "border-gray-300 bg-white"
-                  }`}
-              >
-                <label
-                  className={`absolute -top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
-                    }`}
-                >
-                  Expected End Time / Duration
-                </label>
-                <input
-                  type="text"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
-                    ? "text-white placeholder:text-white/20"
-                    : "text-black placeholder:text-gray-400"
-                    }`}
-                />
-              </div>
-            </div>
-          </div>
+                        <div className="bg-[#E8D1AB] text-[#171717] px-3 lg:px-5 py-2.5 rounded-full text-xs flex items-center gap-1.5">
+                          <span className="text-sm lg:text-base font-semibold">{cpList[0].compensation}</span>
+                          <span className="text-[#171717]/60">Compensation</span>
+                        </div>
+                      </div>
+                  </div>
+                </div>
+              </>
+          }
         </>
-      )}
+      )
+      }
 
       {/* Section Accordions */}
       <div className="flex flex-col gap-4">
@@ -524,7 +634,7 @@ export function Step2AgreementDetails({
                   size={16}
                   className={isDark ? "text-[#6E6E6B]" : "text-black/30"}
                 />
-                <span className={`text-xs font-medium mr-2 ${isDark ? "text-[#E8D1AB]" : "text-black/60" }`}>
+                <span className={`text-xs font-medium mr-2 ${isDark ? "text-[#E8D1AB]" : "text-black/60"}`}>
                   {String(idx + 1).padStart(2, "0")}
                 </span>
                 <div>
@@ -725,6 +835,6 @@ export function Step2AgreementDetails({
           Continue
         </Button>
       </div>
-    </div>
+    </div >
   );
 }

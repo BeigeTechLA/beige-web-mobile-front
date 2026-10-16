@@ -4,7 +4,7 @@ import React, { useState, useEffect, use } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Topbar from "@/components/admin/Topbar";
 import ShootHeader from "@/components/admin/shoot-details/ShootHeader";
-import ProjectTeam from "@/components/admin/shoot-details/ProjectTeam";
+import ProjectTeam from "@/components/admin/shoot-details/ProjectTeam_old";
 import AssignedCP from "@/components/admin/shoot-details/AssignedCP";
 import MeetingSchedule from "@/components/admin/shoot-details/MeetingSchedule";
 import ProjectTimeline from "@/components/admin/shoot-details/ProjectTimeline";
