@@ -47,6 +47,8 @@ import WorkspaceAccessModal from "@/components/admin/file-manager/WorkspaceAcces
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { getFileManagerRouteState, getFileManagerRouteStateKey, setFileManagerRouteState } from "@/lib/fileManagerRouteState";
+import { useAuth } from "@/lib/hooks/useAuth";
+import EditorFileManager from "@/components/admin/file-manager/EditorFileManager";
 
 const STATUSES = ["Linked", "Unlinked"];
 const LIST_PAGE_SIZE = 10;
@@ -125,7 +127,7 @@ const formatActivityDate = (value?: string) => {
   }).format(parsed);
 };
 
-export default function AdminFolderManagerPage() {
+function AdminFolderManagerContent() {
   const router = useRouter();
   const pathname = usePathname();
   const routeStateKey = getFileManagerRouteStateKey(pathname);
@@ -1283,4 +1285,13 @@ export default function AdminFolderManagerPage() {
       </div>
     </>
   );
+}
+
+export default function AdminFolderManagerPage() {
+  const { user } = useAuth();
+  const isCustomEditor = [user?.role, user?.userRole]
+    .some((role) => String(role || "").trim().toLowerCase() === "editor");
+
+  if (isCustomEditor) return <EditorFileManager />;
+  return <AdminFolderManagerContent />;
 }

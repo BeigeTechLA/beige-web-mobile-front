@@ -13,6 +13,7 @@ interface UploadModalProps {
   existingFileNames?: string[];
   onUploadComplete?: () => Promise<void> | void;
   isDark?: boolean;
+  mockOnly?: boolean;
 }
 
 type UploadStatus = "queued" | "uploading" | "uploaded" | "failed" | "skipped";
@@ -81,6 +82,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
   existingFileNames = [],
   onUploadComplete,
   isDark = true,
+  mockOnly = false,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<UploadQueueItem[]>([]);
@@ -204,6 +206,25 @@ const UploadModal: React.FC<UploadModalProps> = ({
     }
   }, [isOpen, isUploading]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      cancelUploadRef.current = true;
+      activeUploadControllersRef.current.forEach((controller) => controller.abort());
+      setSelectedFiles((prev) => {
+        prev.forEach((item) => revokePreviewUrl(item.previewUrl));
+        return [];
+      });
+      setDetectedConflictIds([]);
+      setConflictResolutions({});
+      setConflictSearch("");
+      onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, isUploading, onClose]);
+
   if (!isOpen) return null;
 
   const handleDrag = (e: React.DragEvent) => {
@@ -269,7 +290,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    handleFiles(e.dataTransfer.files);
+    if (!mockOnly) handleFiles(e.dataTransfer.files);
   };
 
   const removeFile = (id: string) => {
@@ -449,6 +470,17 @@ const UploadModal: React.FC<UploadModalProps> = ({
   };
 
   const handleUpload = async (requestedMode?: unknown) => {
+    if (mockOnly) {
+      try {
+        setIsUploading(true);
+        await onUploadComplete?.();
+        onClose();
+      } finally {
+        setIsUploading(false);
+      }
+      return;
+    }
+
     const mode = requestedMode === "failedOnly" ? "failedOnly" : "all";
 
     if (!uploadPath) {
@@ -1004,7 +1036,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
           <p className={`mt-1 text-sm ${isDark ? "text-white/60" : "text-zinc-500"}`}>
             Files will be uploaded to the folder <span className={isDark ? "text-white/80" : "text-zinc-800 font-medium"}>{folderName}</span>
           </p>
-          {uploadPath ? (
+          {mockOnly ? null : uploadPath ? (
             <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-zinc-400"}`}>{uploadPath}</p>
           ) : (
             <p className={`mt-1 text-xs ${isDark ? "text-red-300" : "text-red-500"}`}>Open a folder before uploading files.</p>
@@ -1131,7 +1163,9 @@ const UploadModal: React.FC<UploadModalProps> = ({
             onDragOver={handleDrag}
             onDragLeave={handleDrag}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              if (!mockOnly) fileInputRef.current?.click();
+            }}
             className={`group relative flex ${detectedConflictIds.length > 0 ? "h-[140px]" : "h-[185px]"} cursor-pointer flex-col items-center justify-center rounded-[10px] border transition-all duration-200 
           ${isDragging
                 ? isDark ? "border-[#E8D1AB] bg-[#E8D1AB]/5" : "border-black bg-zinc-50"
@@ -1140,7 +1174,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
                   : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 hover:bg-zinc-100"
               }`}
           >
-            <input type="file" className="hidden" ref={fileInputRef} multiple onChange={(e) => handleFiles(e.target.files)} />
+            {!mockOnly && <input type="file" className="hidden" ref={fileInputRef} multiple onChange={(e) => handleFiles(e.target.files)} />}
 
             <div className="mb-4 flex h-16 w-16 items-center justify-center">
               <UploadCloud className={isDark ? "text-[#E8D1AB]" : "text-zinc-600"} size={32} />
@@ -1236,11 +1270,11 @@ const UploadModal: React.FC<UploadModalProps> = ({
           </button>
           <button
             onClick={() => handleUpload()}
-            disabled={isUploading || !uploadPath}
+            disabled={isUploading || (!uploadPath && !mockOnly)}
             className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 lg:flex-none lg:min-w-[110px] ${isDark ? "bg-[#E8D1AB] text-[#101010]" : "bg-black text-white"
               }`}
           >
-            {isUploading ? `Uploading ${uploadedCount}/${totalCount}` : detectedConflictIds.length > 0 ? "Continue Upload" : "Upload Files"}
+            {isUploading ? `Uploading ${uploadedCount}/${totalCount}` : mockOnly ? "Upload File" : detectedConflictIds.length > 0 ? "Continue Upload" : "Upload Files"}
           </button>
           {failedCount > 0 && (
             <button
