@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Download, Loader2, ArrowUpToLine, ChevronLeft, ChevronDown } from "lucide-react";
+import { ChevronRight, Search, ArrowUpDown, ArrowUp, ArrowDown, Trash2, Download, Loader2, ArrowUpToLine, ChevronLeft, ChevronDown, Pencil, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
@@ -36,6 +36,8 @@ import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
 import ActionSuccessModal from "@/components/admin/ActionSuccessModal";
 import { TabsSwitcher } from "../TabsSwitcher";
 import Link from "next/link";
+import { useAppSelector } from "@/lib/redux/hooks";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type UserStatus = "Active" | "Inactive" | "Pending" | "Approved" | "Rejected";
 type ClientsTab = "active" | "all" | "archived";
@@ -108,6 +110,9 @@ const ClientTypeBadge = ({ type }: { type?: "guest" | "registered" }) => {
 };
 
 export const ClientsTable = () => {
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const isSuperAdmin = [currentUser?.userRole, currentUser?.role]
+    .some((role) => ["super_admin", "superadmin"].includes(String(role || "").toLowerCase().replace(/\s+/g, "_")));
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
@@ -128,6 +133,10 @@ export const ClientsTable = () => {
   const [completedClientName, setCompletedClientName] = useState("");
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", email: "", phone_number: "" });
+  const [editError, setEditError] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Accordion state tracking for mobile card rows
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
@@ -381,6 +390,38 @@ export const ClientsTable = () => {
     setSelectedClient(client);
     setSelectedClientIsArchived(Boolean(client.isArchived));
     setIsActionModalOpen(true);
+  };
+
+  const openEditClient = (client: Client, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setEditingClient(client);
+    setEditForm({ name: client.name, email: client.email === "No Email" ? "" : client.email,
+      phone_number: client.phoneNumber === "N/A" ? "" : client.phoneNumber });
+    setEditError("");
+  };
+
+  const saveClientEdit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingClient || isSavingEdit) return;
+    const payload = {
+      name: editForm.name.trim(), email: editForm.email.trim().toLowerCase(),
+      phone_number: editForm.phone_number.trim(),
+    };
+    if (!payload.name || !payload.email || !payload.phone_number) {
+      setEditError("Name, email, and phone number are required.");
+      return;
+    }
+    setIsSavingEdit(true);
+    setEditError("");
+    const result = await adminApi.editClient(editingClient.id.replace("#", ""), payload);
+    setIsSavingEdit(false);
+    if (result?.success) {
+      setEditingClient(null);
+      setRefreshKey((current) => current + 1);
+      toast.success("Client details updated successfully.");
+    } else {
+      setEditError(result?.message || "Unable to update client details. Please try again.");
+    }
   };
 
   const handleConfirmClientAction = async () => {
@@ -1003,7 +1044,14 @@ export const ClientsTable = () => {
                         </div>
                       </td>
                       <td className="py-3 px-6 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end">
+                        <div className="flex items-center justify-end gap-3">
+                          {isSuperAdmin && !client.isArchived && (
+                            <button type="button" onClick={(event) => openEditClient(client, event)}
+                              className={`${isDark ? "text-[#E8D1AB] hover:text-white" : "text-[#8E6A2A] hover:text-black"} transition-colors`}
+                              title={`Edit ${client.name}`} aria-label={`Edit ${client.name}`}>
+                              <Pencil size={18} />
+                            </button>
+                          )}
                           {client.isArchived ? (
                             <button
                               type="button"
@@ -1148,6 +1196,15 @@ export const ClientsTable = () => {
                             >
                               Details
                             </button>
+                            {isSuperAdmin && !client.isArchived && (
+                              <>
+                                <span className="opacity-20">|</span>
+                                <button type="button" onClick={(event) => openEditClient(client, event)}
+                                  className={`underline ${isDark ? "text-[#E8D1AB]" : "text-[#8E6A2A]"}`}>
+                                  Edit
+                                </button>
+                              </>
+                            )}
                             <span className="opacity-20">|</span>
                             {client.isArchived ? (
                               <button
@@ -1250,6 +1307,58 @@ export const ClientsTable = () => {
           </div>
         )}
       </div>
+
+      <Dialog open={Boolean(editingClient)} onOpenChange={(open) => {
+        if (!open && !isSavingEdit) setEditingClient(null);
+      }}>
+        <DialogContent className={`w-[calc(100%-24px)] max-w-[520px] gap-0 overflow-hidden rounded-2xl border p-0 shadow-2xl sm:rounded-3xl ${isDark
+          ? "border-white/10 bg-[#171717] text-white"
+          : "border-[#E3E3E3] bg-white text-[#101010]"}`}>
+          <DialogHeader className={`flex flex-row items-start gap-4 space-y-0 px-5 pb-5 pt-6 text-left sm:px-7 sm:pt-7 ${isDark ? "border-b border-white/10" : "border-b border-[#E3E3E3]"}`}>
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#F7F0E4] text-[#8E6A2A]"}`}>
+              <UserRound size={22} />
+            </div>
+            <div className="pr-6">
+              <DialogTitle className="text-xl font-semibold leading-7">Edit client details</DialogTitle>
+              <DialogDescription className={`mt-1.5 text-sm leading-5 ${isDark ? "text-white/55" : "text-[#32323299]"}`}>
+                Update the contact information for {editingClient?.name}.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+          <form onSubmit={saveClientEdit}>
+            <div className="space-y-5 px-5 py-6 sm:px-7">
+              {([['name', 'Full name'], ['email', 'Email address'], ['phone_number', 'Phone number']] as const).map(([key, label]) => (
+                <label key={key} className="block space-y-2 text-sm font-medium">
+                  <span>{label}</span>
+                  <input type={key === 'email' ? 'email' : key === 'phone_number' ? 'tel' : 'text'}
+                    autoComplete={key === 'name' ? 'name' : key === 'email' ? 'email' : 'tel'}
+                    value={editForm[key]} required maxLength={key === 'phone_number' ? 20 : 200}
+                    onChange={(event) => {
+                      setEditForm((current) => ({ ...current, [key]: event.target.value }));
+                      setEditError("");
+                    }}
+                    className={`h-12 w-full rounded-xl border px-4 text-sm outline-none transition-colors focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/15 ${isDark
+                      ? "border-white/15 bg-[#212121] text-white placeholder:text-white/35"
+                      : "border-[#E3E3E3] bg-white text-[#101010] placeholder:text-[#32323299]"}`} />
+                </label>
+              ))}
+              {editError && <p role="alert" className={`rounded-lg border px-3 py-2 text-sm ${isDark ? "border-red-400/20 bg-red-400/10 text-red-300" : "border-red-200 bg-red-50 text-red-700"}`}>{editError}</p>}
+            </div>
+            <div className={`flex flex-col-reverse gap-3 border-t px-5 py-5 sm:flex-row sm:justify-end sm:px-7 ${isDark ? "border-white/10" : "border-[#E3E3E3]"}`}>
+              <Button type="button" disabled={isSavingEdit} onClick={() => setEditingClient(null)}
+                className={`h-11 rounded-xl border px-6 text-sm font-semibold ${isDark
+                  ? "border-white/15 bg-transparent text-white hover:bg-white/5"
+                  : "border-[#E3E3E3] bg-white text-[#323232] hover:bg-[#F7F7F7]"}`}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSavingEdit} className="h-11 rounded-xl bg-[#E8D1AB] px-6 text-sm font-semibold text-[#101010] hover:bg-[#d4c3a3] disabled:opacity-60">
+                {isSavingEdit && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSavingEdit ? 'Saving changes...' : 'Save changes'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <ActionModal
         isOpen={isActionModalOpen}
