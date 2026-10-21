@@ -1230,7 +1230,7 @@ export default function CreateQuotePage() {
   );
   const quotePermissionAction = isEditMode && !isDuplicateFlow ? "edit" : "create";
   const { allowed: hasQuotePermission, isLoading: isQuotePermissionLoading } =
-    useRequireModulePermission("quotes", quotePermissionAction, "/admin/quotes");
+    useRequireModulePermission("admin_quotes_all_quotes", quotePermissionAction, "/admin/quotes");
 
   if (isQuotePermissionLoading || !hasQuotePermission) {
     return (

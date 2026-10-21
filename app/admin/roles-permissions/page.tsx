@@ -17,7 +17,7 @@ export default function AdminRolesPermissionsRoute() {
   const [searchQuery, setSearchQuery] = useState("");
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const { canCreate: canCreateUser } = usePermissions("users");
+  const { canCreate: canCreateUser } = usePermissions("admin_users_all_users");
 
   useEffect(() => {
     setMounted(true);

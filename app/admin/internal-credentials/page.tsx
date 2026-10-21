@@ -63,7 +63,7 @@ const STRENGTH_STYLES: Record<ReturnType<typeof calculatePasswordStrength>, stri
 
 export default function InternalCredentialsPage() {
   const { allowed, isLoading } = useRequireModulePermission(
-    "users",
+    "admin_users_all_users",
     "create",
     "/admin/roles-permissions",
   );
