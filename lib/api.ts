@@ -1131,6 +1131,39 @@ export interface AdminShootUpdateDateLocationResponse {
   message?: string;
 }
 
+export type QuoteCatalogBulkDeleteResponse = {
+  success: boolean;
+  partial_success?: boolean;
+  message?: string;
+  error?: string;
+  data?: {
+    action: 'delete';
+    success_ids: number[];
+    failed_ids: number[];
+    success_count: number;
+    failed_count: number;
+    results: Array<{
+      catalog_item_id: number;
+      success: boolean;
+      message?: string;
+    }>;
+  } | null;
+};
+
+export type QuoteTypesBulkDeleteResponse = {
+  success: boolean;
+  partial_success?: boolean;
+  message?: string;
+  error?: string;
+  data?: {
+    action: 'delete';
+    shoot: { success_ids: number[]; failed_ids: number[] };
+    editing: { success_ids: number[]; failed_ids: number[] };
+    success_count: number;
+    failed_count: number;
+  } | null;
+};
+
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
   validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {
@@ -5076,6 +5109,37 @@ export const salesApi = {
       };
     }
   },
+  bulkDeleteTypes: async (payload: {
+    shoot_type_ids: Array<number | string>;
+    ai_editing_type_ids: Array<number | string>;
+  }): Promise<QuoteTypesBulkDeleteResponse> => {
+    const clean = (arr: Array<number | string>) =>
+      Array.from(
+        new Set(arr.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0))
+      );
+    const shoot_type_ids = clean(payload.shoot_type_ids);
+    const ai_editing_type_ids = clean(payload.ai_editing_type_ids);
+
+    if (shoot_type_ids.length + ai_editing_type_ids.length === 0) {
+      return { success: false, data: null, error: 'No valid types selected' };
+    }
+
+    try {
+      const response = await api.post<QuoteTypesBulkDeleteResponse>(
+        '/sales/quotes/types/bulk-delete',
+        { shoot_type_ids, ai_editing_type_ids }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Bulk Delete Types Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: error.response?.data?.data || null,
+        message: error.response?.data?.message,
+        error: error.response?.data?.message || 'Failed to delete selected types',
+      };
+    }
+  },
   getClientDropdown: async (search?: string) => {
     try {
       const url = search ? `/sales/client-dropdown?search=${search}` : '/sales/client-dropdown';
@@ -5344,6 +5408,37 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to assign client lead to yourself',
+      };
+    }
+  },
+  bulkDeleteQuoteCatalog: async (
+    catalogItemIds: Array<number | string>
+  ): Promise<QuoteCatalogBulkDeleteResponse> => {
+    const ids = Array.from(
+      new Set(
+        catalogItemIds
+          .map((id) => Number(id))
+          .filter((id) => Number.isInteger(id) && id > 0)
+      )
+    );
+
+    if (ids.length === 0) {
+      return { success: false, data: null, error: 'No valid items selected' };
+    }
+
+    try {
+      const response = await api.post<QuoteCatalogBulkDeleteResponse>(
+        '/sales/quotes/catalog/bulk-delete',
+        { catalog_item_ids: ids }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Bulk Delete Quote Catalog Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: error.response?.data?.data || null,
+        message: error.response?.data?.message,
+        error: error.response?.data?.message || 'Failed to delete selected items',
       };
     }
   },
