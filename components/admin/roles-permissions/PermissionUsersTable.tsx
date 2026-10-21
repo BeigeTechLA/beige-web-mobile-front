@@ -208,6 +208,7 @@ export function PermissionUsersTable({
   const [serverLoading, setServerLoading] = useState(false);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [historyUser, setHistoryUser] = useState<PermissionUser | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [bulkRoleId, setBulkRoleId] = useState("");
   const [isBulkRoleModalOpen, setIsBulkRoleModalOpen] = useState(false);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
@@ -423,6 +424,20 @@ export function PermissionUsersTable({
       })
       .slice(0, 20);
   }, [historyUser]);
+  const selectedUserReassignmentEvents = useMemo(() => (historyUser?.archive_history || [])
+    .filter((entry) => entry.action === "reassigned")
+    .sort((first, second) => new Date(second.created_at || "").getTime() - new Date(first.created_at || "").getTime())
+    .slice(0, 100), [historyUser]);
+
+  const openArchiveHistory = async (user: PermissionUser) => {
+    setHistoryUser(user);
+    setIsLoadingHistory(true);
+    const response = await adminApi.getArchiveHistory("internal_user", user.id);
+    setHistoryUser((current) => current?.id === user.id
+      ? { ...user, archive_history: Array.isArray(response?.data) ? response.data : [] }
+      : current);
+    setIsLoadingHistory(false);
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -875,7 +890,7 @@ export function PermissionUsersTable({
                             className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition ${isDark ? "bg-white/5 text-white/60 hover:bg-[#E8D1AB]/10 hover:text-[#E8D1AB]" : "bg-black/[0.04] text-[#32323299] hover:bg-[#E8D1AB]/10 hover:text-[#8E6A2A]"}`}
                             onClick={(event) => {
                               event.stopPropagation();
-                              setHistoryUser(user);
+                              void openArchiveHistory(user);
                             }}
                           >
                             <History size={16} />
@@ -1038,7 +1053,7 @@ export function PermissionUsersTable({
                                 className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  setHistoryUser(user);
+                                  void openArchiveHistory(user);
                                 }}
                               >
                                 <History size={20} />
@@ -1238,8 +1253,11 @@ export function PermissionUsersTable({
 
             {/* List */}
             <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-3.5">
-              {selectedUserHistoryGroups.length > 0 ? (
-                selectedUserHistoryGroups.map(({ deleted, restored }) => {
+              {isLoadingHistory ? (
+                <div className={`py-10 text-center text-sm ${isDark ? "text-white/50" : "text-[#32323280]"}`}>Loading history...</div>
+              ) : selectedUserHistoryGroups.length > 0 || selectedUserReassignmentEvents.length > 0 ? (
+                <>
+                {selectedUserHistoryGroups.map(({ deleted, restored }) => {
                   const deletedTime = formatDateParts(deleted.created_at || "");
                   const restoredTime = restored ? formatDateParts(restored.created_at || "") : null;
                   const deletedBy = deleted.performed_by_name || "Admin";
@@ -1313,7 +1331,38 @@ export function PermissionUsersTable({
                       </div>
                     </div>
                   );
-                })
+                })}
+                {selectedUserReassignmentEvents.map((entry) => {
+                  const metadata = entry.metadata || {};
+                  const records = Array.isArray(metadata.records) ? metadata.records : [];
+                  const reassignedTime = formatDateParts(entry.created_at || "");
+                  return (
+                    <div key={entry.history_id} className={`rounded-[14px] border p-4 ${isDark ? "border-white/[0.07] bg-[#1a1a1a]" : "border-[#E3E3E3] bg-[#FAFAFA]"}`}>
+                      <p className={`text-[13.5px] font-medium leading-[1.5] ${isDark ? "text-white/90" : "text-[#101010]"}`}>
+                        {records.length} {records.length === 1 ? "record" : "records"} reassigned
+                      </p>
+                      <div className={`mt-3 divide-y rounded-lg border px-3 ${isDark ? "divide-white/[0.07] border-white/[0.07]" : "divide-[#E3E3E3] border-[#E3E3E3]"}`}>
+                        {records.map((record: any, index: number) => (
+                          <div key={`${record.record_type}-${record.record_id}-${index}`} className="py-2.5">
+                            <p className={`text-[11.5px] font-medium ${isDark ? "text-white/80" : "text-[#101010]"}`}>
+                              {String(record.record_type || "Record").replace(/[_-]+/g, " ").replace(/\b\w/g, (letter: string) => letter.toUpperCase())} - {String(record.record_id || "").replace(/^[LPQ]-/, "")}
+                              {record.client_name ? <span className={`ml-2 font-normal ${isDark ? "text-white/45" : "text-[#32323280]"}`}>{record.client_name}</span> : null}
+                            </p>
+                            <dl className={`mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[11px] ${isDark ? "text-white/60" : "text-[#32323299]"}`}>
+                              <dt>Previous Sales Rep</dt><dd>{record.previous_sales_rep || "Unknown user"}</dd>
+                              <dt>New Sales Rep</dt><dd>{record.new_sales_rep || "Unknown user"}</dd>
+                            </dl>
+                          </div>
+                        ))}
+                      </div>
+                      <p className={`mt-2 text-[11.5px] ${isDark ? "text-white/60" : "text-[#32323299]"}`}>Reassigned by {metadata.performed_by || entry.performed_by_name || "Admin"}</p>
+                      <p className={`mt-2 text-[11.5px] ${isDark ? "text-white/32" : "text-[#32323266]"}`}>
+                        {reassignedTime.date} <span className="mx-1 opacity-50">•</span> {reassignedTime.time || "N/A"}
+                      </p>
+                    </div>
+                  );
+                })}
+                </>
               ) : (
                 <div className={`flex h-full flex-col items-center justify-center rounded-lg border px-6 text-center ${isDark ? "border-[#333] bg-white/[0.02]" : "border-[#E3E3E3] bg-white"}`}>
                   <History size={28} className="text-[#C9A96E]" />

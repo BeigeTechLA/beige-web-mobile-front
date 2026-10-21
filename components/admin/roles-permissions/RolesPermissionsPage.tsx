@@ -643,7 +643,9 @@ useEffect(() => {
         title="Delete User"
         description={
           selectedUser
-            ? `Are you sure you want to delete ${selectedUser.name}? This action cannot be undone.`
+            ? openLeadsCount === 0 && openQuotesCount === 0 && openPostProductionCount === 0
+              ? `This ${selectedUser.role.replace(/[_-]+/g, " ")} has no open leads or quotes assigned to them. You can deactivate this user.`
+              : `Are you sure you want to delete ${selectedUser.name}? This action cannot be undone.`
             : "Are you sure you want to delete this user? This action cannot be undone."
         }
         tone="danger"
@@ -663,7 +665,7 @@ useEffect(() => {
           setIsOpenRecordsModalOpen(false);
           router.push(`/admin/roles-permissions/reassign-records?user_id=${userId}`);
         }}
-        userName={selectedUser?.name || "this user"}
+        roleName={(selectedUser?.role || "user").replace(/[_-]+/g, " ")}
         openLeads={openLeadsCount}
         openQuotes={openQuotesCount}
         openPostProduction={openPostProductionCount}

@@ -29,12 +29,13 @@ export type PermissionUser = {
   badge: string;
   badgeTone: string;
   archive_history?: Array<{
-    history_id: number;
+    history_id: number | string;
     action: string;
     performed_by_name: string | null;
     performed_by_role: string | null;
     reason: string | null;
     created_at: string | null;
+    metadata?: Record<string, any> | null;
   }>;
   last_archive_event?: {
     history_id: number;

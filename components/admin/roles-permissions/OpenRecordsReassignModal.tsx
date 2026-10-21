@@ -14,7 +14,7 @@ type OpenRecordsReassignModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onContinue: () => void;
-  userName: string;
+  roleName: string;
   openLeads: number;
   openQuotes: number;
   openPostProduction?: number;
@@ -24,7 +24,7 @@ export function OpenRecordsReassignModal({
   isOpen,
   onClose,
   onContinue,
-  userName,
+  roleName,
   openLeads,
   openQuotes,
   openPostProduction = 0,
@@ -71,8 +71,8 @@ export function OpenRecordsReassignModal({
 
         <DialogDescription asChild>
           <p className={`mt-5 text-base leading-relaxed ${isDark ? "text-[#9A9A9A]" : "text-[#32323299]"}`}>
-            This Sales Rep currently has{" "}
-            <span className="text-[#F5A524]">{recordSummary}</span> assigned to them. Reassign these records to {openPostProduction > 0 ? "eligible active owners" : "another active Sales Rep"} before deactivating this user.
+            This {roleName} currently has{" "}
+            <span className="text-[#F5A524]">{recordSummary}</span> assigned to them. Reassign these records to {openPostProduction > 0 ? "eligible active owners" : `another active ${roleName}`} before deactivating this user.
           </p>
         </DialogDescription>
 

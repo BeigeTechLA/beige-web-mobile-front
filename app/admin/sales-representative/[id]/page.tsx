@@ -1677,7 +1677,8 @@ export default function LeadDetailPage() {
                     </>
                   )}
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
-                  <div className="relative inline-flex items-center gap-2 flex-nowrap overflow-visible">
+                  <div className="relative flex flex-col items-start gap-1">
+                    <div className="relative inline-flex items-center gap-2 flex-nowrap overflow-visible">
                     <p className="whitespace-nowrap">
                       Assigned Sales Rep : <span className={isDark ? "text-white" : "text-black"}>{lead.assigned_sales_rep?.name || "Unassigned"}</span>
                     </p>
@@ -1756,6 +1757,12 @@ export default function LeadDetailPage() {
                           )}
                         </div>
                       </>
+                    )}
+                    </div>
+                    {lead.previous_assigned_sales_rep?.name && (
+                      <p className={`text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+                        Previously Assigned Sales Rep: <span className={isDark ? "text-white/80" : "text-black/80"}>{lead.previous_assigned_sales_rep.name}</span>
+                      </p>
                     )}
                   </div>
                 </div>

@@ -618,7 +618,7 @@ export default function AdminRoleEditDetailsRoute() {
     mode === "role"
       ? `Are you sure you want to delete ${roleName}? This action cannot be undone.`
       : openLeadsCount === 0 && openQuotesCount === 0 && openPostProductionCount === 0
-        ? "This user has no open records assigned to them. You can deactivate this user."
+        ? `This ${(pageRoleLabel || "user").replace(/[_-]+/g, " ")} has no open leads or quotes assigned to them. You can deactivate this user.`
         : `Are you sure you want to delete ${userName}? This action cannot be undone.`;
   const deleteLabel = mode === "role" ? "Delete Role" : "Delete User";
   const primaryActionLabel = useMemo(() => {
@@ -727,7 +727,7 @@ export default function AdminRoleEditDetailsRoute() {
           setIsOpenRecordsModalOpen(false);
           router.push(`/admin/roles-permissions/reassign-records?user_id=${userId}`);
         }}
-        userName={userName}
+        roleName={(pageRoleLabel || "user").replace(/[_-]+/g, " ")}
         openLeads={openLeadsCount}
         openQuotes={openQuotesCount}
         openPostProduction={openPostProductionCount}
