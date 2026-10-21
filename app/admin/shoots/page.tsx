@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { ShootsTable } from "@/components/admin/ShootsTable";
-import { ProducerShootsTable, DUMMY_PRODUCER_SHOOTS } from "@/components/admin/ProducerShootsTable";
+import { ProducerShootsTable, type ProducerShoot, type ProducerShootStatus } from "@/components/admin/ProducerShootsTable";
 import { ShootsCalendarView } from "@/components/admin/ShootsCalendarView";
 import { ShootsGlobeView } from "@/components/admin/ShootsGlobeView";
 
@@ -94,11 +94,7 @@ const normalizeRangeFilter = (value: string) => {
   return RANGE_FILTER_OPTIONS.has(value) ? value : "all";
 };
 
-const tabs: { label: string; value: TabType; count: number }[] = [
-  // Count follows the dummy producer shoots until the API is wired up
-  { label: "My Producer Shoots", value: "My Producer Shoots", count: DUMMY_PRODUCER_SHOOTS.length },
-  { label: "All Shoots", value: "All Shoots", count: 12 },
-];
+const PRODUCER_STATUS: ProducerShootStatus[] = ["Initiated", "Pre Production", "Shoot Day", "Post Production", "Revision", "Completed", "Assets Delivered", "Cancelled"];
 
 export default function ShootsPage() {
   const router = useRouter();
@@ -124,6 +120,7 @@ export default function ShootsPage() {
     useState<Date | null>(null);
   const [isCustomRangeOpen, setIsCustomRangeOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [producerSearch, setProducerSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
@@ -153,15 +150,57 @@ export default function ShootsPage() {
 
   // New states for Producer updates
   const [activeTab, setActiveTab] = useState<TabType>("My Producer Shoots");
-  const [selectedSalesRep, setSelectedSalesRep] = useState("");
-  const [selectedCP, setSelectedCP] = useState("");
-  const [shootUpcoming, setShootUpcoming] = useState("");
-  const [completionStatus, setCompletionStatus] = useState("");
-  const [selectedShootPeriod, setSelectedShootPeriod] = useState("");
-  const [cancellationStatus, setCancellationStatus] = useState("");
-  const [selectedShootDate, setSelectedShootDate] = useState("");
-  const [selectedService, setSelectedService] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("");
+  const [myProducerShoots, setMyProducerShoots] = useState<ProducerShoot[]>([]);
+  const [producerShootsLoading, setProducerShootsLoading] = useState(true);
+  const [producerStatus, setProducerStatus] = useState("all");
+  const [producerDate, setProducerDate] = useState("all");
+  const [producerCp, setProducerCp] = useState("all");
+  const [producerService, setProducerService] = useState("all");
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const response = await adminApi.getMyProducerShoots();
+        if (cancelled) return;
+        if (response?.error) toast.error(response.message || "Failed to load producer shoots");
+        const rows = Array.isArray(response?.data?.projects) ? response.data.projects : [];
+        setMyProducerShoots(rows.filter((row: { project?: unknown }) => row?.project).map((row: { project: { stream_project_booking_id: number; project_name?: string; shoot_type?: string; event_date?: string; event_location?: string; status?: number; is_cancelled?: number }; assignedCrew?: unknown[] }) => {
+          const shoot = row.project;
+          const date = shoot.event_date ? new Date(`${shoot.event_date}T00:00:00`) : null;
+          return { id: `#${shoot.stream_project_booking_id}`, projectName: shoot.project_name || `Shoot #${shoot.stream_project_booking_id}`,
+            eventDate: shoot.event_date || null, cpAssigned: !!row.assignedCrew?.length,
+            date: date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "TBD",
+            location: shoot.event_location || "—", service: shoot.shoot_type || "—", status: shoot.is_cancelled ? "Cancelled" : PRODUCER_STATUS[Number(shoot.status)] || "Initiated",
+            salesRep: "—", cp: row.assignedCrew?.length ? `${row.assignedCrew.length} assigned` : "—" };
+        }));
+      } catch {
+        if (!cancelled) toast.error("Failed to load producer shoots");
+      } finally {
+        if (!cancelled) setProducerShootsLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, []);
+  const producerServices = Array.from(new Set(myProducerShoots.map((shoot) => shoot.service).filter((service) => service && service !== "—"))).sort();
+  const filteredProducerShoots = myProducerShoots.filter((shoot) => {
+    if (producerStatus !== "all" && shoot.status.toLowerCase().replace(/\s/g, "") !== producerStatus) return false;
+    if (producerCp === "assigned" && !shoot.cpAssigned) return false;
+    if (producerCp === "not_assigned" && shoot.cpAssigned) return false;
+    if (producerService !== "all" && shoot.service !== producerService) return false;
+    if (producerDate === "all") return true;
+    if (producerDate === "tbd") return !shoot.eventDate;
+    if (!shoot.eventDate) return false;
+    const date = new Date(`${shoot.eventDate}T00:00:00`);
+    const today = startOfDay(new Date());
+    const days = Math.round((date.getTime() - today.getTime()) / 86400000);
+    if (producerDate === "upcoming") return days >= 0;
+    if (producerDate === "today") return days === 0;
+    if (producerDate === "next_7_days") return days >= 0 && days <= 7;
+    if (producerDate === "next_30_days") return days >= 0 && days <= 30;
+    if (producerDate === "last_7_days") return days < 0 && days >= -7;
+    return true;
+  });
 
 
   useEffect(() => {
@@ -508,6 +547,8 @@ export default function ShootsPage() {
 
   // Constant default to dark
   const isDark = !mounted || theme === "dark";
+  const producerFilterTrigger = `h-10 rounded-lg text-sm focus:ring-0 ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`;
+  const producerFilterContent = isDark ? "bg-[#111111] border-[#333333] text-white" : "bg-white border-[#E5E5E5] text-black";
 
   return (
     <>
@@ -561,7 +602,7 @@ export default function ShootsPage() {
               <div className="flex items-center gap-3">
                 <Button
                   type="button"
-                  onClick={() => setViewMode("globe")}
+                  onClick={() => { setActiveTab("All Shoots"); setViewMode("globe"); }}
                   className={`h-9 lg:h-10 min-w-[118px] lg:min-w-[126px] px-4 lg:px-5 text-xs lg:text-sm font-medium rounded-lg border transition-colors ${isDark
                     ? "border-[#3A3A3A] bg-[#171717] text-white/75 hover:bg-[#202020] hover:text-white"
                     : "border-[#DADADA] bg-white text-black/70 hover:bg-[#F7F7F7] hover:text-black"
@@ -572,7 +613,7 @@ export default function ShootsPage() {
 
                 <Button
                   type="button"
-                  onClick={() => setViewMode("calendar")}
+                  onClick={() => { setActiveTab("All Shoots"); setViewMode("calendar"); }}
                   className={`h-9 lg:h-10 min-w-[118px] lg:min-w-[126px] px-4 lg:px-5 text-xs lg:text-sm font-medium rounded-lg border transition-colors ${isDark
                     ? "border-white bg-white text-black hover:bg-white/90"
                     : "border-[#1F1F1F] bg-[#1F1F1F] text-white hover:bg-[#2A2A2A]"
@@ -603,7 +644,7 @@ export default function ShootsPage() {
                   : "bg-[#fff] border-[#E5E5E5]"
                   }`}
               >
-                {tabs.map((tab) => {
+                {([{ label: "My Producer Shoots", value: "My Producer Shoots", count: myProducerShoots.length }, { label: "All Shoots", value: "All Shoots", count: null }] as const).map((tab) => {
                   const isActive = activeTab === tab.value;
 
                   return (
@@ -620,7 +661,7 @@ export default function ShootsPage() {
                           : "text-[#888] hover:text-black")
                         }`}
                     >
-                      {tab.label} ({tab.count})
+                      {tab.label}{tab.count === null ? "" : ` (${producerShootsLoading ? "…" : tab.count})`}
                     </button>
                   );
                 })}
@@ -635,9 +676,9 @@ export default function ShootsPage() {
                   />
                   <input
                     type="text"
-                    placeholder="Search by project name, email, or phone number..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={activeTab === "My Producer Shoots" ? "Search by shoot ID, project, location, or service..." : "Search by project name, email, or phone number..."}
+                    value={activeTab === "My Producer Shoots" ? producerSearch : searchQuery}
+                    onChange={(e) => activeTab === "My Producer Shoots" ? setProducerSearch(e.target.value) : setSearchQuery(e.target.value)}
                     className={`w-full border rounded-lg h-12 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark
                       ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
                       : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
@@ -695,212 +736,9 @@ export default function ShootsPage() {
               </div>
 
               {/* Filters Group */}
-              {showFilters && (
+              {showFilters && activeTab === "All Shoots" && (
                 <div className={`flex items-center gap-2 lg:gap-4 p-3.5 rounded-xl ${isDark ? "bg-[#171717]" : "bg-[#F7F7F7]"}`}>
                   <div className="flex items-center gap-2 overflow-x-scroll no-scrollbar">
-                    {/* New Set of Filters added as per Producer Flow design */}
-
-
-                    <div className="flex flex-col gap-1">
-                      <Select
-                        value={shootUpcoming}
-                        onValueChange={setShootUpcoming}
-                      >
-                        <SelectTrigger
-                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                        >
-                          <SelectValue placeholder="Upcoming" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                        >
-                          {FILTER_STATUS_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <Select
-                        value={selectedShootPeriod}
-                        onValueChange={setSelectedShootPeriod}
-                      >
-                        <SelectTrigger
-                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                        >
-                          <SelectValue placeholder="Today" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                        >
-                          {FILTER_STATUS_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <Select
-                        value={completionStatus}
-                        onValueChange={setCompletionStatus}
-                      >
-                        <SelectTrigger
-                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                        >
-                          <SelectValue placeholder="Completed" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                        >
-                          {FILTER_STATUS_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <Select
-                        value={cancellationStatus}
-                        onValueChange={setCancellationStatus}
-                      >
-                        <SelectTrigger
-                          className={`w-[180px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                        >
-                          <SelectValue placeholder="Cancelled/Deleted" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                        >
-                          {FILTER_STATUS_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <Select
-                        value={selectedShootDate}
-                        onValueChange={setSelectedShootDate}
-                      >
-                        <SelectTrigger
-                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                        >
-                          <SelectValue placeholder="Shoot Date" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                        >
-                          {FILTER_STATUS_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <Select
-                        value={selectedService}
-                        onValueChange={setSelectedService}
-                      >
-                        <SelectTrigger
-                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                        >
-                          <SelectValue placeholder="Service" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                        >
-                          {FILTER_STATUS_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <Select
-                        value={selectedLocation}
-                        onValueChange={setSelectedLocation}
-                      >
-                        <SelectTrigger
-                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                        >
-                          <SelectValue placeholder="Location" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                        >
-                          {FILTER_STATUS_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <Select
-                        value={selectedCP}
-                        onValueChange={setSelectedCP}
-                      >
-                        <SelectTrigger
-                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                        >
-                          <SelectValue placeholder="CP" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                        >
-                          {FILTER_STATUS_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <Select
-                        value={selectedSalesRep}
-                        onValueChange={setSelectedSalesRep}
-                      >
-                        <SelectTrigger
-                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                        >
-                          <SelectValue placeholder="Sales Rep" />
-                        </SelectTrigger>
-                        <SelectContent
-                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                        >
-                          {FILTER_STATUS_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* New set end */}
-
-
 
                     <div className="flex flex-col gap-1">
                       <Select
@@ -1085,23 +923,23 @@ export default function ShootsPage() {
                         disabled={isLoadingPostProductionTeam}
                       >
                         <SelectTrigger
-                          title={selectedPostProductionUser?.name || "All Producer Team"}
+                          title={selectedPostProductionUser?.name || "All Post Production Team"}
                           className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
                         >
                           <SelectValue
-                            placeholder="Producer Team"
+                            placeholder="Post Production Team"
                             className="min-w-0 flex-1 truncate text-left"
                           >
                             {isLoadingPostProductionTeam
                               ? "Loading team..."
-                              : selectedPostProductionUser?.name || "All Producer Team"}
+                              : selectedPostProductionUser?.name || "All Post Production Team"}
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent
                           className={`min-w-[250px] ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
                           viewportClassName="!h-auto max-h-80 overflow-y-auto"
                         >
-                          <SelectItem value="all">All Producer Team</SelectItem>
+                          <SelectItem value="all">All Post Production Team</SelectItem>
                           {postProductionTeamOptions.length > 0 ? (
                             postProductionTeamOptions.map((option) => (
                               <SelectItem
@@ -1337,6 +1175,48 @@ export default function ShootsPage() {
                 </div>
               )
               }
+              {showFilters && activeTab === "My Producer Shoots" && (
+                <div className={`flex flex-wrap items-center gap-2 rounded-xl p-3.5 ${isDark ? "bg-[#171717]" : "bg-[#F7F7F7]"}`}>
+                  <Select value={producerStatus} onValueChange={setProducerStatus}>
+                    <SelectTrigger className={`w-[170px] ${producerFilterTrigger}`}><SelectValue placeholder="Shoot Status" /></SelectTrigger>
+                    <SelectContent className={producerFilterContent}>
+                      {FILTER_STATUS_OPTIONS.filter((option) => option.value !== "deleted").map((option) => (
+                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={producerDate} onValueChange={setProducerDate}>
+                    <SelectTrigger className={`w-[165px] ${producerFilterTrigger}`}><SelectValue placeholder="Shoot Date" /></SelectTrigger>
+                    <SelectContent className={producerFilterContent}>
+                      <SelectItem value="all">All Dates</SelectItem>
+                      <SelectItem value="tbd">TBD</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="upcoming">Upcoming</SelectItem>
+                      <SelectItem value="next_7_days">Next 7 Days</SelectItem>
+                      <SelectItem value="next_30_days">Next 30 Days</SelectItem>
+                      <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={producerCp} onValueChange={setProducerCp}>
+                    <SelectTrigger className={`w-[170px] ${producerFilterTrigger}`}><SelectValue placeholder="CP Assignment" /></SelectTrigger>
+                    <SelectContent className={producerFilterContent}>
+                      <SelectItem value="all">All CP Assignment</SelectItem>
+                      <SelectItem value="assigned">CP Assigned</SelectItem>
+                      <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={producerService} onValueChange={setProducerService}>
+                    <SelectTrigger className={`w-[170px] ${producerFilterTrigger}`}><SelectValue placeholder="Service" /></SelectTrigger>
+                    <SelectContent className={producerFilterContent}>
+                      <SelectItem value="all">All Services</SelectItem>
+                      {producerServices.map((service) => <SelectItem key={service} value={service}>{service}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" aria-label="Reset producer filters" title="Reset producer filters" onClick={() => {
+                    setProducerStatus("all"); setProducerDate("all"); setProducerCp("all"); setProducerService("all"); setProducerSearch("");
+                  }} className={`h-10 w-10 rounded-lg p-0 ${isDark ? "bg-[#202020] text-white" : "bg-white text-black"}`}><RotateCcw size={18} /></Button>
+                </div>
+              )}
             </div>
 
             {isCustomRangeOpen && (
@@ -1426,7 +1306,7 @@ export default function ShootsPage() {
               </div>
             )}
 
-            {currentCustomRangeLabel && (
+            {activeTab === "All Shoots" && currentCustomRangeLabel && (
               <div
                 className={`mb-3 flex flex-col gap-3 rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-[#3A3A3A] bg-[#171717] text-white" : "border-[#E5E5E5] bg-white text-black"}`}
               >
@@ -1697,11 +1577,13 @@ export default function ShootsPage() {
             }}
           />
         ) : activeTab === "My Producer Shoots" ? (
-          // Producer workspace: producer-specific table (dummy data for now)
           <ProducerShootsTable
             isDark={isDark}
-            searchQuery={searchQuery}
+            searchQuery={producerSearch}
             viewMode={viewMode === "grid" ? "grid" : "list"}
+            data={filteredProducerShoots}
+            loading={producerShootsLoading}
+            filterKey={`${producerStatus}:${producerDate}:${producerCp}:${producerService}`}
           />
         ) : (
           <ShootsTable

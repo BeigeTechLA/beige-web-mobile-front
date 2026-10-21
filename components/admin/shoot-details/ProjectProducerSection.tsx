@@ -40,6 +40,7 @@ interface ProjectProducerSectionProps {
   onViewShoot?: () => void;
   title?: string;
   roleLabel?: string;
+  canManage?: boolean;
 }
 
 /* Component */
@@ -53,6 +54,7 @@ export default function ProjectProducerSection({
   onViewShoot,
   title = 'Project Producer',
   roleLabel = 'Production Owner',
+  canManage = true,
 }: ProjectProducerSectionProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -139,6 +141,7 @@ export default function ProjectProducerSection({
               <div className="space-y-3">
                 <button
                   type="button"
+                  disabled={!canManage}
                   onClick={() => setStep('select')}
                   className="w-full h-12 rounded-lg bg-[#E8D1AB] hover:bg-[#EEDCBC] text-black text-sm font-semibold transition-colors"
                 >
@@ -146,6 +149,7 @@ export default function ProjectProducerSection({
                 </button>
                 <button
                   type="button"
+                  disabled={!canManage}
                   onClick={() => setStep('remove')}
                   className={`w-full h-12 rounded-lg text-sm font-semibold transition-colors ${isDark ? 'bg-[#EF4444]/10 hover:bg-[#341C1C] text-[#FD6D6D]' : 'bg-[#FDECEA] hover:bg-[#FBE0DC] text-[#C8392B]'}`}
                 >
@@ -158,6 +162,7 @@ export default function ProjectProducerSection({
           <div className="flex flex-col items-center justify-center px-5 py-12 lg:py-14">
             <button
               type="button"
+              disabled={!canManage}
               onClick={() => setStep('select')}
               className={`w-15 h-15 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mb-6 hover:scale-105 transition-all shadow-lg disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-[#E8D1AB] shadow-[#E8D1AB]/10" : "bg-[#E8D1AB] shadow-[#E8D1AB]/20"}`}
             >

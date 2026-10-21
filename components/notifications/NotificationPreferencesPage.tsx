@@ -203,14 +203,14 @@ export default function NotificationPreferencesPage({ portal }: { portal: Notifi
             </div>
           </div>
 
-          <div className={`my-7 border-t border-dashed ${isDark ? "border-white/15" : "border-black/10"}`} />
+          {/* <div className={`my-7 border-t border-dashed ${isDark ? "border-white/15" : "border-black/10"}`} /> */}
 
-          <div className="flex items-center gap-3">
+          {/* <div className="flex items-center gap-3">
             <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Future Ready</h2>
             <span className="rounded-full bg-[#F2DDFE] px-3 py-1 text-xs font-medium text-[#A02DD6]">Coming Soon</span>
-          </div>
+          </div> */}
 
-          <div className="mt-4 space-y-3">
+          {/* <div className="mt-4 space-y-3">
             <div className={`rounded-xl border px-4 py-4 ${isDark ? "border-[#333333] bg-[#101010]" : "border-[#E5E5E5] bg-white"}`}>
               <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>AI Notification Summaries</p>
               <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-black/45"}`}>Get smart digests like &quot;3 files uploaded and 2 approvals pending&quot;</p>
@@ -219,7 +219,7 @@ export default function NotificationPreferencesPage({ portal }: { portal: Notifi
               <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Workflow Automation</p>
               <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-black/45"}`}>Build custom rules like &quot;If proposal approved → notify finance team&quot;</p>
             </div>
-          </div>
+          </div> */}
         </section>
       </main>
     </>

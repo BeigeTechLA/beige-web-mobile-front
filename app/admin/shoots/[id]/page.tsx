@@ -34,6 +34,7 @@ import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
 import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import ProjectProducerSection from "@/components/admin/shoot-details/ProjectProducerSection";
+import type { Producer } from "@/components/admin/shoot-details/ProducerSelectionModal";
 
 type SkillOption = {
   id?: number | string;
@@ -189,7 +190,19 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const activeTab = searchParams.get("tab") || "Overview";
 
   const [project, setProject] = useState<ProjectDetails | null>(null);
+  const [producerOptions, setProducerOptions] = useState<Producer[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    adminApi.getPostProductionTeamOptions().then((response) => {
+      if (cancelled) return;
+      setProducerOptions((response?.success && Array.isArray(response.data) ? response.data : []).map((user: { id: number; name: string; email?: string; role_name?: string }) => ({
+        id: String(user.id), name: user.name, email: user.email, role: user.role_name || "Producer",
+      })));
+    });
+    return () => { cancelled = true; };
+  }, []);
   const [previewInvoice, { isLoading: isViewingInvoice }] = usePreviewInvoiceMutation();
 
   // State to handle mobile timeline visibility
@@ -725,7 +738,23 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               {activeTab === "Overview" && (
                 <>
                   <div className="px-5 mb-6">
-                    <ProjectProducerSection />
+                    <ProjectProducerSection
+                      title="Producer"
+                      canManage={canEdit}
+                      producer={producerOptions.find((option) => option.id === String(project?.producer_user_id)) || null}
+                      producers={producerOptions.filter((option) => option.id === String(project?.producer_user_id) || !((project?.assigned_post_production_members || []) as Array<{ post_production_member?: { email?: string } }>).some((member) => !!option.email && member.post_production_member?.email?.trim().toLowerCase() === option.email.trim().toLowerCase()))}
+                      shoot={{ id: String(id), clientName: project?.project_name || `Shoot #${id}`, serviceType: String(project?.shoot_type || 'Shoot'), code: `#${id}` }}
+                      onAssign={async (producer) => {
+                        const response = await adminApi.setShootProducer(Number(id), Number(producer.id));
+                        if (!response.success) throw new Error(response.message);
+                        await fetchProjectAndSkills(false);
+                      }}
+                      onRemove={async () => {
+                        const response = await adminApi.setShootProducer(Number(id), null);
+                        if (!response.success) throw new Error(response.message);
+                        await fetchProjectAndSkills(false);
+                      }}
+                    />
                   </div>
 
                   <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">

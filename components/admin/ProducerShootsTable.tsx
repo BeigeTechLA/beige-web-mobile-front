@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Loader2 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/* Types + dummy data                                                  */
+/* Types                                                               */
 /* ------------------------------------------------------------------ */
 
 export type ProducerShootStatus =
@@ -27,29 +27,9 @@ export interface ProducerShoot {
   status: ProducerShootStatus;
   salesRep: string;
   cp: string;
+  eventDate?: string | null;
+  cpAssigned?: boolean;
 }
-
-const PROJECTS = [
-  "Alo Winter Campaign", "Editorial Portraits", "Wedding Photoshoot", "Music Video",
-  "Baby Shower Videography", "Product Photography", "Brand Launch Event", "Corporate Headshots",
-  "Real Estate Walkthrough", "Fashion Lookbook", "Restaurant Menu Shoot", "Graduation Portraits",
-];
-const LOCATIONS = ["Los Angeles, CA", "Queens, NY", "Miami, FL", "Los Angeles, CA", "Los Angeles, CA", "Los Angeles, CA", "Austin, TX", "Chicago, IL"];
-const SERVICES = ["Videography", "Photography", "Video & Photo", "Photography", "Photography", "Video & Photo"];
-const STATUSES: ProducerShootStatus[] = ["Initiated", "Post Production", "Completed", "Revision", "Pre Production", "Initiated", "Shoot Day", "Assets Delivered"];
-const CPS = ["Sarah Miller", "Sarah Miller", "Andre Cole", "Sarah Miller", "Andre Cole", "Aarav Sharma"];
-const REPS = ["Noah Williams", "Noah Williams", "Noah Williams", "Emma Davis"];
-
-export const DUMMY_PRODUCER_SHOOTS: ProducerShoot[] = Array.from({ length: 24 }, (_, i) => ({
-  id: `#${123456 + i}`,
-  projectName: PROJECTS[i % PROJECTS.length],
-  date: new Date(2026, 0, 13 + i * 3).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-  location: LOCATIONS[i % LOCATIONS.length],
-  service: SERVICES[i % SERVICES.length],
-  status: STATUSES[i % STATUSES.length],
-  salesRep: REPS[i % REPS.length],
-  cp: CPS[i % CPS.length],
-}));
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -295,8 +275,9 @@ interface ProducerShootsTableProps {
   isDark: boolean;
   /** Search box on the page (matches project name, shoot ID, location, CP, sales rep) */
   searchQuery?: string;
-  /** Pass real data later; falls back to dummy data */
   data?: ProducerShoot[];
+  loading?: boolean;
+  filterKey?: string;
   pageSize?: number;
   detailBasePath?: string;
   viewMode?: "grid" | "list";
@@ -307,38 +288,29 @@ export function ProducerShootsTable({
   searchQuery = "",
   viewMode = "list",
   data,
+  loading = false,
+  filterKey = "",
   pageSize = 10,
   detailBasePath = "/admin/shoots",
 }: ProducerShootsTableProps) {
   const router = useRouter();
   const [page, setPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isFetching, setIsFetching] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  // Simulated first load (dummy data) so the loading state matches the rest of the page
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
 
   // Back to page 1 when the search changes
   useEffect(() => {
     setPage(1);
     setExpandedId(null);
-  }, [searchQuery]);
+  }, [searchQuery, filterKey]);
 
-  // Simulated page fetch: rows stay visible and fade slightly (project pattern)
   const goToPage = (next: number) => {
-    setIsFetching(true);
     setPage(next);
     setExpandedId(null);
-    setTimeout(() => setIsFetching(false), 250);
   };
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    const rows = data ?? DUMMY_PRODUCER_SHOOTS;
+    const rows = data ?? [];
     if (!q) return rows;
     return rows.filter((s) =>
       [s.projectName, s.id, s.location, s.cp, s.salesRep, s.service]
@@ -362,7 +334,7 @@ export function ProducerShootsTable({
 
   return (
     <div className={`w-full transition-colors duration-300 ${viewMode === "list" ? `overflow-hidden rounded-2xl border ${cardCls}` : "bg-transparent"}`}>
-      {isLoading ? (
+      {loading ? (
         <div className="py-20 flex justify-center">
           <Loader2 className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-[#BFA780]"}`} size={32} />
         </div>
@@ -379,7 +351,7 @@ export function ProducerShootsTable({
               <span>Status</span>
             </div>
 
-            <div className={`transition-opacity duration-200 ${isFetching ? "opacity-50" : "opacity-100"}`}>
+            <div>
               {rows.map((shoot) => {
                 const isExpanded = expandedId === shoot.id;
                 return (
@@ -456,7 +428,7 @@ export function ProducerShootsTable({
                   <th className={`w-[8%] py-5 px-6 font-medium text-right border-b rounded-br-2xl ${divider}`}>Action</th>
                 </tr>
               </thead>
-              <tbody className={`transition-opacity duration-200 ${isFetching ? "opacity-50" : "opacity-100"}`}>
+              <tbody>
                 {/* spacer under the header, like the design */}
                 <tr aria-hidden="true"><td colSpan={8} className="h-3 p-0" /></tr>
                 {rows.map((shoot) => (

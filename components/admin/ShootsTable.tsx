@@ -191,10 +191,10 @@ const PRODUCTION_GAP_FILTER_SET = new Set([
 
 const isProductionGapStatusFilter = (value: string) => PRODUCTION_GAP_FILTER_SET.has(String(value || "").toLowerCase());
 
-type PaymentFilter = "all" | "pending" | "paid";
+type PaymentFilter = "all" | "partially_paid" | "paid";
 
 const isPaymentFilter = (value: string): value is PaymentFilter =>
-  value === "all" || value === "pending" || value === "paid";
+  value === "all" || value === "partially_paid" || value === "paid";
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
   videographer: "Videography",
@@ -1303,7 +1303,7 @@ export const ShootsTable = ({
                     </SelectTrigger>
                     <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
                       <SelectItem value="all">All</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="partially_paid">Partially Paid</SelectItem>
                       <SelectItem value="paid">Paid</SelectItem>
                     </SelectContent>
                   </Select>

@@ -2747,6 +2747,10 @@ export const adminApi = {
     post_production_user_id?: string | number;
     payment_filter?: string;
     production_filter?: string;
+    post_production_assignment?: string;
+    board_page?: number;
+    board_limit?: number;
+    column_status?: string;
   } = {}) => {
     try {
       const response = await api.get('admin/get-projects-board', {
@@ -3392,6 +3396,23 @@ export const adminApi = {
         data: null,
         error: error.response?.data?.message || 'Failed to fetch post-production team options',
       };
+    }
+  },
+
+  getMyProducerShoots: async () => {
+    try {
+      const response = await api.get('admin/my-producer-shoots', { params: { range: 'all' } });
+      return response.data;
+    } catch (error: any) {
+      return { error: true, message: error.response?.data?.message || 'Failed to fetch producer shoots', data: { projects: [] } };
+    }
+  },
+  setShootProducer: async (projectId: number, producerUserId: number | null) => {
+    try {
+      const response = await api.put(`admin/shoots/${projectId}/producer`, { producer_user_id: producerUserId });
+      return response.data;
+    } catch (error: any) {
+      return { success: false, message: error.response?.data?.message || 'Failed to update producer' };
     }
   },
 

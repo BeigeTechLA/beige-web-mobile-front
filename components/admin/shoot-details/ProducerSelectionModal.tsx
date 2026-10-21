@@ -10,9 +10,10 @@ export type ProducerAvailability = 'available' | 'available_today' | 'limited';
 export interface Producer {
   id: string;
   name: string;
+  email?: string;
   role: string;              // e.g. "Producer"
-  activeShoots: number;
-  availability: ProducerAvailability;
+  activeShoots?: number;
+  availability?: ProducerAvailability;
   avatarUrl?: string;        // optional – falls back to initials on avatarBg
   avatarBg?: string;         // pastel tile behind the photo / initials
 }
@@ -106,7 +107,7 @@ export default function ProducerSelectionModal({
   }, [open, onClose]);
 
   const isDark = !mounted || theme === "dark";
-  const list = producers ?? DUMMY_PRODUCERS;
+  const list = producers ?? [];
   const isLoading = isLoadingProp ?? (producers ? false : simLoading);
 
   const filtered = useMemo(() => {
@@ -194,7 +195,7 @@ export default function ProducerSelectionModal({
               ))
               : filtered.map((p) => {
                 const isSelected = p.id === selectedId;
-                const av = AVAILABILITY[p.availability];
+                const av = p.availability ? AVAILABILITY[p.availability] : null;
                 return (
                   <button
                     key={p.id}
@@ -227,21 +228,21 @@ export default function ProducerSelectionModal({
                         )}
                       </span>
                       <span className="block text-sm lg:text-base mt-1 truncate">
-                        <span className={muted}>{p.role} · </span>
-                        <span className={gold}>{p.activeShoots} active shoot{p.activeShoots === 1 ? '' : 's'}</span>
+                        <span className={muted}>{p.role}</span>
+                        {p.activeShoots != null && <span className={gold}>{p.activeShoots} active shoot{p.activeShoots === 1 ? '' : 's'}</span>}
                       </span>
                       {/* Availability under the name on small phones */}
-                      <span className={`lg:hidden mt-1 flex items-center gap-1.5 text-xs ${isDark ? 'text-[#A8A8A6]' : 'text-zinc-600'}`}>
+                      {av && <span className={`lg:hidden mt-1 flex items-center gap-1.5 text-xs ${isDark ? 'text-[#A8A8A6]' : 'text-zinc-600'}`}>
                         <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: av.dot }} />
                         {av.label}
-                      </span>
+                      </span>}
                     </span>
 
                     {/* Availability */}
-                    <span className={`hidden lg:flex shrink-0 items-center gap-2 text-base ${isDark ? 'text-[#BDBDBD]' : 'text-zinc-600'}`}>
+                    {av && <span className={`hidden lg:flex shrink-0 items-center gap-2 text-base ${isDark ? 'text-[#BDBDBD]' : 'text-zinc-600'}`}>
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: av.dot }} />
                       {av.label}
-                    </span>
+                    </span>}
 
                     {/* Radio */}
                     <span
