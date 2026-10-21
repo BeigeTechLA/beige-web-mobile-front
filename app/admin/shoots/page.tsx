@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { ShootsTable } from "@/components/admin/ShootsTable";
+import { ProducerShootsTable, DUMMY_PRODUCER_SHOOTS } from "@/components/admin/ProducerShootsTable";
 import { ShootsCalendarView } from "@/components/admin/ShootsCalendarView";
 import { ShootsGlobeView } from "@/components/admin/ShootsGlobeView";
 
@@ -41,6 +42,7 @@ import { format as formatDateFns, startOfDay } from "date-fns";
 import { toast } from "sonner";
 import { adminApi } from "@/lib/api";
 import DatePicker from "@/components/ui/Datepicker";
+import { TabsSwitcher } from "@/components/admin/TabsSwitcher";
 
 const SHOOTS_FILTERS_STORAGE_KEY = "admin-shoots-filters-v1";
 
@@ -76,6 +78,8 @@ type PostProductionTeamOption = {
   role_name?: string | null;
 };
 
+type TabType = "My Producer Shoots" | "All Shoots";
+
 const formatRoleName = (roleName: string) =>
   roleName
     .replace(/_/g, " ")
@@ -89,6 +93,12 @@ const normalizeRangeFilter = (value: string) => {
   if (value === "last_1_month") return "last_30_days";
   return RANGE_FILTER_OPTIONS.has(value) ? value : "all";
 };
+
+const tabs: { label: string; value: TabType; count: number }[] = [
+  // Count follows the dummy producer shoots until the API is wired up
+  { label: "My Producer Shoots", value: "My Producer Shoots", count: DUMMY_PRODUCER_SHOOTS.length },
+  { label: "All Shoots", value: "All Shoots", count: 12 },
+];
 
 export default function ShootsPage() {
   const router = useRouter();
@@ -140,6 +150,19 @@ export default function ShootsPage() {
   const [exportStartDate, setExportStartDate] = useState<Date | null>(null);
 
   const [exportEndDate, setExportEndDate] = useState<Date | null>(null);
+
+  // New states for Producer updates
+  const [activeTab, setActiveTab] = useState<TabType>("My Producer Shoots");
+  const [selectedSalesRep, setSelectedSalesRep] = useState("");
+  const [selectedCP, setSelectedCP] = useState("");
+  const [shootUpcoming, setShootUpcoming] = useState("");
+  const [completionStatus, setCompletionStatus] = useState("");
+  const [selectedShootPeriod, setSelectedShootPeriod] = useState("");
+  const [cancellationStatus, setCancellationStatus] = useState("");
+  const [selectedShootDate, setSelectedShootDate] = useState("");
+  const [selectedService, setSelectedService] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState("");
+
 
   useEffect(() => {
     let isCancelled = false;
@@ -431,9 +454,9 @@ export default function ShootsPage() {
           ? { end_date: formatDateFns(customRangeEnd, "yyyy-MM-dd") }
           : {}),
         ...(range === "custom" &&
-        !customRangeStart &&
-        !customRangeEnd &&
-        selectedDate
+          !customRangeStart &&
+          !customRangeEnd &&
+          selectedDate
           ? { date_on: formatDateFns(startOfDay(selectedDate), "yyyy-MM-dd") }
           : {}),
         ...(categoryFilter !== "all" ? { category: categoryFilter } : {}),
@@ -539,11 +562,10 @@ export default function ShootsPage() {
                 <Button
                   type="button"
                   onClick={() => setViewMode("globe")}
-                  className={`h-9 lg:h-10 min-w-[118px] lg:min-w-[126px] px-4 lg:px-5 text-xs lg:text-sm font-medium rounded-lg border transition-colors ${
-                    isDark
-                      ? "border-[#3A3A3A] bg-[#171717] text-white/75 hover:bg-[#202020] hover:text-white"
-                      : "border-[#DADADA] bg-white text-black/70 hover:bg-[#F7F7F7] hover:text-black"
-                  }`}
+                  className={`h-9 lg:h-10 min-w-[118px] lg:min-w-[126px] px-4 lg:px-5 text-xs lg:text-sm font-medium rounded-lg border transition-colors ${isDark
+                    ? "border-[#3A3A3A] bg-[#171717] text-white/75 hover:bg-[#202020] hover:text-white"
+                    : "border-[#DADADA] bg-white text-black/70 hover:bg-[#F7F7F7] hover:text-black"
+                    }`}
                 >
                   Globe View
                 </Button>
@@ -551,11 +573,10 @@ export default function ShootsPage() {
                 <Button
                   type="button"
                   onClick={() => setViewMode("calendar")}
-                  className={`h-9 lg:h-10 min-w-[118px] lg:min-w-[126px] px-4 lg:px-5 text-xs lg:text-sm font-medium rounded-lg border transition-colors ${
-                    isDark
-                      ? "border-white bg-white text-black hover:bg-white/90"
-                      : "border-[#1F1F1F] bg-[#1F1F1F] text-white hover:bg-[#2A2A2A]"
-                  }`}
+                  className={`h-9 lg:h-10 min-w-[118px] lg:min-w-[126px] px-4 lg:px-5 text-xs lg:text-sm font-medium rounded-lg border transition-colors ${isDark
+                    ? "border-white bg-white text-black hover:bg-white/90"
+                    : "border-[#1F1F1F] bg-[#1F1F1F] text-white hover:bg-[#2A2A2A]"
+                    }`}
                 >
                   Calendar View
                 </Button>
@@ -563,11 +584,47 @@ export default function ShootsPage() {
             </div>
             {/* Search Bar */}
             <div className="flex flex-col gap-3">
-              <h3
-                className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}
-              >
-                All Shoots
+
+              <h3 className={`text-xl font-semibold ${isDark ? "text-white" : "text-[#000000]"}`}>
+                {activeTab !== "My Producer Shoots" ? "All Shoots" : "Producer Workspace"}
               </h3>
+
+              {/* <TabsSwitcher
+                tabs={tabs}
+                activeTab={activeTab}
+                onChange={(tab) => {
+                  setActiveTab(tab);
+                }}
+              /> */}
+
+              <div
+                className={`flex items-center gap-1 p-1 rounded-xl w-fit border transition-all duration-300 ${isDark
+                  ? "bg-[#171717] border-[#333]"
+                  : "bg-[#fff] border-[#E5E5E5]"
+                  }`}
+              >
+                {tabs.map((tab) => {
+                  const isActive = activeTab === tab.value;
+
+                  return (
+                    <button
+                      key={tab.value}
+                      onClick={() => setActiveTab(tab.value)}
+                      type="button"
+                      className={`flex-1 px-4 lg:px-6 py-2 rounded-lg text-xs lg:text-sm font-medium w-fit whitespace-nowrap text-center transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-40 ${isActive
+                        ? (isDark
+                          ? "bg-[#E5D5B8] text-black shadow-lg"
+                          : "bg-[#E8D1AB] text-black shadow-sm")
+                        : (isDark
+                          ? "text-[#777] hover:text-white"
+                          : "text-[#888] hover:text-black")
+                        }`}
+                    >
+                      {tab.label} ({tab.count})
+                    </button>
+                  );
+                })}
+              </div>
 
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 {/* Search */}
@@ -581,11 +638,10 @@ export default function ShootsPage() {
                     placeholder="Search by project name, email, or phone number..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className={`w-full border rounded-lg h-12 pl-10 pr-4 text-sm focus:outline-none transition-colors ${
-                      isDark
-                        ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
-                        : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
-                    }`}
+                    className={`w-full border rounded-lg h-12 pl-10 pr-4 text-sm focus:outline-none transition-colors ${isDark
+                      ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
+                      : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
+                      }`}
                   />
                 </div>
 
@@ -611,13 +667,12 @@ export default function ShootsPage() {
                       onClick={() => setViewMode("grid")}
                       aria-label="Grid view"
                       title="Grid view"
-                      className={`px-4 py-3.5 transition-colors rounded-l-lg lg:rounded-l-xl ${
-                        viewMode === "grid"
-                          ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                          : isDark
-                            ? "bg-transparent text-white/40 hover:text-white"
-                            : "bg-transparent text-[#666] hover:text-black"
-                      }`}
+                      className={`px-4 py-3.5 transition-colors rounded-l-lg lg:rounded-l-xl ${viewMode === "grid"
+                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                        : isDark
+                          ? "bg-transparent text-white/40 hover:text-white"
+                          : "bg-transparent text-[#666] hover:text-black"
+                        }`}
                     >
                       <Grid3X3 size={18} />
                     </button>
@@ -626,13 +681,12 @@ export default function ShootsPage() {
                       onClick={() => setViewMode("list")}
                       aria-label="List view"
                       title="List view"
-                      className={`px-4 py-3.5 transition-colors rounded-r-lg lg:rounded-r-xl ${
-                        viewMode === "list"
-                          ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
-                          : isDark
-                            ? "bg-transparent text-white/40 hover:text-white"
-                            : "bg-transparent text-[#666] hover:text-black"
-                      }`}
+                      className={`px-4 py-3.5 transition-colors rounded-r-lg lg:rounded-r-xl ${viewMode === "list"
+                        ? "bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
+                        : isDark
+                          ? "bg-transparent text-white/40 hover:text-white"
+                          : "bg-transparent text-[#666] hover:text-black"
+                        }`}
                     >
                       <List size={18} />
                     </button>
@@ -642,470 +696,647 @@ export default function ShootsPage() {
 
               {/* Filters Group */}
               {showFilters && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex flex-col gap-1">
-                    <Select
-                      value={categoryFilter}
-                      onValueChange={setCategoryFilter}
-                    >
-                      <SelectTrigger
-                        className={`w-[130px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                <div className={`flex items-center gap-2 lg:gap-4 p-3.5 rounded-xl ${isDark ? "bg-[#171717]" : "bg-[#F7F7F7]"}`}>
+                  <div className="flex items-center gap-2 overflow-x-scroll no-scrollbar">
+                    {/* New Set of Filters added as per Producer Flow design */}
+
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={shootUpcoming}
+                        onValueChange={setShootUpcoming}
                       >
-                        <SelectValue placeholder="Category" />
-                      </SelectTrigger>
-                      <SelectContent
-                        className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                      >
-                        <SelectItem value="all">All Categories</SelectItem>
-                        <SelectItem value="corporate">Corporate</SelectItem>
-                        <SelectItem value="wedding">Wedding</SelectItem>
-                        <SelectItem value="private">Private</SelectItem>
-                        {/* ... add others as needed */}
-                      </SelectContent>
-                    </Select>
-
-                    
-                  </div>
-                  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                  <div className="flex flex-col gap-1">
-                    <Select
-                      value={statusFilter}
-                      onValueChange={setStatusFilter}
-                    >
-                      <SelectTrigger
-                        className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                      >
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent
-                        className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                      >
-                        {FILTER_STATUS_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <Select
-                      value={paymentFilter}
-                      onValueChange={(value) => {
-                        if (isPaymentFilter(value)) setPaymentFilter(value);
-                      }}
-                    >
-                      <SelectTrigger
-                        className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                      >
-                        <SelectValue placeholder="Payment" />
-                      </SelectTrigger>
-                      <SelectContent
-                        className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                      >
-                        <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="partially_paid">Partially Paid</SelectItem>
-                        <SelectItem value="paid">Paid</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <Select
-                      value={productionFilter}
-                      onValueChange={setProductionFilter}
-                    >
-                      <SelectTrigger
-                        className={`w-[260px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                      >
-                        <SelectValue placeholder="Production Filter" />
-                      </SelectTrigger>
-                      <SelectContent
-                        className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                      >
-                        <SelectItem value="all">All Production</SelectItem>
-                        <div className="pl-3 pr-2 pt-2 pb-1 text-xs font-semibold tracking-wide text-[#E8D1AB] text-left">
-                          Pre Production
-                        </div>
-                        <SelectItem value="pre_production_file_not_provided">
-                          File Not Provided
-                        </SelectItem>
-                        <SelectItem value="pre_production_meeting_not_done">
-                          Meeting Not Scheduled
-                        </SelectItem>
-                        <div className="pl-3 pr-2 pt-2 pb-1 text-xs font-semibold tracking-wide text-[#E8D1AB] text-left">
-                          Post Production
-                        </div>
-                        <SelectItem value="post_production_file_not_uploaded">
-                          File Not Uploaded
-                        </SelectItem>
-                        <SelectItem value="post_production_meeting_not_done">
-                          Meeting Not Scheduled
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <Select value={range} onValueChange={handleRangeChange}>
-                      <SelectTrigger
-                        className={`w-[130px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                      >
-                        <SelectValue placeholder="Shoot Date" />
-                      </SelectTrigger>
-                      <SelectContent
-                        className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"} max-h-56`}
-                        viewportClassName="!h-auto max-h-56 overflow-y-auto"
-                      >
-                        <SelectItem value="all">All Time</SelectItem>
-                        <SelectItem value="tbd">TBD</SelectItem>
-                        <SelectItem value="today">Today</SelectItem>
-                        <SelectItem value="next_7_days">Next 7 Days</SelectItem>
-                        <SelectItem value="next_15_days">
-                          Next 15 Days
-                        </SelectItem>
-                        <SelectItem value="next_30_days">
-                          Next 30 Days
-                        </SelectItem>
-                        <SelectItem value="last_7_days">Last 7 Days</SelectItem>
-                        <SelectItem value="last_15_days">
-                          Last 15 Days
-                        </SelectItem>
-                        <SelectItem value="last_30_days">
-                          Last 30 Days
-                        </SelectItem>
-                        <SelectItem
-                          value="custom"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            setRange("custom");
-                            openCustomRangeDialog();
-                          }}
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            setRange("custom");
-                            openCustomRangeDialog();
-                          }}
+                        <SelectTrigger
+                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
                         >
-                          Custom Range
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                <div className="flex flex-col gap-1">
-                  <Select value={cpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => setCpAssignmentFilter(v)}>
-                    <SelectTrigger className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                      <SelectValue placeholder="CP Assignment" />
-                    </SelectTrigger>
-                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                      <SelectItem value="all">All CP Assignment</SelectItem>
-                      <SelectItem value="assigned">CP Assigned</SelectItem>
-                      <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Select
-                    value={postProductionAssignmentFilter}
-                    onValueChange={(v: "all" | "assigned" | "not_assigned") => setPostProductionAssignmentFilter(v)}
-                  >
-                    <SelectTrigger className={`w-[200px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
-                      <SelectValue placeholder="Post Production Assignment" />
-                    </SelectTrigger>
-                    <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
-                      <SelectItem value="all">All Post Production</SelectItem>
-                      <SelectItem value="assigned">Post Prod Assigned</SelectItem>
-                      <SelectItem value="not_assigned">Post Prod Not Assigned</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Select
-                    value={postProductionUserFilter}
-                    onValueChange={setPostProductionUserFilter}
-                    disabled={isLoadingPostProductionTeam}
-                  >
-                    <SelectTrigger
-                      title={selectedPostProductionUser?.name || "All Producer Team"}
-                      className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
-                    >
-                      <SelectValue
-                        placeholder="Producer Team"
-                        className="min-w-0 flex-1 truncate text-left"
-                      >
-                        {isLoadingPostProductionTeam
-                          ? "Loading team..."
-                          : selectedPostProductionUser?.name || "All Producer Team"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent
-                      className={`min-w-[250px] ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
-                      viewportClassName="!h-auto max-h-80 overflow-y-auto"
-                    >
-                      <SelectItem value="all">All Producer Team</SelectItem>
-                      {postProductionTeamOptions.length > 0 ? (
-                      postProductionTeamOptions.map((option) => (
-                        <SelectItem
-                          key={option.id}
-                          value={String(option.id)}
-                          textValue={option.name}
-                          className="py-2.5"
+                          <SelectValue placeholder="Upcoming" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
                         >
-                          <div className="flex flex-col items-start gap-0.5 text-left">
-                            <span className="text-sm leading-5">{option.name}</span>
-                            {option.role_name && (
-                              <span className={`text-xs leading-4 ${isDark ? "text-white/45" : "text-black/45"}`}>
-                                {formatRoleName(option.role_name)}
-                              </span>
-                            )}
+                          {FILTER_STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={selectedShootPeriod}
+                        onValueChange={setSelectedShootPeriod}
+                      >
+                        <SelectTrigger
+                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="Today" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        >
+                          {FILTER_STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={completionStatus}
+                        onValueChange={setCompletionStatus}
+                      >
+                        <SelectTrigger
+                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="Completed" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        >
+                          {FILTER_STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={cancellationStatus}
+                        onValueChange={setCancellationStatus}
+                      >
+                        <SelectTrigger
+                          className={`w-[180px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="Cancelled/Deleted" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        >
+                          {FILTER_STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={selectedShootDate}
+                        onValueChange={setSelectedShootDate}
+                      >
+                        <SelectTrigger
+                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="Shoot Date" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        >
+                          {FILTER_STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={selectedService}
+                        onValueChange={setSelectedService}
+                      >
+                        <SelectTrigger
+                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="Service" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        >
+                          {FILTER_STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={selectedLocation}
+                        onValueChange={setSelectedLocation}
+                      >
+                        <SelectTrigger
+                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="Location" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        >
+                          {FILTER_STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={selectedCP}
+                        onValueChange={setSelectedCP}
+                      >
+                        <SelectTrigger
+                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="CP" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        >
+                          {FILTER_STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={selectedSalesRep}
+                        onValueChange={setSelectedSalesRep}
+                      >
+                        <SelectTrigger
+                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="Sales Rep" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        >
+                          {FILTER_STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* New set end */}
+
+
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={categoryFilter}
+                        onValueChange={setCategoryFilter}
+                      >
+                        <SelectTrigger
+                          className={`w-[130px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="Category" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        >
+                          <SelectItem value="all">All Categories</SelectItem>
+                          <SelectItem value="corporate">Corporate</SelectItem>
+                          <SelectItem value="wedding">Wedding</SelectItem>
+                          <SelectItem value="private">Private</SelectItem>
+                          {/* ... add others as needed */}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={statusFilter}
+                        onValueChange={setStatusFilter}
+                      >
+                        <SelectTrigger
+                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        >
+                          {FILTER_STATUS_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={paymentFilter}
+                        onValueChange={(value) => {
+                          if (isPaymentFilter(value)) setPaymentFilter(value);
+                        }}
+                      >
+                        <SelectTrigger
+                          className={`w-[120px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="Payment" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        >
+                          <SelectItem value="all">All</SelectItem>
+                          <SelectItem value="partially_paid">Partially Paid</SelectItem>
+                          <SelectItem value="paid">Paid</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={productionFilter}
+                        onValueChange={setProductionFilter}
+                      >
+                        <SelectTrigger
+                          className={`w-[260px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="Production Filter" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                        >
+                          <SelectItem value="all">All Production</SelectItem>
+                          <div className="pl-3 pr-2 pt-2 pb-1 text-xs font-semibold tracking-wide text-[#E8D1AB] text-left">
+                            Pre Production
                           </div>
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <div
-                        className={`px-3 py-2.5 text-sm ${
-                          isDark ? "text-white/50" : "text-black/50"
-                        }`}
-                      >
-                        No members available
-                      </div>
-                    )}
-                    </SelectContent>
-                  </Select>
-                </div>
+                          <SelectItem value="pre_production_file_not_provided">
+                            File Not Provided
+                          </SelectItem>
+                          <SelectItem value="pre_production_meeting_not_done">
+                            Meeting Not Scheduled
+                          </SelectItem>
+                          <div className="pl-3 pr-2 pt-2 pb-1 text-xs font-semibold tracking-wide text-[#E8D1AB] text-left">
+                            Post Production
+                          </div>
+                          <SelectItem value="post_production_file_not_uploaded">
+                            File Not Uploaded
+                          </SelectItem>
+                          <SelectItem value="post_production_meeting_not_done">
+                            Meeting Not Scheduled
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="flex items-center gap-2">
-              <Button
-                  type="button"
-                  onClick={resetAllFilters}
-                  aria-label="Reset filters"
-                  title="Reset filters"
-                  className={`h-8 lg:h-12 w-8 lg:w-12 p-0 rounded-lg flex items-center justify-center ${isDark ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]" : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"}`}
-                >
-                  <RotateCcw size={18} />
-                </Button>
-                <Popover
-                  open={isExportOpen}
-                  onOpenChange={(open) => {
-                    if (!isExporting) {
-                      setIsExportOpen(open);
-                    }
-                  }}
-                >
-                  <PopoverTrigger asChild>
+                    <div className="flex flex-col gap-1">
+                      <Select value={range} onValueChange={handleRangeChange}>
+                        <SelectTrigger
+                          className={`w-[130px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue placeholder="Shoot Date" />
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"} max-h-56`}
+                          viewportClassName="!h-auto max-h-56 overflow-y-auto"
+                        >
+                          <SelectItem value="all">All Time</SelectItem>
+                          <SelectItem value="tbd">TBD</SelectItem>
+                          <SelectItem value="today">Today</SelectItem>
+                          <SelectItem value="next_7_days">Next 7 Days</SelectItem>
+                          <SelectItem value="next_15_days">
+                            Next 15 Days
+                          </SelectItem>
+                          <SelectItem value="next_30_days">
+                            Next 30 Days
+                          </SelectItem>
+                          <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                          <SelectItem value="last_15_days">
+                            Last 15 Days
+                          </SelectItem>
+                          <SelectItem value="last_30_days">
+                            Last 30 Days
+                          </SelectItem>
+                          <SelectItem
+                            value="custom"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              setRange("custom");
+                              openCustomRangeDialog();
+                            }}
+                            onSelect={(event) => {
+                              event.preventDefault();
+                              setRange("custom");
+                              openCustomRangeDialog();
+                            }}
+                          >
+                            Custom Range
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <Select value={cpAssignmentFilter} onValueChange={(v: "all" | "assigned" | "not_assigned") => setCpAssignmentFilter(v)}>
+                        <SelectTrigger className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                          <SelectValue placeholder="CP Assignment" />
+                        </SelectTrigger>
+                        <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                          <SelectItem value="all">All CP Assignment</SelectItem>
+                          <SelectItem value="assigned">CP Assigned</SelectItem>
+                          <SelectItem value="not_assigned">CP Not Assigned</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={postProductionAssignmentFilter}
+                        onValueChange={(v: "all" | "assigned" | "not_assigned") => setPostProductionAssignmentFilter(v)}
+                      >
+                        <SelectTrigger className={`w-[200px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 capitalize ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}>
+                          <SelectValue placeholder="Post Production Assignment" />
+                        </SelectTrigger>
+                        <SelectContent className={`${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}>
+                          <SelectItem value="all">All Post Production</SelectItem>
+                          <SelectItem value="assigned">Post Prod Assigned</SelectItem>
+                          <SelectItem value="not_assigned">Post Prod Not Assigned</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Select
+                        value={postProductionUserFilter}
+                        onValueChange={setPostProductionUserFilter}
+                        disabled={isLoadingPostProductionTeam}
+                      >
+                        <SelectTrigger
+                          title={selectedPostProductionUser?.name || "All Producer Team"}
+                          className={`w-[170px] rounded-lg h-8 lg:h-12 text-xs lg:text-sm focus:ring-0 ${isDark ? "bg-zinc-900 border-[#333333] text-white/70" : "bg-white border-[#E5E5E5] text-[#666]"}`}
+                        >
+                          <SelectValue
+                            placeholder="Producer Team"
+                            className="min-w-0 flex-1 truncate text-left"
+                          >
+                            {isLoadingPostProductionTeam
+                              ? "Loading team..."
+                              : selectedPostProductionUser?.name || "All Producer Team"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent
+                          className={`min-w-[250px] ${isDark ? "bg-[#111111] border-[#333333]" : "bg-white border-[#E5E5E5] text-black"}`}
+                          viewportClassName="!h-auto max-h-80 overflow-y-auto"
+                        >
+                          <SelectItem value="all">All Producer Team</SelectItem>
+                          {postProductionTeamOptions.length > 0 ? (
+                            postProductionTeamOptions.map((option) => (
+                              <SelectItem
+                                key={option.id}
+                                value={String(option.id)}
+                                textValue={option.name}
+                                className="py-2.5"
+                              >
+                                <div className="flex flex-col items-start gap-0.5 text-left">
+                                  <span className="text-sm leading-5">{option.name}</span>
+                                  {option.role_name && (
+                                    <span className={`text-xs leading-4 ${isDark ? "text-white/45" : "text-black/45"}`}>
+                                      {formatRoleName(option.role_name)}
+                                    </span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div
+                              className={`px-3 py-2.5 text-sm ${isDark ? "text-white/50" : "text-black/50"
+                                }`}
+                            >
+                              No members available
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 lg:gap-4">
                     <Button
                       type="button"
-                      disabled={isExporting}
-                      aria-label="Export shoots"
-                      title="Export shoots"
-                      className={`h-8 lg:h-12 px-3 lg:px-4 rounded-lg flex items-center justify-center gap-2 ${
-                        isDark
-                          ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]"
-                          : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"
-                      }`}
+                      onClick={resetAllFilters}
+                      aria-label="Reset filters"
+                      title="Reset filters"
+                      className={`h-8 lg:h-12 w-8 lg:w-12 p-0 rounded-lg flex items-center justify-center ${isDark ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]" : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"}`}
                     >
-                      {isExporting ? (
-                        <Loader2
-                          size={18}
-                          className="animate-spin"
-                        />
-                      ) : (
-                        <ArrowUpToLine size={18} />
-                      )}
+                      <RotateCcw size={18} />
+                    </Button>
+                    <Popover
+                      open={isExportOpen}
+                      onOpenChange={(open) => {
+                        if (!isExporting) {
+                          setIsExportOpen(open);
+                        }
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          disabled={isExporting}
+                          aria-label="Export shoots"
+                          title="Export shoots"
+                          className={`h-8 lg:h-12 px-3 lg:px-4 rounded-lg flex items-center justify-center gap-2 ${isDark
+                            ? "bg-[#202020] text-white border border-white/10 hover:bg-[#2a2a2a]"
+                            : "bg-white text-[#333] border border-[#E5E5E5] hover:bg-[#F7F7F7]"
+                            }`}
+                        >
+                          {isExporting ? (
+                            <Loader2
+                              size={18}
+                              className="animate-spin"
+                            />
+                          ) : (
+                            <ArrowUpToLine size={18} />
+                          )}
 
-                        <span className="hidden lg:inline">
-                          {isExporting ? "Exporting..." : "Export"}
-                        </span>
-                      </Button>
-                    </PopoverTrigger>
+                          <span className="hidden lg:inline">
+                            {isExporting ? "Exporting..." : "Export"}
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
 
-                    <PopoverContent
-                      align="end"
-                      sideOffset={10}
-                      className={`w-[340px] rounded-2xl border p-5 ${
-                        isDark
+                      <PopoverContent
+                        align="end"
+                        sideOffset={10}
+                        className={`w-[340px] rounded-2xl border p-5 ${isDark
                           ? "border-[#3D3D3D] bg-[#171717] text-white"
                           : "border-[#E5E5E5] bg-white text-black"
-                      }`}
-                    >
-                      <div className="space-y-5">
-                        <div>
-                          <h3 className="text-sm font-semibold">
-                            Export Shoots
-                          </h3>
+                          }`}
+                      >
+                        <div className="space-y-5">
+                          <div>
+                            <h3 className="text-sm font-semibold">
+                              Export Shoots
+                            </h3>
 
-                          <p
-                            className={`mt-1 text-xs ${
-                              isDark ? "text-white/55" : "text-black/55"
-                            }`}
-                          >
-                            Leave both dates blank to download all shoots, or
-                            pick a date range to filter the export.
-                          </p>
-                        </div>
+                            <p
+                              className={`mt-1 text-xs ${isDark ? "text-white/55" : "text-black/55"
+                                }`}
+                            >
+                              Leave both dates blank to download all shoots, or
+                              pick a date range to filter the export.
+                            </p>
+                          </div>
 
-                        <DatePicker
-                          label="Start Date"
-                          value={exportStartDate}
-                          onChange={(date) => {
-                            if (!date) {
-                              setExportStartDate(null);
-                              return;
-                            }
+                          <DatePicker
+                            label="Start Date"
+                            value={exportStartDate}
+                            onChange={(date) => {
+                              if (!date) {
+                                setExportStartDate(null);
+                                return;
+                              }
 
-                            const normalizedDate = startOfDay(date);
-                            const today = startOfDay(new Date());
+                              const normalizedDate = startOfDay(date);
+                              const today = startOfDay(new Date());
 
-                            if (normalizedDate > today) {
-                              return;
-                            }
+                              if (normalizedDate > today) {
+                                return;
+                              }
 
-                            setExportStartDate(normalizedDate);
+                              setExportStartDate(normalizedDate);
 
-                            if (
-                              exportEndDate &&
-                              normalizedDate > startOfDay(exportEndDate)
-                            ) {
-                              setExportEndDate(normalizedDate);
-                            }
-                          }}
-                          maxDate={
-                            exportEndDate
-                              ? startOfDay(exportEndDate)
-                              : startOfDay(new Date())
-                          }
-                          disabled={isExporting}
-                          isDark={isDark}
-                          disablePortal
-                          format="MM/dd/yyyy"
-                          sx={{ height: "42px" }}
-                        />
-
-                        <DatePicker
-                          label="End Date"
-                          value={exportEndDate}
-                          onChange={(date) => {
-                            if (!date) {
-                              setExportEndDate(null);
-                              return;
-                            }
-
-                            const normalizedDate = startOfDay(date);
-                            const today = startOfDay(new Date());
-
-                            if (normalizedDate > today) {
-                              return;
-                            }
-
-                            if (
-                              exportStartDate &&
-                              normalizedDate < startOfDay(exportStartDate)
-                            ) {
-                              return;
-                            }
-
-                            setExportEndDate(normalizedDate);
-                          }}
-                          minDate={
-                            exportStartDate
-                              ? startOfDay(exportStartDate)
-                              : undefined
-                          }
-                          maxDate={startOfDay(new Date())}
-                          disabled={isExporting}
-                          isDark={isDark}
-                          disablePortal
-                          format="MM/dd/yyyy"
-                          sx={{ height: "42px" }}
-                        />
-
-                        {(exportStartDate || exportEndDate) && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setExportStartDate(null);
-                              setExportEndDate(null);
+                              if (
+                                exportEndDate &&
+                                normalizedDate > startOfDay(exportEndDate)
+                              ) {
+                                setExportEndDate(normalizedDate);
+                              }
                             }}
+                            maxDate={
+                              exportEndDate
+                                ? startOfDay(exportEndDate)
+                                : startOfDay(new Date())
+                            }
                             disabled={isExporting}
-                            className={`text-xs font-medium underline underline-offset-4 transition-colors ${
-                              isDark
+                            isDark={isDark}
+                            disablePortal
+                            format="MM/dd/yyyy"
+                            sx={{ height: "42px" }}
+                          />
+
+                          <DatePicker
+                            label="End Date"
+                            value={exportEndDate}
+                            onChange={(date) => {
+                              if (!date) {
+                                setExportEndDate(null);
+                                return;
+                              }
+
+                              const normalizedDate = startOfDay(date);
+                              const today = startOfDay(new Date());
+
+                              if (normalizedDate > today) {
+                                return;
+                              }
+
+                              if (
+                                exportStartDate &&
+                                normalizedDate < startOfDay(exportStartDate)
+                              ) {
+                                return;
+                              }
+
+                              setExportEndDate(normalizedDate);
+                            }}
+                            minDate={
+                              exportStartDate
+                                ? startOfDay(exportStartDate)
+                                : undefined
+                            }
+                            maxDate={startOfDay(new Date())}
+                            disabled={isExporting}
+                            isDark={isDark}
+                            disablePortal
+                            format="MM/dd/yyyy"
+                            sx={{ height: "42px" }}
+                          />
+
+                          {(exportStartDate || exportEndDate) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setExportStartDate(null);
+                                setExportEndDate(null);
+                              }}
+                              disabled={isExporting}
+                              className={`text-xs font-medium underline underline-offset-4 transition-colors ${isDark
                                 ? "text-white/70 hover:text-white"
                                 : "text-black/60 hover:text-black"
-                            }`}
-                          >
-                            Reset dates
-                          </button>
-                        )}
+                                }`}
+                            >
+                              Reset dates
+                            </button>
+                          )}
 
-                        <div className="flex justify-end gap-2 pt-1">
-                          <Button
-                            type="button"
-                            disabled={isExporting}
-                            onClick={() => setIsExportOpen(false)}
-                            className={
-                              isDark
-                                ? "border border-[#3D3D3D] bg-transparent text-white hover:bg-white/5"
-                                : "border border-[#E3E3E3] bg-white text-black hover:bg-black/5"
-                            }
-                          >
-                            Cancel
-                          </Button>
+                          <div className="flex justify-end gap-2 pt-1">
+                            <Button
+                              type="button"
+                              disabled={isExporting}
+                              onClick={() => setIsExportOpen(false)}
+                              className={
+                                isDark
+                                  ? "border border-[#3D3D3D] bg-transparent text-white hover:bg-white/5"
+                                  : "border border-[#E3E3E3] bg-white text-black hover:bg-black/5"
+                              }
+                            >
+                              Cancel
+                            </Button>
 
-                          <Button
-                            type="button"
-                            disabled={isExporting}
-                            onClick={() => {
-                              void handleExportShoots();
-                            }}
-                            className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
-                          >
-                            {isExporting ? (
-                              <>
-                                <Loader2
-                                  size={16}
-                                  className="mr-2 animate-spin"
-                                />
-                                Exporting...
-                              </>
-                            ) : (
-                              <>
-                                <Download size={16} className="mr-2" />
-                                Download CSV
-                              </>
-                            )}
-                          </Button>
+                            <Button
+                              type="button"
+                              disabled={isExporting}
+                              onClick={() => {
+                                void handleExportShoots();
+                              }}
+                              className="bg-[#E5D5B8] text-black hover:bg-[#d4c3a3]"
+                            >
+                              {isExporting ? (
+                                <>
+                                  <Loader2
+                                    size={16}
+                                    className="mr-2 animate-spin"
+                                  />
+                                  Exporting...
+                                </>
+                              ) : (
+                                <>
+                                  <Download size={16} className="mr-2" />
+                                  Download CSV
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
-              </div>
-            )
-          }
+              )
+              }
             </div>
 
             {isCustomRangeOpen && (
@@ -1256,6 +1487,7 @@ export default function ShootsPage() {
           </div>
         )}
 
+
         {viewMode === "calendar" ? (
         <>
             {/* Search + Filter */}
@@ -1263,9 +1495,8 @@ export default function ShootsPage() {
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="relative flex w-full items-center">
                   <Search
-                    className={`absolute left-3 top-1/2 -translate-y-1/2 ${
-                      isDark ? "text-[#666]" : "text-[#999]"
-                    }`}
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#666]" : "text-[#999]"
+                      }`}
                     size={18}
                   />
 
@@ -1274,22 +1505,20 @@ export default function ShootsPage() {
                     placeholder="Search by project name, email, or phone number..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className={`h-12 w-full rounded-lg border pl-10 pr-4 text-sm transition-colors focus:outline-none ${
-                      isDark
-                        ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
-                        : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
-                    }`}
+                    className={`h-12 w-full rounded-lg border pl-10 pr-4 text-sm transition-colors focus:outline-none ${isDark
+                      ? "bg-zinc-900 border-[#333333] text-white focus:border-[#E8D1AB]"
+                      : "bg-white border-[#E5E5E5] text-black focus:border-[#E8D1AB]"
+                      }`}
                   />
                 </div>
 
                 <Button
                   type="button"
                   onClick={() => setShowFilters((prev) => !prev)}
-                  className={`h-12 shrink-0 rounded-xl border px-5 text-sm font-medium transition-colors ${
-                    isDark
-                      ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#333]"
-                      : "border-[#E5E5E5] bg-[#FFFCF6] text-black hover:bg-[#E8D1AB]"
-                  }`}
+                  className={`h-12 shrink-0 rounded-xl border px-5 text-sm font-medium transition-colors ${isDark
+                    ? "border-[#FFFFFF33] bg-[#202020] text-white hover:bg-[#333]"
+                    : "border-[#E5E5E5] bg-[#FFFCF6] text-black hover:bg-[#E8D1AB]"
+                    }`}
                 >
                   <SlidersHorizontal
                     size={20}
@@ -1307,11 +1536,10 @@ export default function ShootsPage() {
                     onValueChange={setCategoryFilter}
                   >
                     <SelectTrigger
-                      className={`h-10 w-[140px] rounded-lg text-sm focus:ring-0 ${
-                        isDark
-                          ? "bg-zinc-900 border-[#333333] text-white/70"
-                          : "bg-white border-[#E5E5E5] text-[#666]"
-                      }`}
+                      className={`h-10 w-[140px] rounded-lg text-sm focus:ring-0 ${isDark
+                        ? "bg-zinc-900 border-[#333333] text-white/70"
+                        : "bg-white border-[#E5E5E5] text-[#666]"
+                        }`}
                     >
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
@@ -1332,11 +1560,10 @@ export default function ShootsPage() {
 
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger
-                      className={`h-10 w-[140px] rounded-lg text-sm focus:ring-0 ${
-                        isDark
-                          ? "bg-zinc-900 border-[#333333] text-white/70"
-                          : "bg-white border-[#E5E5E5] text-[#666]"
-                      }`}
+                      className={`h-10 w-[140px] rounded-lg text-sm focus:ring-0 ${isDark
+                        ? "bg-zinc-900 border-[#333333] text-white/70"
+                        : "bg-white border-[#E5E5E5] text-[#666]"
+                        }`}
                     >
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -1365,11 +1592,10 @@ export default function ShootsPage() {
                     }}
                   >
                     <SelectTrigger
-                      className={`h-10 w-[130px] rounded-lg text-sm focus:ring-0 ${
-                        isDark
-                          ? "bg-zinc-900 border-[#333333] text-white/70"
-                          : "bg-white border-[#E5E5E5] text-[#666]"
-                      }`}
+                      className={`h-10 w-[130px] rounded-lg text-sm focus:ring-0 ${isDark
+                        ? "bg-zinc-900 border-[#333333] text-white/70"
+                        : "bg-white border-[#E5E5E5] text-[#666]"
+                        }`}
                     >
                       <SelectValue placeholder="Payment" />
                     </SelectTrigger>
@@ -1396,11 +1622,10 @@ export default function ShootsPage() {
                     }}
                   >
                     <SelectTrigger
-                      className={`h-10 w-[170px] rounded-lg text-sm focus:ring-0 ${
-                        isDark
-                          ? "bg-zinc-900 border-[#333333] text-white/70"
-                          : "bg-white border-[#E5E5E5] text-[#666]"
-                      }`}
+                      className={`h-10 w-[170px] rounded-lg text-sm focus:ring-0 ${isDark
+                        ? "bg-zinc-900 border-[#333333] text-white/70"
+                        : "bg-white border-[#E5E5E5] text-[#666]"
+                        }`}
                     >
                       <SelectValue placeholder="CP Assignment" />
                     </SelectTrigger>
@@ -1432,11 +1657,10 @@ export default function ShootsPage() {
                     }}
                     aria-label="Reset calendar filters"
                     title="Reset calendar filters"
-                    className={`flex h-10 w-10 items-center justify-center rounded-lg border p-0 ${
-                      isDark
-                        ? "border-white/10 bg-[#202020] text-white hover:bg-[#2a2a2a]"
-                        : "border-[#E5E5E5] bg-white text-[#333] hover:bg-[#F7F7F7]"
-                    }`}
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg border p-0 ${isDark
+                      ? "border-white/10 bg-[#202020] text-white hover:bg-[#2a2a2a]"
+                      : "border-[#E5E5E5] bg-white text-[#333] hover:bg-[#F7F7F7]"
+                      }`}
                   >
                     <RotateCcw size={17} />
                   </Button>
@@ -1444,10 +1668,9 @@ export default function ShootsPage() {
               )}
             </div>
 
-          {/* Calendar */}
-          <div
-            className={`overflow-hidden rounded-2xl border ${
-              isDark
+            {/* Calendar */}
+            <div
+              className={`overflow-hidden rounded-2xl border ${isDark
                 ? "bg-[#111111] border-[#333333]"
                 : "bg-white border-[#E5E5E5]"
             }`}
@@ -1466,26 +1689,6 @@ export default function ShootsPage() {
           </div>
         </>
       ) : viewMode === "globe" ? (
-        <>
-          <div
-            className={`flex h-[42px] items-center px-1 ${
-              isDark ? "bg-[#111111]" : "bg-white"
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setViewMode("grid")}
-              className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
-                isDark
-                  ? "text-white/80 hover:text-white"
-                  : "text-black/70 hover:text-black"
-              }`}
-            >
-              <ArrowLeft size={20} strokeWidth={1.7} />
-              Back
-            </button>
-          </div>
-
           <ShootsGlobeView
             isDark={isDark}
             onOpenCalendarDay={(date) => {
@@ -1493,8 +1696,14 @@ export default function ShootsPage() {
               setViewMode("calendar");
             }}
           />
-        </>
-      ) : (
+        ) : activeTab === "My Producer Shoots" ? (
+          // Producer workspace: producer-specific table (dummy data for now)
+          <ProducerShootsTable
+            isDark={isDark}
+            searchQuery={searchQuery}
+            viewMode={viewMode === "grid" ? "grid" : "list"}
+          />
+        ) : (
           <ShootsTable
             externalSelectedDate={selectedDate}
             customRangeStartDate={customRangeStartDate}

@@ -33,6 +33,7 @@ import CpAgreementsTable from "@/components/admin/shoot-details/CpAgreementsTabl
 import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
 import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+import ProjectProducerSection from "@/components/admin/shoot-details/ProjectProducerSection";
 
 type SkillOption = {
   id?: number | string;
@@ -723,6 +724,10 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
               {activeTab === "Overview" && (
                 <>
+                  <div className="px-5 mb-6">
+                    <ProjectProducerSection />
+                  </div>
+
                   <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <ProjectTeam
                       projectId={id}
