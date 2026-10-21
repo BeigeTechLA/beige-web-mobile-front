@@ -186,6 +186,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [crewSizeNeeded, setCrewSizeNeeded] = useState(0);
   const [previewInvoice, { isLoading: isViewingInvoice }] = usePreviewInvoiceMutation();
 
   // State to handle mobile timeline visibility
@@ -354,6 +355,11 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         responseData?.project || responseData || projectResponse;
 
       if (projectData) {
+        const requiredCrewSize = projectData?.crew_size_needed;
+        if (requiredCrewSize) {
+          setCrewSizeNeeded(requiredCrewSize as number)
+        }
+
         // 3. Map Skills Needed to Names
         let skillsText = "";
         if (projectData.skills_needed) {
@@ -661,6 +667,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                       assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
                       cpCompensationStatus={project?.cp_compensation_status as string | null}
                       onRequestAssignment={handleAssignmentRequest}
+                      crewSizeNeeded={crewSizeNeeded}
                     />
                   </div>
                   {Array.isArray(project?.payment_history) && project.payment_history.length > 0 ? (
