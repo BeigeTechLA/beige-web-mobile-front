@@ -48,7 +48,7 @@ const getAuthFlowErrorMessage = (error: unknown, fallback: string) => {
 
 export function CreatorSignupFlow() {
   const router = useRouter()
-  const { verifyEmail, registerCreatorStep2, registerCreatorStep3 } = useAuth()
+  const { verifyEmail, resendOTP, registerCreatorStep2, registerCreatorStep3 } = useAuth()
   const [step, setStep] = React.useState<CreatorStep>(CreatorStep.BASIC_INFO)
   const [formData, setFormData] = React.useState<CreatorFormData>({})
   const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -77,8 +77,13 @@ export function CreatorSignupFlow() {
   }
 
   const handleResendCode = async () => {
-    // In development, the backend uses a static code "123456"
-    toast.info("A new verification code has been sent to your email.")
+    if (!formData.email) return
+    try {
+      await resendOTP(formData.email)
+      toast.success("A new verification code has been sent to your email.")
+    } catch (error: unknown) {
+      toast.error(getAuthFlowErrorMessage(error, "Could not resend the code. Please try again."))
+    }
   }
 
   const handleSpecialtiesSubmit = (data: { specialties: string[] }) => {

@@ -194,9 +194,16 @@ export default function SignupSuccess({ data }) {
       if (userTypeId === 1) router.push('/affiliate/dashboard');
       else if (userTypeId === 2) router.push('/creator/dashboard');
       else router.push('/dashboard');
-    } catch (error) {
-      toast.error("Auto-login failed.");
-      router.push("/login");
+    } catch (error: unknown) {
+      const authError = error as { data?: { code?: string; email?: string } };
+      if (authError?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        const params = new URLSearchParams({ email: authError.data.email || data.email, source: 'login' });
+        toast.info('Please verify your email to continue.');
+        router.push(`/verify-email?${params.toString()}`);
+      } else {
+        toast.error("Auto-login failed.");
+        router.push("/login");
+      }
     } finally {
       setLoading(false);
     }

@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { VerifyEmailStep } from "@/components/auth/VerifyEmailStep"
 import { useAuth } from "@/lib/hooks/useAuth"
 import { formatTime } from "@/lib/utils"
+import { getDashboardPathForUser } from "@/lib/auth-routing"
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
@@ -22,17 +23,19 @@ function VerifyEmailContent() {
 
   const {
     verifyEmail,
-    login,
     resendOTP,
     isVerifyEmailLoading,
-    isLoginLoading,
     isResendOTPLoading
   } = useAuth()
 
   const [isResending, setIsResending] = React.useState(false)
   
   // --- Timer State (60 seconds) ---
-  const [timer, setTimer] = React.useState(60)
+  const [timer, setTimer] = React.useState(() => {
+    if (searchParams.get('source') !== 'login') return 60
+    const cooldown = Number(searchParams.get('cooldown'))
+    return Number.isFinite(cooldown) ? Math.min(60, Math.max(0, Math.ceil(cooldown))) : 0
+  })
 
   // --- Countdown Logic ---
   React.useEffect(() => {
@@ -59,40 +62,14 @@ function VerifyEmailContent() {
 
       toast.success(result.message || "Email verified successfully!")
 
-      const storedCreds = sessionStorage.getItem('temp_login_credentials');
-
-      if (storedCreds) {
-        try {
-          const { email: storedEmail, password } = JSON.parse(storedCreds);
-
-          if (storedEmail === email) {
-            await login({ email, password });
-            sessionStorage.removeItem('temp_login_credentials');
-            const normalizedVerifiedEmail = String(email).trim().toLowerCase()
-            if (returnTo && (!bookingEmail || bookingEmail === normalizedVerifiedEmail)) {
-              router.replace(returnTo)
-            } else {
-              router.push('/affiliate/dashboard');
-            }
-            return;
-          }
-        } catch (e) {
-          console.error("Auto-login failed:", e);
-        }
+      const normalizedVerifiedEmail = String(email).trim().toLowerCase()
+      if (returnTo && (!bookingEmail || bookingEmail === normalizedVerifiedEmail)) {
+        router.replace(returnTo)
+      } else if (result.token) {
+        router.replace(getDashboardPathForUser(result.user || null))
+      } else {
+        router.replace('/login')
       }
-
-      setTimeout(() => {
-        const normalizedVerifiedEmail = String(email).trim().toLowerCase()
-        if (returnTo && (!bookingEmail || bookingEmail === normalizedVerifiedEmail)) {
-          router.replace(returnTo)
-          return
-        }
-        if (result.token) {
-          router.push('/affiliate/dashboard')
-        } else {
-          router.push('/login')
-        }
-      }, 1000)
     } catch (error: any) {
       const errorMessage = error?.data?.message || error?.message || "Verification failed. Please try again."
       toast.error(errorMessage)
@@ -133,7 +110,7 @@ function VerifyEmailContent() {
       email={email}
       onVerify={handleVerify}
       onResend={handleResend}
-      isVerifying={isVerifyEmailLoading || isLoginLoading}
+      isVerifying={isVerifyEmailLoading}
       isResending={isResending || isResendOTPLoading}
       timer={timer} // Passing timer to UI
     />
