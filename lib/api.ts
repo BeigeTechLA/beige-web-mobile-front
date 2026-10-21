@@ -5150,7 +5150,7 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other" | "net30";
+      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "payment_link" | "applepay" | "stripe" | "other" | "net30";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;
@@ -5190,7 +5190,7 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other" | "net30";
+      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "payment_link" | "applepay" | "stripe" | "other" | "net30";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;
