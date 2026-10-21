@@ -35,6 +35,7 @@ type CreatorSignupFormValues = z.infer<typeof creatorSignupSchema>
 type AuthStepError = {
   data?: {
     message?: string;
+    conflicts?: string[];
   };
   message?: string;
 }
@@ -92,6 +93,13 @@ export function Step0BasicInfo({ onNext }: Step0BasicInfoProps) {
         email: data.email
       })
     } catch (error: unknown) {
+      const conflicts = (error as AuthStepError)?.data?.conflicts || []
+      if (conflicts.includes('email')) {
+        form.setError('email', { type: 'server', message: 'Email already exists.' })
+      }
+      if (conflicts.includes('phone_number')) {
+        form.setError('phone', { type: 'server', message: 'Phone number already exists.' })
+      }
       toast.error(getAuthStepErrorMessage(error, "Registration failed. Please try again."))
     }
   }

@@ -147,20 +147,14 @@ export const useAuth = () => {
 
   const register = useCallback(async (data: RegisterData) => {
     const result = await registerMutation(data).unwrap();
-    // Backend returns { message, userId, verificationCode }
-    // User needs to verify email before being logged in
+    // User needs to verify email before being logged in.
     return result;
   }, [registerMutation]);
 
   const quickRegister = useCallback(async (data: QuickRegisterData) => {
     const result = await quickRegisterMutation(data).unwrap();
-    const user = {
-      ...result.user,
-      permissions_version: result.permissions_version ?? result.user.permissions_version,
-    };
-    dispatch(setCredentials({ user, token: result.token }));
     return result;
-  }, [quickRegisterMutation, dispatch]);
+  }, [quickRegisterMutation]);
 
   const sendOTP = useCallback(async (email: string) => {
     const result = await sendOTPMutation({ email }).unwrap();
@@ -174,13 +168,21 @@ export const useAuth = () => {
 
   const verifyEmail = useCallback(async (data: VerifyEmailData) => {
     const result = await verifyEmailMutation(data).unwrap();
-    // If verification returns a token, automatically log in the user
     if (result.token && result.user) {
       const user = {
         ...result.user,
         permissions_version: result.permissions_version ?? result.user.permissions_version,
       };
+      Cookies.set('revure_token', result.token, { expires: 1, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+      localStorage.setItem('revure_user', JSON.stringify(user));
+      dispatch(authApi.util.resetApiState());
+      dispatch(salesApi.util.resetApiState());
       dispatch(setCredentials({ user, token: result.token }));
+      try {
+        await fetchAndCommitUserPermissions(dispatch, user.id, { broadcast: false });
+      } catch (error) {
+        console.error('Failed to fetch permissions after email verification:', error);
+      }
     }
     return result;
   }, [verifyEmailMutation, dispatch]);

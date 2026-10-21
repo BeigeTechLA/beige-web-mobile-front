@@ -30,6 +30,9 @@ type LoginFormValues = z.infer<typeof loginSchema>
 type AuthError = {
   data?: {
     message?: string
+    code?: string
+    email?: string
+    retry_after_seconds?: number
   }
   message?: string
 }
@@ -134,6 +137,18 @@ export function LoginForm() {
 
       router.push(getDashboardPathForUser(user))
     } catch (error: unknown) {
+      const authError = error as AuthError
+      if (authError?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        const params = new URLSearchParams({ email: authError.data.email || data.email, source: 'login' })
+        if (authError.data.retry_after_seconds) {
+          params.set('cooldown', String(authError.data.retry_after_seconds))
+        }
+        if (returnTo) params.set('returnTo', returnTo)
+        if (bookingEmail) params.set('bookingEmail', bookingEmail)
+        toast.info(authError.data.message || 'Please verify your email before logging in.')
+        router.push(`/verify-email?${params.toString()}`)
+        return
+      }
       toast.error(getAuthErrorMessage(error, "Login failed. Please check your credentials."))
     }
   }

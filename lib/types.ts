@@ -78,13 +78,15 @@ export interface RegisterData {
 export interface RegisterResponse {
   message: string;
   userId: number;
-  verificationCode: string;
+  verificationCode?: string;
 }
 
 export interface QuickRegisterData {
   email: string;
   name: string;
+  password: string;
   phone?: string;
+  bookingContext?: unknown;
 }
 
 export interface VerifyEmailData {
