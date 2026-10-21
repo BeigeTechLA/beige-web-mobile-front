@@ -14,6 +14,8 @@ import Topbar from "@/components/admin/Topbar";
 import AddCompensationModal from "@/components/admin/finances/AddCompensationModal";
 import { cpCompensationApi, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { sum, values } from "pdf-lib";
+import { formatCurrency } from "@/lib/utils";
 
 type FulfillmentStats = {
   fulfillment_stats?: {
@@ -150,6 +152,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [isAddCompOpen, setIsAddCompOpen] = useState(false);
   const [selectedCreatives, setSelectedCreatives] = useState<SelectedCreative[]>([]);
   const [isSubmittingCompensation, setIsSubmittingCompensation] = useState(false);
+  const [totalCPs, setTotalCPs] = useState(0);
 
   const [roleType, setRoleType] = useState<string>('videographer');
   const [stats, setStats] = useState<FulfillmentStats | null>(null);
@@ -197,6 +200,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           const vReq = parseInt(mergedStats.fulfillment_stats?.videographer?.split('/')[1] || "0");
           const pReq = parseInt(mergedStats.fulfillment_stats?.photographer?.split('/')[1] || "0");
           setReqCounts({ videographer: vReq, photographer: pReq });
+          setTotalCPs(vReq + pReq);
 
           // Also grab location for the crew search
           if (mergedStats.location) setProjectLocation(mergedStats.location);
@@ -511,6 +515,27 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back to Shoot Details</span>
         </Button>
+
+        {/* new component */}
+        <div className={`w-full rounded-2xl mb-5 lg:mb-9 p-5 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between ${isDark ? "bg-[#E8D1AB]/20" : "bg-[#F6EDDD] border border-[#EADBC0]"}`}>
+          {/* Left: two stats */}
+          <div className="grid grid-cols-2 gap-4 lg:flex lg:gap-18">
+            <div className="min-w-0">
+              <p className={`text-xs lg:text-sm font-semibold leading-tight text-[#E8D1AB]`}>Total Shoot Amount</p>
+              <p className={`mt-1.5 text-xs lg:text-sm font-medium leading-tight`}>{formatCurrency("50,000")}</p>
+            </div>
+            <div className="min-w-0">
+              <p className={`text-xs lg:text-sm font-semibold leading-tight text-[#E8D1AB]`}>CP Compensation Budget</p>
+              <p className={`mt-1.5 text-xs lg:text-sm font-medium leading-tight`}>24% of Shoot Budget</p>
+            </div>
+          </div>
+
+          {/* Right: allocated pill */}
+          <div className="w-full lg:w-auto shrink-0 rounded-xl bg-white px-5 h-10 whitespace-nowrap text-black italic flex items-center gap-1">
+            <span className="text-xs lg:text-sm font-bold ">{formatCurrency("12500")}</span>{" "}
+            <span className={`text-[10px] lg:text-xs text-black/70`}>Compensation Allocated</span>
+          </div>
+        </div>
 
         <CreativeProfileSelectorAdd
           projectId={projectId}

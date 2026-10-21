@@ -14,9 +14,10 @@ import { Loader2, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminApi } from "@/lib/api";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+// import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
+import SelectCPCountModal, { type CPCounts } from "./SelectCPCountModal";
 
 /**
  * Custom CSS to force the "Top-Stacking" behavior.
@@ -36,6 +37,7 @@ interface AssignedCPProps {
   assignedCrew?: CrewAssignment[];
   cpCompensationStatus?: string | null;
   onRequestAssignment?: (continueAction: () => void) => void;
+  crewSizeNeeded: number;
 }
 
 interface CrewFile {
@@ -56,13 +58,54 @@ interface CrewAssignment {
   id?: number | string;
   crew_member_id?: number | string;
   crew_member?: CrewMemberProfile;
+  /** CP's total compensation for this shoot */
+  total_compensation?: number | string | null;
+  /** Assignment request status, e.g. "accepted" | "rejected" | "request_sent" / "pending" */
+  acceptance_status?: string | number | null;
 }
+
+/* Card helpers */
+
+const REQUEST_STATUS_STYLES = {
+  accepted: { label: "Accepted", bg: "bg-[#15B450]" },
+  rejected: { label: "Rejected", bg: "bg-[#B41515]" },
+  request_sent: { label: "Request Sent", bg: "bg-[#359DD0]" },
+} as const;
+
+type RequestStatusKey = keyof typeof REQUEST_STATUS_STYLES;
+
+const normalizeStatus = (value: unknown): RequestStatusKey | null => {
+  const raw = String(value ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (!raw) return null;
+  if (["accepted", "approved", "confirmed", "accept"].includes(raw)) return "accepted";
+  if (["rejected", "declined", "reject", "decline"].includes(raw)) return "rejected";
+  if (["request_sent", "sent", "pending", "requested", "invited", "awaiting", "awaiting_response"].includes(raw)) return "request_sent";
+  return null;
+};
+
+/** Badge for member.status. Unknown values still show (neutral grey) so nothing silently disappears. */
+const getRequestStatusBadge = (member: CrewAssignment): { label: string; bg: string } | null => {
+  const raw = member.acceptance_status;
+
+  if (raw == null || String(raw).trim() === "") return null;
+  const key = normalizeStatus(raw);
+  if (key) return REQUEST_STATUS_STYLES[key];
+  const label = String(raw).replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return { label, bg: "bg-zinc-500" };
+};
+
+const formatCompensation = (value: CrewAssignment["total_compensation"]) => {
+  const n = typeof value === "string" ? Number.parseFloat(value) : value;
+  if (n == null || !Number.isFinite(n)) return "--";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+};
 
 export default function AssignedCP({
   projectId,
   assignedCrew = [],
   cpCompensationStatus,
-  onRequestAssignment
+  onRequestAssignment,
+  crewSizeNeeded
 }: AssignedCPProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -76,6 +119,7 @@ export default function AssignedCP({
   const [removingCrewId, setRemovingCrewId] = useState<number | null>(null);
   const [selectedCrewId, setSelectedCrewId] = useState<number | null>(null);
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
+  const [isCountModalOpen, setIsCountModalOpen] = useState(false);
 
   const swiperRef = useRef<SwiperType | null>(null);
 
@@ -90,6 +134,11 @@ export default function AssignedCP({
   }, [assignedCrew]);
 
   const hasCPs = crewMembers.length > 0;
+
+  // CPs still to assign (alert next to the title while short)
+  const missingCPs = Math.max(0, (Number(crewSizeNeeded) || 0) - crewMembers.length);
+  const isShortOfCPs = crewMembers.length < crewSizeNeeded;
+  const missingCPsLabel = `${missingCPs} CP${missingCPs === 1 ? "" : "s"} Need${missingCPs === 1 ? "s" : ""} to be Assigned`;
   const userTypeId = Number(user?.user_type_id ?? user?.userTypeId);
   const normalizedRole = String(user?.role ?? user?.userRole ?? "").trim().toLowerCase();
   const isSalesAdmin = userTypeId === 7 && normalizedRole === "sales_admin";
@@ -108,6 +157,7 @@ export default function AssignedCP({
       ? "CP compensation is approved for this shoot. Removing CPs is locked."
       : "Remove CP";
 
+  // "Add CP" buttons -> open the "Select No of CPs" modal first
   const handleOpenAssignment = () => {
     if (!canCreate) return;
 
@@ -116,12 +166,23 @@ export default function AssignedCP({
       return;
     }
 
-    const goToAddCreatives = () =>
-      router.push(
-        isSalesAdmin && isSalesShootPage
-          ? `/sales/shoots/${projectId}/add-creatives`
-          : `/admin/shoots/${projectId}/add-creatives`
-      );
+    setIsCountModalOpen(true);
+  };
+
+  // Modal "Continue" -> /add-creatives (selected counts passed as query params,
+  // e.g. ?photographer=2&videographer=1)
+  const handleCountContinue = (counts: Partial<CPCounts>) => {
+    setIsCountModalOpen(false);
+
+    const query = new URLSearchParams(
+      Object.entries(counts).map(([role, count]) => [role, String(count)])
+    ).toString();
+    const basePath =
+      isSalesAdmin && isSalesShootPage
+        ? `/sales/shoots/${projectId}/add-creatives`
+        : `/admin/shoots/${projectId}/add-creatives`;
+
+    const goToAddCreatives = () => router.push(query ? `${basePath}?${query}` : basePath);
     if (onRequestAssignment) {
       onRequestAssignment(goToAddCreatives);
       return;
@@ -195,8 +256,28 @@ export default function AssignedCP({
       <style>{stackStyles}</style>
       <div className={`flex justify-center w-full p-6 border-b ${isDark ? "border-b-[#333333]" : "border-b-[#E5E5E5]"}`}>
         <h3 className={`text-lg font-medium transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
-          Assigned CP
+          {hasCPs ? "Assigned CP" : "Unassigned CP"}
         </h3>
+
+        {/* Alert while fewer CPs are assigned than the shoot needs */}
+        {isShortOfCPs && (
+          <span className="relative inline-flex items-center justify-center w-6 h-6 shrink-0 ml-4" role="status" aria-label={missingCPsLabel}>
+            {/* Popup message */}
+            <span className="absolute bottom-9 left-1/2 -translate-x-1/2 mb-1 z-20 pointer-events-none whitespace-nowrap rounded-md bg-[#E0B91B] px-2.5 py-2 text-xs font-bold text-black shadow-lg">
+              {missingCPsLabel}
+              <span className="absolute left-1/2 top-full -translate-x-1/2 -mt-1 w-2 h-2 rotate-45 bg-[#E0B91B]" />
+            </span>
+
+            {/* Pulsing halo */}
+            <span className="absolute inset-0 rounded-full bg-[#E0B91B]/15" />
+            <span className="absolute inset-0 rounded-full bg-[#E0B91B]/40 animate-ping motion-reduce:animate-none" />
+
+            {/* Alert circle (18px) */}
+            <span className="relative flex items-center justify-center w-[18px] h-[18px] rounded-full bg-[#E0B91B] text-white text-[11px] font-extrabold leading-none">
+              !
+            </span>
+          </span>
+        )}
       </div>
 
       <div className="p-6 h-full">
@@ -223,6 +304,7 @@ export default function AssignedCP({
                 {crewMembers.map((member, index) => {
                   const crewMemberId = Number(member.crew_member_id || member.id);
                   const bgColor = index % 3 === 0 ? "bg-[#FFD6D6]" : index % 3 === 1 ? "bg-[#C4B5FD]" : "bg-white";
+
                   return (
                     <SwiperSlide key={member.id || index} className={`relative rounded-3xl overflow-hidden shadow-lg group ${bgColor}`}>
 
@@ -237,9 +319,19 @@ export default function AssignedCP({
 
                       {/* Bottom Gradient Fade */}
                       <div
-                        className="absolute inset-0 pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity duration-300"
+                        className="absolute inset-0 pointer-events-none"
                         style={{ background: "linear-gradient(180deg, rgba(0, 0, 0, 0.00) 40%, #000 100%)" }}
                       />
+                      {/* Request status (top-left) */}
+                      {(() => {
+                        const status = getRequestStatusBadge(member);
+                        if (!status) return null;
+                        return (
+                          <span className={`absolute top-4 left-4 z-30 rounded-full px-3 py-1.5 text-xs font-semibold leading-none text-white shadow-md ${status.bg}`}>
+                            {status.label}
+                          </span>
+                        );
+                      })()}
 
                       {/* Absolute Pill Controller Element on the Slide */}
                       <div className="absolute top-4 right-4 z-30 pointer-events-auto flex flex-col items-center gap-1.5 border border-white/40 bg-white/20 rounded-full px-2 py-2">
@@ -268,7 +360,7 @@ export default function AssignedCP({
                       </div>
 
                       {/* Identity Text and Interactive Inline Operations Panel */}
-                      <div className="absolute inset-0 flex flex-col justify-end p-5 z-20 pointer-events-none lg:opacity-0 lg:group-hover:opacity-100 lg:transition-opacity lg:duration-300">
+                      <div className="absolute inset-0 flex flex-col justify-end p-5 z-20 pointer-events-none">
                         <div className="flex items-end justify-between w-full gap-2">
                           <div className="text-left select-none min-w-0 flex-1">
                             <h4 className="text-sm font-semibold leading-tight text-white truncate">
@@ -276,12 +368,8 @@ export default function AssignedCP({
                                 ? `${member.crew_member.first_name || ""} ${member.crew_member.last_name || ""}`.trim() || "Unknown"
                                 : "Unknown"}
                             </h4>
-                            {/* Instead of role, replace with compensation if required */}
                             <p className="text-xs leading-normal mt-1 text-[#E8D1AB] truncate">
-                              {getPrimaryRoleLabel(
-                                member.crew_member?.primary_role,
-                                member.crew_member?.role_name
-                              )}
+                              Total Compensation {formatCompensation(member.total_compensation)}
                             </p>
                           </div>
 
@@ -360,6 +448,13 @@ export default function AssignedCP({
         )}
       </div>
 
+      <SelectCPCountModal
+        open={isCountModalOpen}
+        isDark={isDark}
+        onClose={() => setIsCountModalOpen(false)}
+        onContinue={handleCountContinue}
+      />
+
       {isRemoveModalOpen && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
@@ -373,8 +468,8 @@ export default function AssignedCP({
           <div
             onClick={(e) => e.stopPropagation()}
             className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl transition-all ${isDark
-                ? "border-[#333333] bg-[#161616] text-white"
-                : "border-[#E5E5E5] bg-white text-black"
+              ? "border-[#333333] bg-[#161616] text-white"
+              : "border-[#E5E5E5] bg-white text-black"
               }`}
           >
             <h3 className="text-lg font-semibold">
