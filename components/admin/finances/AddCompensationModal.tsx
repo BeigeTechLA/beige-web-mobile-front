@@ -7,9 +7,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { cpCompensationApi, normalizeCpRoleLabel, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 import AdvancePaymentModal from "./AdvancePaymentModal";
-// Agreement creation remains under development. Keep this import commented until
-// the shoot-agreement flow is enabled for production.
-// import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 interface AddCompensationModalProps {
   isOpen: boolean;
@@ -247,7 +245,7 @@ export default function AddCompensationModal({
   enableAdvanceProofUpload = false,
   initialShootId,
 }: AddCompensationModalProps) {
-  // const router = useRouter();
+  const router = useRouter();
   const [selectedShootId, setSelectedShootId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [compensationMethod, setCompensationMethod] = useState<TabType>("equal");
@@ -1173,7 +1171,7 @@ export default function AddCompensationModal({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <button
               type="button"
               onClick={onClose}
@@ -1189,9 +1187,7 @@ export default function AddCompensationModal({
             >
               {isSubmitting ? "Submitting..." : "Submit To Finance"}
             </button>
-            {/* Shoot agreements are not live in production yet. Keep this entry
-                point commented rather than deleting it for the future rollout.
-             <button
+            <button
               type="button"
               disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0 || !canAddShootAgreement}
               onClick={() => router.push(`/admin/shoots/${selectedShootId}/shoot-agreement`)}
@@ -1200,7 +1196,6 @@ export default function AddCompensationModal({
             >
               Add Shoot Agreement
             </button>
-            */}
           </div>
           {selectedShootId && selectedCreators.length > 0 && !canAddShootAgreement && (
             <p className={`mt-3 text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>

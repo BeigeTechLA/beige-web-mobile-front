@@ -50,7 +50,6 @@ import { MobileRow } from "@/components/creator-profile/MobileRow";
 import { StatCard } from "@/components/admin/StatCard";
 import Topbar from "@/components/admin/Topbar";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-// import Link from "next/link"; // Restored with the production agreement-review link.
 import ActionMenu from "@/components/creator-profile/AgreementActionMenu";
 
 type ProjectItem = {
@@ -681,15 +680,14 @@ export default function RequestsShootsPage() {
                         >
                           View Details
                         </Button>
-                        {/* Shoot agreement review is not live in production yet.
-                        <Link
-                          href={"/creator/dashboard/request/review-agreement"}
-                          onClick={(event) => { event.preventDefault(); void openProjectAgreement(item.project_id); }}
-                          className={`h-10 rounded-md text-sm flex items-center text-black px-6 bg-[#E8D1AB] font-semibold hover:bg-[#E5D5B8]`}
-                        >
-                          Review Agreement →
-                        </Link>
-                        */}
+                        {item.status === "Pending" && (
+                          <Button
+                            onClick={() => void openProjectAgreement(Number(item.project_id ?? item.id))}
+                            className="bg-[#E8D1AB] px-6 font-semibold text-black hover:bg-[#E5D5B8]"
+                          >
+                            Review Agreement →
+                          </Button>
+                        )}
                       </div>
 
 
@@ -861,11 +859,6 @@ export default function RequestsShootsPage() {
                                 <ChevronRight size={20} />
                               </button>
 
-                              {/* Shoot agreement review is not live in production yet.
-                              onReview={() => {
-                                window.location.href = "/creator/dashboard/request/review-agreement";
-                              }}
-                              */}
                               {isMenuOpen && (
                                 <ActionMenu
                                   isOpen={Boolean(isMenuOpen)}
@@ -876,7 +869,7 @@ export default function RequestsShootsPage() {
                                   }}
                                   leadId={item.project_id ?? item.id ?? ""}
                                   onViewDetails={() => handleOpenProjectDetails(item.project_id)}
-                                  onReview={() => { void openProjectAgreement(item.project_id); }}
+                                  onReview={item.status === "Pending" ? () => { void openProjectAgreement(Number(item.project_id ?? item.id)); } : undefined}
                                   onApprove={() => {
                                     setAcceptShootEvent(item);
                                     setMenuAnchor(null);
@@ -906,6 +899,7 @@ export default function RequestsShootsPage() {
                       onApprove={() => setAcceptShootEvent(item)}
                       onDecline={() => setDeclineShootEvent(item)}
                       onViewDetails={() => handleOpenProjectDetails(item.project_id)}
+                      onReview={() => void openProjectAgreement(Number(item.project_id ?? item.id))}
                       isDark={isDark}
                     />
                   ))}

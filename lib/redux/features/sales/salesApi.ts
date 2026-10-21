@@ -155,7 +155,7 @@ export const salesApi = createApi({
         role_counts?: Record<string, number>;
         estimated_total?: number;
         pricing_subtotal?: number;
-        pricing_line_items?: Array<Record<string, unknown>>;
+        pricing_line_items?: unknown[];
         studio_total?: number;
         studio_items?: Array<{
           studio_id: string;

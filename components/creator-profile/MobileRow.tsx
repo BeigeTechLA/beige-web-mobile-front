@@ -4,7 +4,23 @@ import React, { useState } from "react";
 import { ChevronDown, MapPin, Mail, Hash, User, ChevronRight, Check, X } from "lucide-react";
 import { Button } from "../ui/button";
 
-export function MobileRow({ item, onApprove, onDecline, onViewDetails, isDark }: any) {
+type MobileRowProps = {
+  item: {
+    project_id?: number | string;
+    project_name?: string;
+    status?: string;
+    event_location?: string;
+    location?: string;
+    guest_email?: string;
+  };
+  onApprove: () => void;
+  onDecline: () => void;
+  onViewDetails: () => void;
+  onReview: () => void;
+  isDark: boolean;
+};
+
+export function MobileRow({ item, onApprove, onDecline, onViewDetails, onReview, isDark }: MobileRowProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   // Status Logic Mapping
@@ -36,7 +52,7 @@ export function MobileRow({ item, onApprove, onDecline, onViewDetails, isDark }:
       >
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-[#E8D1AB]/20 border border-[#E8D1AB]/10 flex items-center justify-center text-[#E8D1AB] font-bold text-sm shrink-0">
-            {(item.project_name || "PR").split(' ').map((n: any) => n[0]).slice(0, 2).join('').toUpperCase()}
+            {(item.project_name || "PR").split(' ').map((name) => name[0]).slice(0, 2).join('').toUpperCase()}
           </div>
           <div className="flex flex-col">
             <span className={`text-lg capitalize font-bold truncate max-w-[140px] ${isDark ? "text-white" : "text-black"
@@ -113,6 +129,11 @@ export function MobileRow({ item, onApprove, onDecline, onViewDetails, isDark }:
 
           {/* Action Buttons */}
           <div className="flex items-center gap-3 pt-2">
+            {item.status === "Pending" && (
+              <Button onClick={onReview} className="bg-[#E8D1AB] text-black hover:bg-[#E5D5B8]">
+                Review Agreement
+              </Button>
+            )}
             {item.status === "Pending" ? (
               <div className="flex gap-2">
                 <Button
