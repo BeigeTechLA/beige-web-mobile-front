@@ -375,7 +375,6 @@ export default function SelectCreativesPage() {
       const response = await assignCrew({
         lead_id: Number(leadId),
         crew_member_ids: selectedCreativeIds,
-        allow_pending_compensation_assignment: true,
       }).unwrap();
 
       if (!response.success) {

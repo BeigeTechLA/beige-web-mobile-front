@@ -1441,14 +1441,34 @@ export default function ShootsPage() {
           </div>
         </>
       ) : viewMode === "globe" ? (
-        <ShootsGlobeView
-          isDark={isDark}
-          onBack={() => setViewMode("grid")}
-          onOpenCalendarDay={(date) => {
-            setCalendarOpenDate(date);
-            setViewMode("calendar");
-          }}
-        />
+        <>
+          <div
+            className={`flex h-[42px] items-center px-1 ${
+              isDark ? "bg-[#111111]" : "bg-white"
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
+                isDark
+                  ? "text-white/80 hover:text-white"
+                  : "text-black/70 hover:text-black"
+              }`}
+            >
+              <ArrowLeft size={20} strokeWidth={1.7} />
+              Back
+            </button>
+          </div>
+
+          <ShootsGlobeView
+            isDark={isDark}
+            onOpenCalendarDay={(date) => {
+              setCalendarOpenDate(date);
+              setViewMode("calendar");
+            }}
+          />
+        </>
       ) : (
           <ShootsTable
             externalSelectedDate={selectedDate}
@@ -1471,6 +1491,7 @@ export default function ShootsPage() {
             cpAssignmentFilter={cpAssignmentFilter}
             setCpAssignmentFilter={setCpAssignmentFilter}
             postProductionUserFilter={postProductionUserFilter}
+            postProductionAssignmentFilter={postProductionAssignmentFilter}
             viewMode={viewMode}
             setViewMode={setViewMode}
             showHeaderControls={true}

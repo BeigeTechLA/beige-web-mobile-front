@@ -31,6 +31,8 @@ import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
 
 type SectionKey = "service" | "addon" | "logistics";
 type PageTab = "all" | SectionKey | "types";
@@ -263,6 +265,8 @@ const getTypeCardIcon = (title: string) => {
 
 interface ItemRowProps {
   item: PricingItem;
+  selected: boolean;
+  onSelectChange: (id: string, checked: boolean) => void;
   section: SectionKey;
   onSave: (id: string, name: string, rate: number) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -272,7 +276,7 @@ interface ItemRowProps {
   isDark?: boolean;
 }
 
-function ItemRow({ item, section, onSave, onDelete, isProtected, canEdit, canDelete, isDark = true }: ItemRowProps) {
+function ItemRow({ item, section, selected, onSelectChange, onSave, onDelete, isProtected, canEdit, canDelete, isDark = true }: ItemRowProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.label);
   const [price, setPrice] = useState(item.price.toFixed(2));
@@ -326,6 +330,13 @@ function ItemRow({ item, section, onSave, onDelete, isProtected, canEdit, canDel
         }`}
     >
       <div className="flex items-center gap-3">
+        <Checkbox
+          checked={selected}
+          disabled={isProtected || !canDelete || editing}
+          aria-label={`Select ${item.label}`}
+          onCheckedChange={(value) => onSelectChange(item.id, value === true)}
+          className={`h-5 w-5 shrink-0 rounded-md bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black disabled:cursor-not-allowed disabled:opacity-30 ${isDark ? "border-white/20" : "border-zinc-400"}`}
+        />
         {/* Icon Area */}
         <div
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-all ${editing
@@ -581,6 +592,9 @@ function AddItemForm({ section, onAdd, onClose, canCreate, isDark = true }: AddI
 
 interface PricingSectionProps {
   section: SectionKey;
+  selectedIds: string[];
+  onSelectChange: (id: string, checked: boolean) => void;
+  onSelectAll: (ids: string[], checked: boolean) => void;
   items: PricingItem[];
   onSave: (id: string, name: string, rate: number) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -604,6 +618,9 @@ function PricingSection({
   canCreate,
   canEdit,
   canDelete,
+  selectedIds,
+  onSelectChange,
+  onSelectAll,
   isDark = true
 }: PricingSectionProps) {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -614,7 +631,12 @@ function PricingSection({
     item.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
   const avgPrice = items.length ? items.reduce((sum, item) => sum + item.price, 0) / items.length : 0;
-
+  const selectableIds = filtered
+    .filter((item) => !(section === "service" && isProtectedService(item.label)))
+    .map((item) => item.id);
+  const allSelected =
+    selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
+  const someSelected = selectableIds.some((id) => selectedIds.includes(id));
   return (
     <div className={`overflow-hidden rounded-lg lg:rounded-2xl border shadow-[0_8px_30px_rgba(0,0,0,0.18)] p-4 lg:p-6 transition-colors duration-100 ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-white"}`}>
       <div className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between transition-colors duration-100`}>
@@ -681,6 +703,17 @@ function PricingSection({
         <>
           <hr className={` my-4 lg:my-6 ${isDark ? "border-white/10" : "border-black/10"}`} />
           <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+            {canDelete && selectableIds.length > 0 ? (
+              <label className={`flex w-fit cursor-pointer items-center gap-2 text-xs font-medium ${isDark ? "text-white/60" : "text-zinc-500"}`}>
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                  aria-label={`Select all ${meta.label}`}
+                  onCheckedChange={(value) => onSelectAll(selectableIds, value === true)}
+                  className={`h-5 w-5 rounded-md bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black ${isDark ? "border-white/20" : "border-zinc-400"}`}
+                />
+                Select all {meta.label.toLowerCase()}
+              </label>
+            ) : null}
             {showAddForm ? (
                 <AddItemForm
                   section={section}
@@ -716,6 +749,8 @@ function PricingSection({
                   onDelete={onDelete}
                   isDark={isDark}
                   isProtected={section === "service" && isProtectedService(item.label)}
+                  selected={selectedIds.includes(item.id)}
+                  onSelectChange={onSelectChange}
                   canEdit={canEdit}
                   canDelete={canDelete}
                 />
@@ -743,6 +778,10 @@ interface TypeCardProps {
   addPlaceholder: string;
   defaultExpanded?: boolean;
   relatedLines?: string[];
+  keyPrefix: "shoot" | "edit";
+  selectedKeys: string[];
+  onSelectChange: (key: string, checked: boolean) => void;
+  onSelectAll: (keys: string[], checked: boolean) => void;
 }
 
 function TypeAddForm({
@@ -823,6 +862,8 @@ function TypeListItem({
   canDelete,
   onRename,
   onDelete,
+  selected,
+  onSelectChange,
 }: {
   item: ManagedTypeItem | EditingTypeItem;
   isDark: boolean;
@@ -830,6 +871,8 @@ function TypeListItem({
   canDelete: boolean;
   onRename: (name: string) => Promise<void>;
   onDelete: () => Promise<void>;
+  selected: boolean;
+  onSelectChange: (checked: boolean) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.label);
@@ -865,6 +908,13 @@ function TypeListItem({
 
   return (
     <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${isDark ? "border-white/10 bg-black/30" : "border-zinc-200 bg-zinc-50"}`}>
+      <Checkbox
+        checked={selected}
+        disabled={item.isSystemDefault || !canDelete || editing}
+        aria-label={`Select ${item.label}`}
+        onCheckedChange={(value) => onSelectChange(value === true)}
+        className={`h-5 w-5 shrink-0 rounded-md bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black disabled:cursor-not-allowed disabled:opacity-30 ${isDark ? "border-white/20" : "border-zinc-400"}`}
+      />
       <div className="min-w-0 flex-1">
         {editing ? (
           <Input
@@ -937,10 +987,20 @@ function TypeCard({
   addPlaceholder,
   defaultExpanded = false,
   relatedLines = [],
+  keyPrefix,
+  selectedKeys,
+  onSelectChange,
+  onSelectAll,
 }: TypeCardProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const Icon = getTypeCardIcon(title);
+  const selectableKeys = items
+    .filter((item) => !item.isSystemDefault)
+    .map((item) => `${keyPrefix}:${item.id}`);
+  const allSelected =
+    selectableKeys.length > 0 && selectableKeys.every((key) => selectedKeys.includes(key));
+  const someSelected = selectableKeys.some((key) => selectedKeys.includes(key));
   return (
     <div className={`rounded-lg lg:rounded-2xl border p-4 lg:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.18)] ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-white"}`}>
       <div className="flex items-start justify-between gap-3">
@@ -981,6 +1041,17 @@ function TypeCard({
 
       {expanded ? (
         <div className="mt-4 max-h-[420px] space-y-2 overflow-y-auto pr-1">
+          {canDelete && selectableKeys.length > 0 ? (
+            <label className={`flex w-fit cursor-pointer items-center gap-2 pb-1 text-xs font-medium ${isDark ? "text-white/60" : "text-zinc-500"}`}>
+              <Checkbox
+                checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                aria-label={`Select all in ${title}`}
+                onCheckedChange={(value) => onSelectAll(selectableKeys, value === true)}
+                className={`h-5 w-5 rounded-md bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black ${isDark ? "border-white/20" : "border-zinc-400"}`}
+              />
+              Select all
+            </label>
+          ) : null}
           {showAddForm ? (
             <TypeAddForm
               isDark={isDark}
@@ -1007,6 +1078,8 @@ function TypeCard({
                 canDelete={canDelete}
                 onRename={async (name) => onRename(item, name)}
                 onDelete={async () => onDelete(item)}
+                selected={selectedKeys.includes(`${keyPrefix}:${item.id}`)}
+                onSelectChange={(checked) => onSelectChange(`${keyPrefix}:${item.id}`, checked)}
               />
             ))
           )}
@@ -1042,6 +1115,28 @@ function TypesManagementPanel({
   const [photoShootTypes, setPhotoShootTypes] = useState<ManagedTypeItem[]>([]);
   const [editingTypes, setEditingTypes] = useState<EditingTypeItem[]>([]);
   const targets = useMemo(() => resolveTypeTargets(services), [services]);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  // Clear selection when the visible list changes, so hidden rows can't be deleted by mistake.
+  useEffect(() => {
+    setSelectedKeys([]);
+  }, [searchQuery]);
+
+  const handleSelectChange = useCallback((key: string, checked: boolean) => {
+    setSelectedKeys((current) =>
+      checked ? Array.from(new Set([...current, key])) : current.filter((k) => k !== key)
+    );
+  }, []);
+
+  const handleSelectAll = useCallback((keys: string[], checked: boolean) => {
+    setSelectedKeys((current) =>
+      checked
+        ? Array.from(new Set([...current, ...keys]))
+        : current.filter((k) => !keys.includes(k))
+    );
+  }, []);
 
   const loadTypes = useCallback(async () => {
     setLoading(true);
@@ -1172,6 +1267,71 @@ function TypesManagementPanel({
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (!canDelete || selectedKeys.length === 0) return;
+
+    const selectedShoot = [...videoShootTypes, ...photoShootTypes].filter((item) =>
+      selectedKeys.includes(`shoot:${item.id}`)
+    );
+    const selectedEdit = editingTypes.filter((item) =>
+      selectedKeys.includes(`edit:${item.id}`)
+    );
+
+    const shootIds = selectedShoot.map((item) => Number(item.apiId ?? item.id));
+    const editingIds = selectedEdit.flatMap((item) =>
+      Object.values(item.apiIds)
+        .filter(Boolean)
+        .map((id) => Number(id))
+    );
+
+    setIsBulkDeleting(true);
+    try {
+      const res = await salesApi.bulkDeleteTypes({
+        shoot_type_ids: shootIds,
+        ai_editing_type_ids: editingIds,
+      });
+
+      const failedShoot = new Set((res?.data?.shoot?.failed_ids ?? []).map(Number));
+      const failedEditing = new Set((res?.data?.editing?.failed_ids ?? []).map(Number));
+      const successCount = res?.data?.success_count ?? 0;
+      const failedCount = res?.data?.failed_count ?? 0;
+
+      if (!res?.data && res?.success === false) {
+        toast.error(res?.error || res?.message || "Failed to delete selected types.");
+        return;
+      }
+
+      if (failedCount > 0) {
+        const keepKeys = [
+          ...selectedShoot
+            .filter((item) => failedShoot.has(Number(item.apiId ?? item.id)))
+            .map((item) => `shoot:${item.id}`),
+          ...selectedEdit
+            .filter((item) =>
+              Object.values(item.apiIds).some((id) => id && failedEditing.has(Number(id)))
+            )
+            .map((item) => `edit:${item.id}`),
+        ];
+        setSelectedKeys(keepKeys);
+        toast.error(
+          res?.error || `${failedCount} type${failedCount === 1 ? "" : "s"} could not be deleted.`
+        );
+      } else {
+        setSelectedKeys([]);
+        toast.success(
+          res?.message || `${successCount} type${successCount === 1 ? "" : "s"} deleted successfully.`
+        );
+      }
+
+      if (successCount > 0) await loadTypes();
+    } catch {
+      toast.error("An unexpected error occurred while deleting selected types.");
+    } finally {
+      setIsBulkDeleting(false);
+      setBulkDeleteOpen(false);
+    }
+  };
+
   const cards = [
     {
       title: `${targets.videoLabel} - Shoot Types`,
@@ -1210,6 +1370,53 @@ function TypesManagementPanel({
 
   return (
     <div className="flex flex-col gap-4">
+      {selectedKeys.length > 0 && canDelete ? (
+        <div
+          className={`flex flex-col gap-3 rounded-xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${
+            isDark
+              ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/[0.06]"
+              : "border-[#E5D5B8] bg-[#FFF8EC]"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-sm font-semibold ${
+                isDark ? "bg-[#E8D1AB] text-black" : "bg-[#171717] text-white"
+              }`}
+            >
+              {selectedKeys.length}
+            </span>
+            <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>
+              {selectedKeys.length === 1 ? "1 type selected" : `${selectedKeys.length} types selected`}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={isBulkDeleting}
+              onClick={() => setBulkDeleteOpen(true)}
+              className="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-red-400/20 bg-red-500/10 px-5 text-sm font-semibold text-red-400 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Trash2 size={16} />
+              <span>Delete Selected</span>
+            </button>
+            <button
+              type="button"
+              disabled={isBulkDeleting}
+              onClick={() => setSelectedKeys([])}
+              className={`inline-flex h-10 items-center justify-center rounded-lg px-3 text-sm font-medium transition ${
+                isDark
+                  ? "text-white/55 hover:bg-white/5 hover:text-white"
+                  : "text-[#32323299] hover:bg-black/5 hover:text-[#101010]"
+              }`}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {loading ? (
         <div className={`flex flex-col items-center justify-center gap-4 rounded-3xl border py-24 ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-zinc-50"}`}>
           <Loader2 size={32} className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-zinc-800"}`} />
@@ -1234,10 +1441,28 @@ function TypesManagementPanel({
               defaultExpanded={false}
               count={card.count}
               relatedLines={card.relatedLines}
+              keyPrefix={card.title === "Editing Types" ? "edit" : "shoot"}
+              selectedKeys={selectedKeys}
+              onSelectChange={handleSelectChange}
+              onSelectAll={handleSelectAll}
             />
           ))}
         </div>
       )}
+
+      <ActionModal
+        isOpen={bulkDeleteOpen}
+        onClose={() => {
+          if (!isBulkDeleting) setBulkDeleteOpen(false);
+        }}
+        onConfirm={handleBulkDelete}
+        title="Delete Selected Types"
+        description={`Are you sure you want to delete ${selectedKeys.length} selected type${selectedKeys.length === 1 ? "" : "s"}? Existing saved quotes stay unchanged.`}
+        tone="danger"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isLoading={isBulkDeleting}
+      />
 
       {showFooter ? (
         <div className={`flex items-start gap-3 rounded-lg lg:rounded-3xl border p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] ${isDark ? "border-white/10 bg-[#171717]" : "border-zinc-200 bg-zinc-50"}`}>
@@ -1274,6 +1499,9 @@ export default function QuotePricingPage() {
   const [search, setSearch] = useState("");
   const [typesCount, setTypesCount] = useState(0);
   const [typesRefreshToken, setTypesRefreshToken] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -1501,6 +1729,79 @@ export default function QuotePricingPage() {
     }
   }, [canCreate]);
 
+  // Clear selection when the visible list changes, so hidden rows can't be deleted by mistake.
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [activeTab, search]);
+
+  const handleSelectChange = useCallback((id: string, checked: boolean) => {
+    setSelectedIds((current) =>
+      checked ? Array.from(new Set([...current, id])) : current.filter((item) => item !== id)
+    );
+  }, []);
+
+  const handleSelectAll = useCallback((ids: string[], checked: boolean) => {
+    setSelectedIds((current) =>
+      checked
+        ? Array.from(new Set([...current, ...ids]))
+        : current.filter((item) => !ids.includes(item))
+    );
+  }, []);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (!canDelete || selectedIds.length === 0) return;
+
+    setIsBulkDeleting(true);
+    try {
+      const res = await salesApi.bulkDeleteQuoteCatalog(selectedIds);
+
+      const successIds = Array.isArray(res?.data?.success_ids)
+        ? res.data.success_ids.map((id) => String(id))
+        : [];
+      const failedIds = Array.isArray(res?.data?.failed_ids)
+        ? res.data.failed_ids.map((id) => String(id))
+        : [];
+
+      if (
+        res?.success === false &&
+        !res?.partial_success &&
+        successIds.length === 0 &&
+        failedIds.length === 0
+      ) {
+        toast.error(res?.error || res?.message || "Failed to delete selected items.");
+        return;
+      }
+
+      if (successIds.length > 0) {
+        const removed = new Set(successIds);
+        setData((prev) => ({
+          service: prev.service.filter((item) => !removed.has(item.id)),
+          addon: prev.addon.filter((item) => !removed.has(item.id)),
+          logistics: prev.logistics.filter((item) => !removed.has(item.id)),
+        }));
+      }
+
+      if (failedIds.length > 0) {
+        setSelectedIds(failedIds);
+        toast.error(
+          res?.error ||
+            `${failedIds.length} item${failedIds.length === 1 ? "" : "s"} could not be deleted.`
+        );
+      } else {
+        setSelectedIds([]);
+        toast.success(
+          res?.message ||
+            `${successIds.length} item${successIds.length === 1 ? "" : "s"} deleted successfully.`
+        );
+      }
+    } catch {
+      toast.error("An unexpected error occurred while deleting selected items.");
+    } finally {
+      setIsBulkDeleting(false);
+      setBulkDeleteOpen(false);
+    }
+  }, [canDelete, selectedIds]);
+
   const totalTypes = typesCount;
   const totalPricingItems = Object.values(data).flat().length;
   const totalAllItems = totalPricingItems + totalTypes;
@@ -1641,6 +1942,53 @@ export default function QuotePricingPage() {
           ) : null}
         </div>
 
+        {selectedIds.length > 0 && canDelete && activeTab !== "types" ? (
+          <div
+            className={`flex flex-col gap-3 rounded-xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${
+              isDark
+                ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/[0.06]"
+                : "border-[#E5D5B8] bg-[#FFF8EC]"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span
+                className={`inline-flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-sm font-semibold ${
+                  isDark ? "bg-[#E8D1AB] text-black" : "bg-[#171717] text-white"
+                }`}
+              >
+                {selectedIds.length}
+              </span>
+              <p className={`text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>
+                {selectedIds.length === 1 ? "1 item selected" : `${selectedIds.length} items selected`}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={() => setBulkDeleteOpen(true)}
+                className="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-red-400/20 bg-red-500/10 px-5 text-sm font-semibold text-red-400 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Trash2 size={16} />
+                <span>Delete Selected</span>
+              </button>
+              <button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={() => setSelectedIds([])}
+                className={`inline-flex h-10 items-center justify-center rounded-lg px-3 text-sm font-medium transition ${
+                  isDark
+                    ? "text-white/55 hover:bg-white/5 hover:text-white"
+                    : "text-[#32323299] hover:bg-black/5 hover:text-[#101010]"
+                }`}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {/* Loader / Content Area */}
         {activeTab === "types" ? (
           <TypesManagementPanel
@@ -1670,6 +2018,9 @@ export default function QuotePricingPage() {
                 onSave={handleSave}
                 onDelete={handleDelete}
                 onAdd={handleAdd}
+                selectedIds={selectedIds}
+                onSelectChange={handleSelectChange}
+                onSelectAll={handleSelectAll}
                 searchQuery={search}
                 canCreate={canCreate}
                 canEdit={canEdit}
@@ -1708,6 +2059,20 @@ export default function QuotePricingPage() {
             </div>
           </div>
         )}
+
+        <ActionModal
+          isOpen={bulkDeleteOpen}
+          onClose={() => {
+            if (!isBulkDeleting) setBulkDeleteOpen(false);
+          }}
+          onConfirm={handleBulkDelete}
+          title="Delete Selected Items"
+          description={`Are you sure you want to delete ${selectedIds.length} selected pricing item${selectedIds.length === 1 ? "" : "s"}? Existing saved quotes stay unchanged.`}
+          tone="danger"
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          isLoading={isBulkDeleting}
+        />
 
         {/* --- FLOATING MOBILE BUTTON PANEL --- */}
         <div className={`lg:hidden w-full fixed flex items-center justify-center gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] transition-colors duration-100 ${isDark ? "bg-[#0f0f0f]" : "bg-white"}`}>

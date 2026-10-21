@@ -45,6 +45,18 @@ import { MissingFieldsModal } from "./MissingFieldsModal";
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
 import { resolveTimelineStage } from "@/lib/utils/projectTimeline";
+import {
+  getPaymentStatusMeta,
+  getProjectDateText,
+  getProjectScheduleTimeText,
+  getShootFilesText,
+} from "@/lib/utils/shootDetails";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/src/components/landing/ui/tooltip";
 // import BoardMiniMapNavigator from "./BoardMiniMapNavigator";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -366,6 +378,8 @@ export const ShootsTable = ({
   const [draggedShootId, setDraggedShootId] = useState<string | null>(null);
   const [draggedStatus, setDraggedStatus] = useState<ShootStatus | null>(null);
   const [openCardActionId, setOpenCardActionId] = useState<string | null>(null);
+  const [expandedGridShootId, setExpandedGridShootId] = useState<string | null>(null);
+  const lastGridCardDragEndRef = React.useRef(0);
   const [isGridPanning, setIsGridPanning] = useState(false);
   const itemsPerPage = 10;
   const BOARD_PAGE_SIZE = 10;
@@ -1012,6 +1026,12 @@ export const ShootsTable = ({
 
   const getShootDetailHref = (id: string) => `${detailBasePath}/${id.replace(/^#/, "").trim()}`;
 
+  const toggleGridShootDetails = (shoot: ShootRecord) => {
+    if (!shoot.isActive || Date.now() - lastGridCardDragEndRef.current < 300) return;
+    setOpenCardActionId(null);
+    setExpandedGridShootId((previousId) => previousId === shoot.id ? null : shoot.id);
+  };
+
   const getApiShootId = (id: string) => id.replace(/^#/, '').trim();
 
   const handleMissingFieldsSaved = (updated: {
@@ -1494,7 +1514,7 @@ export const ShootsTable = ({
                   {kanbanColumns.map((column) => (
                     <div
                       key={column.status}
-                      className={`w-[calc(100vw-48px)] md:w-auto md:basis-[340px] lg:basis-[360px] md:grow shrink-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
+                      className={`w-[calc(100vw-48px)] md:w-auto md:basis-[340px] lg:basis-[360px] md:grow shrink-0 min-w-0 rounded-3xl border h-fit ${isDark ? "bg-[#0A0A0A] border-[#FFFFFF33]" : "bg-[#FBF7EF] border-[#E8E0D2]"
                         }`}
                     >
                       <div className={`shrink-0 flex items-center justify-between w-full px-5 py-4 rounded-3xl rounded-b-xl sticky top-[-1px] z-20 border-b ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E8E0D2] bg-[#FBF7EF]"
@@ -1543,6 +1563,13 @@ export const ShootsTable = ({
                           const missingFields = shoot.needsAttention?.missing_fields || [];
                           const hasMissingFields = missingFields.length > 0;
                           const animationData = missingFields.length >= 3 ? redAnimation : yellowAnimation;
+                          const isExpanded = expandedGridShootId === shoot.id && shoot.isActive;
+                          const project = shoot.sourceProject as any;
+                          const hasScheduledDate = Boolean(project?.event_date) ||
+                            (Array.isArray(project?.booking_days) && project.booking_days.length > 0);
+                          const paymentMeta = isExpanded
+                            ? getPaymentStatusMeta(project?.payment_status, project?.payment_id)
+                            : null;
 
                           return (
                             <div
@@ -1554,6 +1581,7 @@ export const ShootsTable = ({
                                 setDraggedStatus(column.status);
                               }}
                               onDragEnd={() => {
+                                lastGridCardDragEndRef.current = Date.now();
                                 stopColumnAutoScroll();
                                 setDraggedShootId(null);
                                 setDraggedStatus(null);
@@ -1703,20 +1731,99 @@ export const ShootsTable = ({
                                 </div>
                                 <div className="flex items-center justify-between gap-3">
                                   <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Price</p>
-                                  <div className="text-right flex flex-col">
-                                   <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>
-                                      {shoot.price}
-                                    </p>
-                                    <span className="text-[10px] font-bold text-green-600 uppercase whitespace-nowrap">
-                                      Paid: {shoot.paidAmount}
-                                    </span>
-                                    {shoot.rawPending > 0 && (
-                                      <span className="text-[10px] font-bold text-orange-500 uppercase leading-none mt-0.5 whitespace-nowrap">
-                                        Pending: {shoot.pendingAmount}
-                                      </span>
-                                    )}
-                                  </div>
+                                  <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>{shoot.price}</p>
                                 </div>
+
+                                <AnimatePresence initial={false}>
+                                  {isExpanded && (
+                                    <motion.div
+                                      key="shoot-preview-fields"
+                                      initial={{ height: 0, opacity: 0 }}
+                                      animate={{ height: "auto", opacity: 1 }}
+                                      exit={{ height: 0, opacity: 0 }}
+                                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                                      className="overflow-hidden"
+                                    >
+                                      <div className="space-y-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                          <p className={`shrink-0 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Payment Status</p>
+                                          <p className={`min-w-0 text-right text-sm font-medium ${paymentMeta?.className || (isDark ? "text-white" : "text-[#222222]")}`}>
+                                            {paymentMeta?.label || "Not available"}
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                          <p className={`shrink-0 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Shoot Date</p>
+                                          <p className={`min-w-0 truncate text-right text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>
+                                            {hasScheduledDate ? getProjectDateText(project) : "TBD"}
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                          <p className={`shrink-0 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Time</p>
+                                          <p className={`min-w-0 truncate text-right text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>
+                                            {hasScheduledDate ? getProjectScheduleTimeText(project) : "TBD"}
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                          <p className={`shrink-0 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Location</p>
+                                          <TooltipProvider delayDuration={150}>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <span
+                                                  tabIndex={0}
+                                                  className={`block w-0 flex-1 min-w-0 max-w-[55%] truncate text-right text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}
+                                                >
+                                                  {shoot.location || "Not provided"}
+                                                </span>
+                                              </TooltipTrigger>
+                                              <TooltipContent
+                                                side="top"
+                                                align="end"
+                                                sideOffset={6}
+                                                avoidCollisions
+                                                style={{
+                                                  backgroundColor: isDark ? "#111111" : "#ffffff",
+                                                  color: isDark ? "#ffffff" : "#111111",
+                                                  borderColor: isDark ? "#3D3D3D" : "#E7D7BC",
+                                                }}
+                                                className="z-[100] max-w-[280px] whitespace-normal break-words rounded-lg border px-3 py-2 text-xs leading-5 shadow-xl"
+                                              >
+                                                {shoot.location || "Not provided"}
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          </TooltipProvider>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                          <p className={`shrink-0 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>Shoot Files</p>
+                                          <p className={`min-w-0 truncate text-right text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>
+                                            {getShootFilesText(project) || "Not available"}
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                          <p className={`shrink-0 text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#8C6A00]"}`}>CP Assigned</p>
+                                          <p className={`min-w-0 truncate text-right text-sm font-medium ${isDark ? "text-white" : "text-[#222222]"}`}>
+                                            {shoot.hasAssignedCp ? "Assigned" : "Unassigned"}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                                <button
+                                  type="button"
+                                  aria-expanded={isExpanded}
+                                  aria-label={`${isExpanded ? "Hide" : "View"} details for ${shoot.customerName}`}
+                                  disabled={!shoot.isActive}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    toggleGridShootDetails(shoot);
+                                  }}
+                                  className={`flex h-11 w-full items-center justify-center rounded-[10px] text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${isDark
+                                    ? "bg-white text-[#1F1F1F] hover:bg-white/90"
+                                    : "bg-[#202020] text-white hover:bg-[#343434]"
+                                  }`}
+                                >
+                                  {isExpanded ? "Hide Details" : "View Details"}
+                                </button>
                               </div>
 
                               {/* DIVIDER */}

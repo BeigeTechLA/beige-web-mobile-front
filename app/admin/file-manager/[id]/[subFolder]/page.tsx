@@ -654,6 +654,7 @@ export default function AdminFileManagerPhasePage() {
         pathname={pathname}
         actions={
           <>
+          {isPreProduction ? (
             <Button
               onClick={() => {
                 if (isSelectionMode || !canCreate) return;
@@ -664,6 +665,7 @@ export default function AdminFileManagerPhasePage() {
             >
               <Upload size={18} /> Upload Files
             </Button>
+            ) : null}
             {isPreProduction ? (
               <Button
                 onClick={() => {

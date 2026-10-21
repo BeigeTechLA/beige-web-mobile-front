@@ -49,7 +49,7 @@ import { MobileRow } from "@/components/creator-profile/MobileRow";
 import { StatCard } from "@/components/admin/StatCard";
 import Topbar from "@/components/admin/Topbar";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import Link from "next/link";
+// import Link from "next/link"; // Restored with the production agreement-review link.
 import ActionMenu from "@/components/creator-profile/AgreementActionMenu";
 
 type ProjectItem = {
@@ -671,12 +671,14 @@ export default function RequestsShootsPage() {
                         <svg className="hidden lg:block" xmlns="http://www.w3.org/2000/svg" width="1" height="17" viewBox="0 0 1 17" fill="none">
                           <path d="M0.25 0V16.5" stroke="white" strokeOpacity="0.6" strokeWidth="0.5" />
                         </svg>
+                        {/* Shoot agreement review is not live in production yet.
                         <div className={`flex items-center gap-1 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                           <span>Agreement:</span>
                           <p className="flex gap-0 items-center rounded-full bg-[#FEF9EC] text-[#D68910] text-[8px] font-medium px-1.5 py-[2px]">
                             ●  Pending Acceptance
                           </p>
                         </div>
+                        */}
                       </div>
                     </div>
 
@@ -691,12 +693,14 @@ export default function RequestsShootsPage() {
                         >
                           View Details
                         </Button>
+                        {/* Shoot agreement review is not live in production yet.
                         <Link
                           href={"/creator/dashboard/request/review-agreement"}
                           className={`h-10 rounded-md text-sm flex items-center text-black px-6 bg-[#E8D1AB] font-semibold hover:bg-[#E5D5B8]`}
                         >
                           Review Agreement →
                         </Link>
+                        */}
                       </div>
 
 
@@ -748,7 +752,9 @@ export default function RequestsShootsPage() {
                         <th className="w-[11%] px-3.5 py-5 font-semibold">Category</th>
                         <th className="w-[10%] px-3.5 py-5 font-semibold">Compensation</th>
                         <th className="w-[10%] px-3.5 py-5 font-semibold">Status</th>
+                        {/* Shoot agreement review is not live in production yet.
                         <th className="w-[11%] px-3.5 py-5 font-semibold">Agreement</th>
+                        */}
                         <th className="w-[9%] px-3.5 py-5 font-semibold text-right">Action</th>
                       </tr>
                     </thead>
@@ -841,12 +847,13 @@ export default function RequestsShootsPage() {
                               </span>
                             </td>
 
-                            {/* Agreement Status */}
+                            {/* Shoot agreement review is not live in production yet.
                             <td className="px-3.5 py-5">
                               <p className="shrink-0 flex gap-0 items-center rounded-full bg-[#FEF9EC] text-[#D68910] text-xs font-medium px-4 py-1.5">
                                 Pending Acceptance
                               </p>
                             </td>
+                            */}
 
                             {/* Action Column */}
                             <td className="px-3.5 py-5 text-right">
@@ -865,6 +872,11 @@ export default function RequestsShootsPage() {
                                 <ChevronRight size={20} />
                               </button>
 
+                              {/* Shoot agreement review is not live in production yet.
+                              onReview={() => {
+                                window.location.href = "/creator/dashboard/request/review-agreement";
+                              }}
+                              */}
                               {isMenuOpen && (
                                 <ActionMenu
                                   isOpen={Boolean(isMenuOpen)}
@@ -875,9 +887,6 @@ export default function RequestsShootsPage() {
                                   }}
                                   leadId={item.project_id ?? item.id ?? ""}
                                   onViewDetails={() => handleOpenProjectDetails(item.project_id)}
-                                  onReview={() => {
-                                    window.location.href = "/creator/dashboard/request/review-agreement";
-                                  }}
                                   onApprove={() => {
                                     setAcceptShootEvent(item);
                                     setMenuAnchor(null);
