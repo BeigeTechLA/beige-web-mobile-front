@@ -2129,6 +2129,8 @@ export const adminApi = {
       return {
         success: false,
         data: null,
+        code: error.response?.data?.code,
+        conflicts: error.response?.data?.conflicts,
         error: error.response?.data?.message || 'Failed to create internal credential',
       };
     }
@@ -3523,6 +3525,21 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch client details',
+      };
+    }
+  },
+
+  editClient: async (clientId: string | number, payload: { name: string; email: string; phone_number: string }) => {
+    try {
+      const response = await api.put(`admin/edit-client/${clientId}`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Edit Client Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        code: error.response?.data?.code,
+        conflicts: error.response?.data?.conflicts,
+        message: error.response?.data?.message || 'Unable to update client details. Please try again.',
       };
     }
   },

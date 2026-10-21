@@ -231,7 +231,12 @@ function InternalCredentialsPageContent() {
       setPasswordVisible(false);
       setPasswordWasGenerated(false);
     } else {
-      toast.error(result?.error || result?.message || "Failed to create credential");
+      const message = result?.error || result?.message || "Failed to create credential";
+      const conflicts = Array.isArray(result?.conflicts) ? result.conflicts : [];
+      if (conflicts.length) {
+        setErrors(Object.fromEntries(conflicts.map((field: string) => [field, message])));
+      }
+      toast.error(message);
     }
 
     setLoading(false);
