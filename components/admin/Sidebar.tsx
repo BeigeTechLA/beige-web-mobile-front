@@ -81,7 +81,7 @@ const menuItems: MenuItem[] = [
   { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['file_manager'] },
   { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['meetings'] },
   { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['messages'] },
-  { name: 'Notifications', icon: Bell, link: '/admin/notifications' },
+  // { name: 'Notifications', icon: Bell, link: '/admin/notifications' },
   { name: 'Availability', icon: CalendarClock, link: '/admin/availability', permissionKeys: ['availability'] },
   {
     name: "Sales Representative",
@@ -182,6 +182,8 @@ const menuItems: MenuItem[] = [
     link: "/admin/settings",
     permissionKeys: ["finances"],
   },
+  { name: 'Notifications', icon: Bell, link: '/admin/notifications' },
+
   { name: "Profile", icon: User, link: "/admin/profile" },
 ];
 
