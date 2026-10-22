@@ -540,7 +540,12 @@ export default function AdminFinancesPage() {
       toast.error("Edit permission not allowed");
       return;
     }
-    setSelectedActionEarningIds(creatorEarningIds?.filter(Boolean) || []);
+    const earningIds = creatorEarningIds?.filter(Boolean) || [];
+    if (!earningIds.length) {
+      toast.error("Select at least one Creative Partner to approve");
+      return;
+    }
+    setSelectedActionEarningIds(earningIds);
     setIsApproveOpen(true);
   };
 
@@ -549,7 +554,12 @@ export default function AdminFinancesPage() {
       toast.error("Edit permission not allowed");
       return;
     }
-    setSelectedActionEarningIds(creatorEarningIds?.filter(Boolean) || []);
+    const earningIds = creatorEarningIds?.filter(Boolean) || [];
+    if (!earningIds.length) {
+      toast.error("Select at least one Creative Partner to reject");
+      return;
+    }
+    setSelectedActionEarningIds(earningIds);
     setIsRejectOpen(true);
   };
 
@@ -652,6 +662,13 @@ export default function AdminFinancesPage() {
   const getSelectedActionCreator = () => {
     const earningId = getActionEarningIds()[0];
     return details?.creators.find((creator) => creator.creator_earning_id === earningId) || null;
+  };
+
+  const getSelectedActionPayout = () => {
+    const earningIds = new Set(selectedActionEarningIds);
+    return (details?.creators || [])
+      .filter((creator) => earningIds.has(creator.creator_earning_id))
+      .reduce((total, creator) => total + Number(creator.total_compensation || 0), 0);
   };
 
   // --- SUBMISSION LIFECYCLE INTERCEPTORS ---
@@ -1131,6 +1148,7 @@ export default function AdminFinancesPage() {
           isOpen={isApproveOpen}
           onClose={() => setIsApproveOpen(false)}
           rowContext={selectedRow}
+          payoutAmount={getSelectedActionPayout()}
           isSubmitting={isApproveSubmitting}
           onSubmit={handleApproveSubmit}
         />
