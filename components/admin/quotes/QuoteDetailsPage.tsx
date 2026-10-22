@@ -156,6 +156,7 @@ type ManualPaymentMode =
   | "zelle"
   | "venmo"
   | "cashapp"
+  | "payment_link"
   | "applepay"
   | "stripe"
   | "other"
@@ -2678,6 +2679,7 @@ export default function QuoteDetailsPage({
                               <SelectItem value="zelle">Zelle</SelectItem>
                               <SelectItem value="venmo">Venmo</SelectItem>
                               <SelectItem value="cashapp">CashApp</SelectItem>
+                              <SelectItem value="payment_link">Payment Link</SelectItem>
                               <SelectItem value="applepay">ApplePay</SelectItem>
                               <SelectItem value="stripe">Stripe</SelectItem>
                               <SelectItem value="net30">Net 30</SelectItem>

@@ -660,7 +660,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             >
               <CircleX /> Cancel Shoot
             </Button>
-            <Button
+            {/* <Button
               variant="outline"
               className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
                 ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
@@ -668,7 +668,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 }`}
             >
               <SlidersHorizontal className="w-4 h-4" /> Filters
-            </Button>
+            </Button> */}
             <Button
               onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
               disabled={!canEdit}

@@ -132,7 +132,7 @@ const getClientIdentifier = (client: ClientDropdownItem | null | undefined) =>
 
 export default function CreateNewDealPage() {
   const { allowed, isLoading } = useRequireModulePermission(
-    "sales_representative",
+    "admin_sales_representative_dashboard",
     "create",
     "/admin/sales-representative",
   );

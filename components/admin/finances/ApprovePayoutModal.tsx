@@ -12,6 +12,7 @@ export type ApprovePayoutModalProps = {
   isOpen: boolean;
   onClose: () => void;
   rowContext: ShootCPRow | null;
+  creators?: { name: string; totalCompensation: number }[];
   payoutAmount?: number;
   onSubmit: (payload: { reason?: string; }) => void;
   isSubmitting?: boolean;
@@ -23,6 +24,7 @@ export default function ApprovePayoutModal({
   isOpen,
   onClose,
   rowContext,
+  creators,
   payoutAmount,
 }: ApprovePayoutModalProps) {
   const { isDark } = useResolvedTheme();
@@ -66,17 +68,27 @@ export default function ApprovePayoutModal({
             <p className={`${isDark ? "text-white" : "text-black"} text-xs lg:text-sm`}>
               Shoot Information
             </p>
-            <div className={`text-sm lg:text-base font-medium flex flex-col lg:flex-row gap-2 justify-between p-3 lg:p-4 rounded-lg border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#F2F3F5] border-[#8E8E8E]"}`}>
-              <div className="flex flex-col gap-2 ">
-                <p className={isDark ? "text-white" : "text-black"}>
-                  {rowContext?.shootName || "Corporate Shoot"}
-                </p>
-                <p className={`capitalize ${isDark ? "text-white/50" : "text-black/50"}`}>
-                  {rowContext?.category || "Videography"}
-                </p>
-              </div>
-              <div className={`flex items-center justify-center lg:justify-start rounded-full border-[1px] px-3 py-2 lg:px-5 lg:py-3 text-[#E8D1AB] text-sm lg:text-base ${isDark ? "bg-black border-white/20" : "bg-white border-black/20"}`}>
+            <div className={`text-sm lg:text-base font-medium flex flex-col gap-2 p-3 lg:p-4 rounded-lg border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#F2F3F5] border-[#8E8E8E]"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-col gap-2">
+                  <p className={isDark ? "text-white" : "text-black"}>
+                    {rowContext?.shootName || "Corporate Shoot"}
+                  </p>
+                  <p className={`capitalize ${isDark ? "text-white/50" : "text-black/50"}`}>
+                    {rowContext?.category || "Videography"}
+                  </p>
+                </div>
+              <div className={`flex items-center justify-center lg:justify-start self-start rounded-full border-[1px] px-3 py-2 lg:px-5 lg:py-3 text-[#E8D1AB] text-sm lg:text-base ${isDark ? "bg-black border-white/20" : "bg-white border-black/20"}`}>
                 Current Payout: {formatCurrency(payoutAmount ?? rowContext?.cpPayout ?? 0)}
+              </div>
+              </div>
+              <div className={`w-full text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+                {(creators?.length ? creators : [{ name: rowContext?.creatorName || "Unknown Creator", totalCompensation: 0 }]).map((creator) => (
+                  <p key={creator.name} className="flex w-full items-center justify-between gap-x-3">
+                    <span>{creator.name}</span>
+                    <span className="ml-auto whitespace-nowrap text-right text-green-500">{formatCurrency(creator.totalCompensation)}</span>
+                  </p>
+                ))}
               </div>
             </div>
           </div>

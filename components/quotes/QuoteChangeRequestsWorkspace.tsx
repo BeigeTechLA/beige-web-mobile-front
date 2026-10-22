@@ -24,6 +24,7 @@ import {
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -455,6 +456,7 @@ const RequestDetailsModal = ({
   onApprove,
   onReject,
   processingAction,
+  canEdit,
   isDark = true,
 }: {
   request: QuoteChangeRequestItem;
@@ -463,11 +465,12 @@ const RequestDetailsModal = ({
   onApprove: () => void;
   onReject: () => void;
   processingAction: "approve" | "reject" | null;
+  canEdit: boolean;
   isDark?: boolean;
 }) => {
   const status = normalizeStatus(request.approval_status);
   const requestType = normalizeRequestType(request.request_type);
-  const canReview = status === "pending";
+  const canReview = status === "pending" && canEdit;
   const extraAmount = toNumber(request.extra_amount);
   const reducedAmount = toNumber(request.reduced_amount);
   const previousTotal = toNumber(request.previous_total);
@@ -731,6 +734,11 @@ export default function QuoteChangeRequestsWorkspace({
   const [expandedRowId, setExpandedRowId] = useState<string | number | null>(null);
 
   const isDark = !mounted || theme === "dark";
+  const { canEdit } = usePermissions(
+    detailsHrefBase.startsWith("/admin/")
+      ? "admin_quotes_quote_approvals"
+      : "quotes",
+  );
   const searchQuery = useDebounce(searchInput.trim(), 300);
 
   useEffect(() => {
@@ -788,6 +796,7 @@ export default function QuoteChangeRequestsWorkspace({
   }, [page, totalPages]);
 
   const handleReview = async (decision: "approve" | "reject") => {
+    if (!canEdit) return;
     if (!selectedRequest?.activity_id) {
       toast.error("Activity id is missing");
       return;
@@ -1175,6 +1184,7 @@ export default function QuoteChangeRequestsWorkspace({
           onApprove={() => void handleReview("approve")}
           onReject={() => void handleReview("reject")}
           processingAction={processingAction}
+          canEdit={canEdit}
           isDark={isDark}
         />
       ) : null}
