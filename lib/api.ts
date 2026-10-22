@@ -3721,6 +3721,22 @@ export const adminApi = {
     }
   },
 
+  getArchiveHistory: async (targetType: string, targetId: number | string) => {
+    try {
+      const response = await api.get('admin/archive-history', {
+        params: { target_type: targetType, target_id: targetId, limit: 100 },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Archive History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: [],
+        error: error.response?.data?.message || 'Failed to fetch archive history',
+      };
+    }
+  },
+
   exportUsers: async (): Promise<AdminUsersExportResponse> => {
     const response = await api.get('admin/users/export', {
       responseType: 'blob',
