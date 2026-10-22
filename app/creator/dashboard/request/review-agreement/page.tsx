@@ -12,12 +12,11 @@ import { agreementApi, AgreementDocument, type AgreementResponse } from "@/lib/a
 import { AgreementSignatureModal } from "@/components/creator-profile/AgreementSignatureModal";
 import { AgreementSignatureEvidence } from "@/components/creator-profile/AgreementSignatureEvidence";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+import { formatAgreementDate } from "@/lib/utils/agreementDate";
 
 type AgreementSection = { id?: string; num?: string; title?: string; content?: string };
 
-const formatDate = (value?: string | null) => value
-  ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value))
-  : "—";
+const formatDate = formatAgreementDate;
 
 const getAgreementSections = (content: unknown): AgreementSection[] => {
   const parsed = typeof content === "string" ? (() => {
@@ -51,7 +50,12 @@ export default function AgreementReviewPage() {
   const agreementType = "SHOOT ASSIGNMENT AGREEMENT";
   const agreementTitle = snapshot?.shoot?.name || agreement?.title || "Shoot Agreement";
   const version = agreement?.display_version || "v1";
-  const status = agreement?.status === "pending_acceptance" ? "Pending Acceptance" : (agreement?.status || "Pending Acceptance").replace(/_/g, " ");
+  const status = agreement?.status === "pending_acceptance" ? "Pending Acceptance" : agreement?.status === "accepted" ? "Accepted" : agreement?.status === "rejected" ? "Rejected" : "Pending Acceptance";
+  const statusClass = agreement?.status === "accepted"
+    ? "bg-[#D4FFE4] text-[#16803F]"
+    : agreement?.status === "rejected"
+      ? "bg-[#FFDADA] text-[#A31616]"
+      : "bg-[#FEF9EC] text-[#D68910]";
 
   // Project Information
   const projectInfo = {
@@ -114,7 +118,7 @@ export default function AgreementReviewPage() {
   }, [searchParams]);
 
   const handleAccept = async (signatureDataUrl: string, signerName: string) => {
-    if (!agreement) return;
+    if (!agreement || agreement.status !== "pending_acceptance") return;
     try {
       setIsSubmitting(true);
       await agreementApi.acceptShootAgreement(agreement.agreement_document_id, signerName, signatureDataUrl);
@@ -130,7 +134,7 @@ export default function AgreementReviewPage() {
   };
 
   const handleReject = async () => {
-    if (!agreement) return;
+    if (!agreement || agreement.status !== "pending_acceptance") return;
     const rejectionReason = window.prompt("Why are you rejecting this agreement?");
     if (!rejectionReason?.trim()) return;
     try {
@@ -190,8 +194,8 @@ export default function AgreementReviewPage() {
                 {version}
               </span>
 
-              <span className="shrink-0 w-fit flex gap-1 items-center rounded-full bg-[#FEF9EC] text-[#D68910] text-[10px] lg:text-xs font-medium px-2 py-0.5 lg:px-4 lg:py-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#D68910]" />
+              <span className={`shrink-0 w-fit flex gap-1 items-center rounded-full text-[10px] lg:text-xs font-medium px-2 py-0.5 lg:px-4 lg:py-1.5 ${statusClass}`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
                 {status}
               </span>
             </div>
@@ -358,7 +362,7 @@ export default function AgreementReviewPage() {
 
         <AgreementSignatureEvidence response={signatureResponse} />
         {/* Bottom Assignment Acceptance Action Card */}
-        <div
+        {agreement?.status === "pending_acceptance" && <div
           className={`border rounded-2xl p-6 space-y-4 ${isDark
               ? "bg-[#171717] border-[#3d3d3d]"
               : "bg-white border-[#E2E8F0]"
@@ -409,14 +413,14 @@ export default function AgreementReviewPage() {
               Reject
             </button>
           </div>
-        </div>
+        </div>}
 
         <SuccessModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
         />
       </div>
-      {isSignOpen && agreement && <AgreementSignatureModal title={agreement.title} initialName={projectInfo.creativePartner === "—" ? "" : projectInfo.creativePartner} isSubmitting={isSubmitting} onClose={() => setIsSignOpen(false)} onSubmit={handleAccept} />}
+      {isSignOpen && agreement?.status === "pending_acceptance" && <AgreementSignatureModal title={agreement.title} initialName={projectInfo.creativePartner === "—" ? "" : projectInfo.creativePartner} isSubmitting={isSubmitting} onClose={() => setIsSignOpen(false)} onSubmit={handleAccept} />}
     </>
   );
 }

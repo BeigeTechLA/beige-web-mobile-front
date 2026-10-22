@@ -8,6 +8,7 @@ import Topbar from "@/components/admin/Topbar";
 import { agreementApi, AgreementDocument, type AgreementResponse } from "@/lib/api/agreements";
 import { AgreementSignatureModal } from "@/components/creator-profile/AgreementSignatureModal";
 import { AgreementSignatureEvidence } from "@/components/creator-profile/AgreementSignatureEvidence";
+import { formatAgreementDate } from "@/lib/utils/agreementDate";
 
 export default function GeneralAgreementPage() {
   const pathname = usePathname();
@@ -22,12 +23,7 @@ export default function GeneralAgreementPage() {
     const version = String(value || "").trim();
     return /^v(?:ersion)?\b/i.test(version) ? version : `Version ${version || "—"}`;
   };
-  const formatDate = (value?: string | null) => {
-    if (!value) return "—";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "—";
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  };
+  const formatDate = formatAgreementDate;
 
   useEffect(() => {
     let active = true;
