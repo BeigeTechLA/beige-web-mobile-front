@@ -645,6 +645,16 @@ export default function AdminFinancesPage() {
     return details?.creators.find((creator) => creator.creator_earning_id === earningId) || null;
   };
 
+  const getSelectedActionCreators = () => {
+    const earningIds = new Set(getActionEarningIds());
+    return (details?.creators || [])
+      .filter((creator) => earningIds.has(creator.creator_earning_id))
+      .map((creator) => ({
+        name: creator.creator_name || "Unknown Creator",
+        totalCompensation: Number(creator.total_compensation || 0),
+      }));
+  };
+
   const getSelectedActionPayout = () => {
     const earningIds = new Set(selectedActionEarningIds);
     return (details?.creators || [])
@@ -1129,6 +1139,7 @@ export default function AdminFinancesPage() {
           isOpen={isApproveOpen}
           onClose={() => setIsApproveOpen(false)}
           rowContext={selectedRow}
+          creators={getSelectedActionCreators()}
           payoutAmount={getSelectedActionPayout()}
           isSubmitting={isApproveSubmitting}
           onSubmit={handleApproveSubmit}
