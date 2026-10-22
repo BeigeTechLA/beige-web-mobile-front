@@ -34,6 +34,40 @@ const categoryIcon = (category: NotificationCategory) => {
   }
 };
 
+const NotificationListSkeleton = ({ isDark }: { isDark: boolean }) => {
+  const strong = isDark ? "bg-white/12" : "bg-zinc-200";
+  const soft = isDark ? "bg-white/8" : "bg-zinc-100";
+
+  return (
+    <div role="status" aria-label="Loading notifications">
+      <span className="sr-only">Loading notifications</span>
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div
+          key={index}
+          aria-hidden="true"
+          className={`flex flex-col gap-4 border-b border-l-4 border-l-[#E8D1AB] px-4 py-6 last:border-b-0 sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-b-[#303030] bg-[#1C1C1C]" : "border-b-[#EEEEEE] bg-white"}`}
+        >
+          <div className="flex min-w-0 flex-1 gap-3">
+            <div className={`h-10 w-10 shrink-0 animate-pulse rounded-full ${strong}`} />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className={`h-4 w-40 max-w-[70%] animate-pulse rounded-full ${strong}`} />
+              <div className={`h-3 w-52 max-w-[85%] animate-pulse rounded-full ${soft}`} />
+              <div className={`mt-4 h-7 w-24 animate-pulse rounded-md ${soft}`} />
+            </div>
+          </div>
+          <div className="flex items-end justify-between gap-4 sm:flex-col">
+            <div className={`h-3 w-16 animate-pulse rounded-full ${soft}`} />
+            <div className="flex gap-2">
+              <div className={`h-9 w-16 animate-pulse rounded-lg ${soft}`} />
+              <div className={`h-9 w-28 animate-pulse rounded-lg ${strong}`} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const notificationRoomId = (row: NotificationRow) => String(
   row.payload?.room_id || row.payload?.chat_room_id || (row.reference_type === "chat_room" ? row.reference_id : "") || "",
 ).trim();
@@ -312,7 +346,7 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
           </div> : null}
 
           <div>
-            {notifications.length ? notifications.map((item) => (
+            {loading && !notifications.length ? <NotificationListSkeleton isDark={isDark} /> : notifications.length ? notifications.map((item) => (
               <article
                 key={item.id}
                 role="button"
@@ -364,7 +398,7 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
                 </div>
               </article>
             )) : (
-              <div className={`px-6 py-16 text-center text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>{loading ? "Loading notifications…" : "No notifications found."}</div>
+              <div className={`px-6 py-16 text-center text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>No notifications found.</div>
             )}
           </div>
           {hasMore ? <div className="border-t p-4 text-center"><button type="button" onClick={() => void loadMore()} className="rounded-lg bg-[#E8D1AB] px-4 py-2 text-xs text-black">Load more</button></div> : null}
