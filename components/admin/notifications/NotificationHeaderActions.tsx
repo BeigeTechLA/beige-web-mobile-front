@@ -62,7 +62,7 @@ export default function NotificationHeaderActions({
   return (
     <>
       <div className="flex items-center gap-3">
-        <button
+        {/* <button
           type="button"
           onClick={() => router.push(notificationPortalPaths[portal])}
           className={`relative flex h-12 w-12 cursor-pointer items-center justify-center overflow-visible rounded-full border text-black transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] ${isDark ? "border-[#303030] bg-[#E8D1AB] hover:bg-[#DCC39A]" : "border-[#D7C29E] bg-[#E8D1AB] hover:bg-[#D9C19A]"}`}
@@ -84,7 +84,7 @@ export default function NotificationHeaderActions({
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           ) : null}
-        </button>
+        </button> */}
 
         <div className="hidden sm:block">
           <ModeToggle />
