@@ -17,6 +17,9 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
+import Lottie from "lottie-react";
+import yellowAnimation from "@/public/animations/Yellow.json";
+
 
 /**
  * Custom CSS to force the "Top-Stacking" behavior.
@@ -88,6 +91,7 @@ export default function AssignedCP({
   const [removingCrewId, setRemovingCrewId] = useState<number | null>(null);
   const [selectedCrewId, setSelectedCrewId] = useState<number | null>(null);
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
+  const [showCPTooltip, setShowCPTooltip] = useState(false);
 
   const swiperRef = useRef<SwiperType | null>(null);
 
@@ -208,10 +212,41 @@ export default function AssignedCP({
       style={{ fontFamily: "var(--font-instrument-sans)" }}
     >
       <style>{stackStyles}</style>
-      <div className={`flex justify-center w-full p-6 border-b ${isDark ? "border-b-[#333333]" : "border-b-[#E5E5E5]"}`}>
+      <div className={`flex items-center justify-center w-full p-6 gap-1 border-b ${isDark ? "border-b-[#333333]" : "border-b-[#E5E5E5]"}`}>
         <h3 className={`text-lg font-medium transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
           Assigned CP
         </h3>
+        <div
+          className="relative group flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center"
+          onClick={() => setShowCPTooltip((prev) => !prev)}
+          onMouseEnter={() => setShowCPTooltip(true)}
+          onMouseLeave={() => setShowCPTooltip(false)}
+        >
+          <Lottie animationData={yellowAnimation} loop={true} className="h-6 w-6" />
+
+          <div
+            className={`absolute left-1/2 bottom-full mb-2
+              -translate-x-1/2 whitespace-nowrap
+              rounded-md bg-yellow-400 px-3 py-2
+              text-xs font-medium text-black shadow-md
+              z-[9999] transition-all duration-200
+              ${
+                showCPTooltip
+                  ? "opacity-100 visible"
+                  : "opacity-0 invisible"
+              }`}
+          >
+            2 CPs Need to be Assigned
+
+            {/* Tooltip Arrow */}
+            <div
+              className="absolute left-1/2 top-full
+                -translate-x-1/2 -mt-[1px]
+                border-x-[6px] border-x-transparent
+                border-t-[6px] border-t-yellow-400"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="p-6 h-full">

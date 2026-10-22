@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { salesApi, adminApi } from '@/lib/api';
-import { Search, SlidersHorizontal, Check, Loader2, List, LayoutGrid, ChevronDown } from 'lucide-react';
+import { Search, SlidersHorizontal, Check, Loader2, List, LayoutGrid, ChevronDown, ChevronRight, Share, ExternalLink } from 'lucide-react';
 import { CreativeFilterModal, CREATIVE_RADIUS_OPTIONS } from './CreativeFilterModal';
 import { Separator } from '@/src/components/landing/Separator';
 
@@ -70,6 +70,7 @@ type CreativeCardProps = {
   isSelected: boolean;
   onToggle: () => void;
   onViewProfile: () => void;
+  onViewBriefProfile: () => void;
   isDark?: boolean;
   viewMode: 'list' | 'grid';
 };
@@ -472,6 +473,16 @@ export const CreativeProfileSelectorAdd = ({
       setInternalSelectedIds(nextIds);
     }
   };
+  const shootAmount = 50000;
+  const compensationPercent = 25;     
+  const compensationBudget = (shootAmount * compensationPercent) / 100;
+
+  const formatUSD = (n: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(n);
 
   return (
     <div className={`transition-colors duration-300 ${isDark ? "text-white" : "text-black"}`}>
@@ -543,7 +554,7 @@ export const CreativeProfileSelectorAdd = ({
         </div>
       </div>
 
-      <div className={`mb-5 rounded-xl border px-4 py-3 transition-colors ${isDark
+      {/* <div className={`mb-5 rounded-xl border px-4 py-3 transition-colors ${isDark
         ? "border-[#E8D1AB]/20 bg-[#E8D1AB]/10 text-white"
         : "border-[#D9C19A] bg-[#FFF8EC] text-black"
         }`}>
@@ -557,10 +568,41 @@ export const CreativeProfileSelectorAdd = ({
             ? "Clear the search to return to nearby CPs around the shoot location."
             : "If you want a different CP, use search to find from all creative partners."}
         </p>
-      </div>
+      </div> */}
+
+      <div
+          className={`mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border px-5 py-3 transition-colors ${
+            isDark
+              ? "border-[#E8D1AB]/10 bg-[#2D2A24] text-white"
+              : "border-[#D9C19A] bg-[#FFF8EC] text-black"
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-x-28 gap-y-4">
+            <div>
+              <p className={`text-xl font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A2F]"}`}>
+                Total Shoot Amount
+              </p>
+              <p className="mt-1 text-xl">{formatUSD(shootAmount)}</p>
+            </div>
+
+            <div>
+              <p className={`text-xl font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A2F]"}`}>
+                CP Compensation Budget
+              </p>
+              <p className="mt-1 text-xl">{compensationPercent}% of Shoot Budget</p>
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-white px-4 py-3 shadow-sm">
+            <span className="text-xl font-bold italic text-black">
+              {formatUSD(compensationBudget)}
+            </span>{" "}
+            <span className="text-lg italic text-black/60">Compensation Allocated</span>
+          </div>
+        </div>
 
       {/* Creative List Container */}
-      <div className={`border rounded-xl lg:rounded-2xl p-4 lg:p-8 transition-colors ${isDark ? "bg-black border-white/5" : "bg-white border-[#D8D8D8]"
+      <div className={`border rounded-xl lg:rounded-2xl p-4 lg:p-8 transition-colors ${isDark ? "bg-black border-white/30" : "bg-white border-[#D8D8D8]"
         } ${viewMode === 'grid' ? "space-y-4" : "space-y-4 lg:space-y-8"}`}>
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-5 lg:py-10">
@@ -606,7 +648,8 @@ export const CreativeProfileSelectorAdd = ({
                               creative={creative}
                               isSelected={selectedIds.includes(creative.id)}
                               onToggle={() => toggleSelection(creative.id)}
-                              onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
+                              onViewProfile={() => window.open(`/admin/users/creative-partners/${creative.id}`, '_blank', 'noopener,noreferrer')}
+                              onViewBriefProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
                               isDark={isDark}
                               viewMode="grid"
                             />
@@ -636,7 +679,8 @@ export const CreativeProfileSelectorAdd = ({
                 creative={creative}
                 isSelected={selectedIds.includes(creative.id)}
                 onToggle={() => toggleSelection(creative.id)}
-                onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
+                onViewProfile={() => window.open(`/admin/users/creative-partners/${creative.id}`, '_blank', 'noopener,noreferrer')}
+                onViewBriefProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
                 isDark={isDark}
                 viewMode={viewMode}
               />
@@ -661,18 +705,25 @@ export const CreativeProfileSelectorAdd = ({
     </div>
   );
 };
-const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, viewMode }: CreativeCardProps) => {
+const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, onViewBriefProfile, isDark, viewMode }: CreativeCardProps) => {
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const isGrid = viewMode === 'grid';
   const imageSrc = creative.profile_photo
     ? (creative.profile_photo.startsWith('http') ? creative.profile_photo : `${S3_PREFIX}${creative.profile_photo}`)
     : null;
   const experienceLabel = `${String(creative.shoots || 0).padStart(2, '0')} Years`;
+  const assignedShoots = Number(creative.assigned_shoots ?? 0);
+  const assignedShootsLabel = String(assignedShoots).padStart(2, '0');
   const locationLabel = formatLocation(creative.location);
+  const hourlyRate = Number(creative.hourly_rate);
+  const hourlyRateLabel = Number.isFinite(hourlyRate) && hourlyRate > 0
+    ? `${hourlyRate}/hr`
+    : null;
 
   return (
     <div
       onClick={onToggle}
-      className={`relative group flex transition-all border rounded-lg lg:rounded-2xl cursor-pointer overflow-hidden ${isGrid ? "flex-col h-full min-h-[430px] p-0" : "p-4 flex-col md:flex-row items-center md:items-start gap-6"
+      className={`relative group flex transition-all border rounded-lg lg:rounded-2xl cursor-pointer overflow-visible ${isGrid ? "flex-col h-full min-h-[430px] p-0" : "p-4 flex-col md:flex-row items-center md:items-start gap-6"
         } ${isGrid
           ? (isSelected
             ? (isDark ? 'bg-white/[0.08] border-[#E8D1AB]/50' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
@@ -702,14 +753,33 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
 
                 <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 px-4 pb-4 lg:px-5 lg:pb-5">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-3">
-                    <h3 className={`truncate text-lg lg:text-2xl leading-none font-medium transition-colors ${isDark ? "text-white" : "text-black"
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <h3 className={`truncate text-lg lg:text-2xl leading-none font-medium transition-colors ${isDark ? "text-white" : "text-black"
                       }`}>
-                      {creative.name}
-                    </h3>
-                    <span className="inline-flex items-center rounded-full bg-[#16A34A] px-2.5 py-1 text-xs font-semibold leading-none text-white">
-                      {creative.status}
-                    </span>
+                        {creative.name}
+                      </h3>
+                      <span className="inline-flex shrink-0 items-center rounded-full bg-[#16A34A] px-2.5 py-1 text-xs font-semibold leading-none text-white">
+                        {creative.status}
+                      </span>
+                      <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(`/creatives/${creative.id}`, "_blank", "noopener,noreferrer");
+                      }}
+                      className="-ml-1.5 flex h-8 w-8 shrink-0 items-center justify-center
+                        rounded-full text-white hover:bg-white/10"
+                      aria-label="Share creative profile"
+                    >
+                      <ExternalLink size={20} strokeWidth={2} />
+                    </button>
+                  </div>
+                    {hourlyRateLabel && (
+                      <p className={`mt-1 text-lg font-semibold leading-none ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A2F]"}`}>
+                        {hourlyRateLabel}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div
@@ -724,12 +794,20 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
           <div className={`flex w-full flex-1 flex-col px-4 pb-4 pt-4 lg:px-5 lg:pb-5 lg:pt-4 ${isDark ? "bg-[#0F0F0F]" : "bg-white"}`}>
             {/* Experience and Specialities Row */}
             <div className={`grid grid-cols-[1fr_auto_1fr] items-start gap-2 lg:gap-4 border-t pt-4 transition-colors ${isDark ? "border-white/15 text-white/90" : "border-[#e3e3e3] text-black/80"}`}>
-              <div>
+              {/* <div>
                 <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
                   Experience:
                 </p>
                 <p className={`text-sm lg:text-base font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>
                   {experienceLabel}
+                </p>
+              </div> */}
+              <div>
+                <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
+                  Assigned Shoots:
+                </p>
+                <p className={`text-sm lg:text-base font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>
+                  {assignedShootsLabel}
                 </p>
               </div>
 
@@ -737,7 +815,7 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
 
               <div>
                 <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
-                  Specialities:
+                  Roles:
                 </p>
                 <p className={`text-sm lg:text-base font-medium leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>
                   {creative.specialities}
@@ -750,9 +828,67 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
               <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
                 Location:
               </p>
-              <p className={`text-sm lg:text-base font-medium leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>
+              <p className={`text-sm lg:text-base leading-tight underline underline-offset-2 ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A2F]"}`}>
                 {locationLabel}
               </p>
+            </div>
+
+            <div className="relative mt-auto w-full pt-4">
+              {isProfileMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-30 mt-2 w-full overflow-hidden rounded-lg bg-[#E8D1AB] text-black shadow-xl"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsProfileMenuOpen(false);
+                      onViewBriefProfile();
+                    }}
+                    className="flex h-[35px] w-full items-center justify-between px-[10px] text-left text-xs transition-colors hover:bg-[#dfc69b]"
+                  >
+                    <span>View Brief Profile</span>
+                    <span className="flex h-5 items-center border-l border-black/25 pl-[10px]">
+                      <ChevronRight size={16} />
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsProfileMenuOpen(false);
+                      onViewProfile();
+                    }}
+                    className="flex h-[35px] w-full items-center justify-between border-t border-black/15 px-[10px] text-left text-xs transition-colors hover:bg-[#dfc69b]"
+                  >
+                    <span>View Full Profile</span>
+                    <span className="flex h-5 items-center border-l border-black/25 pl-[10px]">
+                      <ChevronRight size={16} />
+                    </span>
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={isProfileMenuOpen}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setIsProfileMenuOpen((open) => !open);
+                }}
+                className="flex h-[41px] w-full items-center justify-between rounded-lg bg-[#E8D1AB] px-[10px] text-left text-xs font-medium text-black transition-colors hover:bg-[#D9C19A]"
+              >
+                <span>View CP Profile</span>
+                <span className="ml-[14px] flex h-5 items-center border-l border-black/30 pl-[10px]">
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform duration-200 ${isProfileMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </span>
+              </button>
             </div>
           </div>
         </>
@@ -776,13 +912,32 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
           {/* Content */}
           <div className="flex-1 w-full flex flex-col">
             <div className="flex justify-between items-center mb-3 w-full">
-              <div className="flex items-center gap-3">
-                <h3 className={`font-medium transition-colors text-lg lg:text-2xl ${isDark ? "text-white" : "text-black"}`}>
-                  {creative.name}
-                </h3>
-                <span className="bg-[#16A34A] text-[#fff] text-[10px] font-semibold px-2 py-0.5 rounded-lg capitalize">
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <h3 className={`font-medium transition-colors text-lg lg:text-2xl ${isDark ? "text-white" : "text-black"}`}>
+                    {creative.name}
+                  </h3>
+                  <span className="bg-[#16A34A] text-[#fff] text-[10px] font-semibold px-2 py-0.5 rounded-lg capitalize">
                   {creative.status}
-                </span>
+                  </span>
+                  <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewBriefProfile();
+                  }}
+                  className="-ml-1.5 flex h-8 w-8 shrink-0 items-center justify-center
+                    rounded-full text-white hover:bg-white/10"
+                  aria-label="Share creative profile"
+                >
+                  <ExternalLink size={20} strokeWidth={2} />
+                  </button>
+                </div>
+                {hourlyRateLabel && (
+                  <p className={`mt-1 text-lg font-semibold leading-none ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A2F]"}`}>
+                    {hourlyRateLabel}
+                  </p>
+                )}
               </div>
 
               <div className={`w-6 h-6 rounded-sm border flex items-center justify-center transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20')}`}>
@@ -791,30 +946,79 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, v
             </div>
 
             <div className={`flex gap-4 text-sm border-t pt-3 w-full transition-colors ${isDark ? "border-white/5" : "border-gray-100"} flex-row`}>
-              <div>
+              {/* <div>
                 <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Experience:</p>
                 <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{(creative.shoots || 0)} Yrs</p>
+              </div> */}
+              <div>
+                <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Assigned Shoots:</p>
+                <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{assignedShootsLabel}</p>
               </div>
               <div className={`md:border-x md:px-6 transition-colors ${isDark ? "border-white/10" : "border-gray-200"}`}>
-                <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Specialities:</p>
+                <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Roles:</p>
                 <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{creative.specialities}</p>
               </div>
               <div className="md:pl-6">
                 <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Location:</p>
-                <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{formatLocation(creative.location)}</p>
+                <p className={`underline underline-offset-2 ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A2F]"}`}>{formatLocation(creative.location)}</p>
               </div>
             </div>
 
-            <div className="mt-auto pt-4 w-full flex justify-end">
+            <div className="relative mt-auto flex w-full justify-end pt-4">
+              {isProfileMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-30 mt-2 w-[166px] overflow-hidden rounded-lg bg-[#E8D1AB] text-black shadow-xl"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsProfileMenuOpen(false);
+                      onViewBriefProfile();
+                    }}
+                    className="flex h-[35px] w-full items-center justify-between px-[10px] text-left text-xs transition-colors hover:bg-[#dfc69b]"
+                  >
+                    <span>View Brief Profile</span>
+                    <span className="flex h-5 items-center border-l border-black/25 pl-[10px]">
+                      <ChevronRight size={16} />
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsProfileMenuOpen(false);
+                      onViewProfile();
+                    }}
+                    className="flex h-[35px] w-full items-center justify-between border-t border-black/15 px-[10px] text-left text-xs transition-colors hover:bg-[#dfc69b]"
+                  >
+                    <span>View Full Profile</span>
+                    <span className="flex h-5 items-center border-l border-black/25 pl-[10px]">
+                      <ChevronRight size={16} />
+                    </span>
+                  </button>
+                </div>
+              )}
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onViewProfile();
+                aria-haspopup="menu"
+                aria-expanded={isProfileMenuOpen}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setIsProfileMenuOpen((open) => !open);
                 }}
-                className={`text-sm font-medium px-5 py-2 rounded-lg transition-colors w-full md:w-auto ${isDark ? "bg-[#E8D1AB] text-black hover:bg-[#d9bc90]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
+                className="flex h-[41px] w-[166px] items-center justify-between rounded-lg bg-[#E8D1AB] px-[10px] text-left text-xs font-medium text-black transition-colors hover:bg-[#D9C19A]"
               >
-                View Profile
+                <span>View CP Profile</span>
+                <span className="ml-[14px] flex h-5 items-center border-l border-black/30 pl-[10px]">
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform duration-200 ${isProfileMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </span>
               </button>
             </div>
           </div>

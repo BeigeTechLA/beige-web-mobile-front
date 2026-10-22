@@ -28,6 +28,7 @@ import { unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import { getQuoteNumber } from "@/lib/quoteDetail";
 import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFields";
 import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
+import SelectNoOfCPsModal from "@/components/sales/SelectNoOfCPsModal";
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 import CpAgreementsTable from "@/components/admin/shoot-details/CpAgreementsTable";
 import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
@@ -209,6 +210,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isMissingFieldsModalOpen, setIsMissingFieldsModalOpen] = useState(false);
   const [isAssignmentMissingDetailsModalOpen, setIsAssignmentMissingDetailsModalOpen] = useState(false);
+  const [isSelectNoOfCPsModalOpen, setIsSelectNoOfCPsModalOpen] = useState(false);
   const [pendingAssignmentAction, setPendingAssignmentAction] = useState<(() => void) | null>(null);
   const [isQuotePreviewOpen, setIsQuotePreviewOpen] = useState(false);
   const [isLoadingQuotePreview, setIsLoadingQuotePreview] = useState(false);
@@ -273,6 +275,11 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
   const handleConfirmAssignmentWithMissingDetails = () => {
     setIsAssignmentMissingDetailsModalOpen(false);
+    setIsSelectNoOfCPsModalOpen(true);
+  };
+
+  const handleContinueAfterSelectingCPs = () => {
+    setIsSelectNoOfCPsModalOpen(false);
     const action = pendingAssignmentAction;
     setPendingAssignmentAction(null);
     action?.();
@@ -928,6 +935,19 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             onConfirm={handleConfirmAssignmentWithMissingDetails}
             missingDetails={assignmentMissingDetails}
             isDark={isDark}
+          />
+
+          <SelectNoOfCPsModal
+            isOpen={isSelectNoOfCPsModalOpen}
+            onClose={() => {
+              setIsSelectNoOfCPsModalOpen(false);
+              setPendingAssignmentAction(null);
+            }}
+            onBack={() => {
+              setIsSelectNoOfCPsModalOpen(false);
+              setIsAssignmentMissingDetailsModalOpen(true);
+            }}
+            onContinue={handleContinueAfterSelectingCPs}
           />
         </div>
 
