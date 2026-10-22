@@ -8,6 +8,7 @@ import { useTheme } from "next-themes"; // Integrated theme hook
 import Sidebar from "@/components/affiliate/Sidebar";
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import WebPushRegistration from "@/components/chat/WebPushRegistration";
+import NotificationPopup from "@/components/notifications/NotificationPopup";
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import { fetchAndCommitUserPermissions } from '@/lib/permissionsActions';
 import { canAccessPortalPath, getFirstAllowedPortalPath } from '@/lib/permissions';
@@ -56,6 +57,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       <main className="flex-1 overflow-y-auto custom-scrollbar">
         {children}
       </main>
+      <NotificationPopup portal="client" />
     </div>
   );
 }

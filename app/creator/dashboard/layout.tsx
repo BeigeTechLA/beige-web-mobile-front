@@ -18,6 +18,7 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { SidebarProvider, useSidebar } from "@/context/SidebarContext";
 import Sidebar from "@/components/creator-profile/Sidebar";
 import WebPushRegistration from "@/components/chat/WebPushRegistration";
+import NotificationPopup from "@/components/notifications/NotificationPopup";
 import { CreatorAgreementGate } from "@/components/creator-profile/CreatorAgreementGate";
 
 type CpStatusPayload = {
@@ -237,6 +238,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           children
         )}
       </main>
+      <NotificationPopup portal="creator" />
     </div>
   );
 }

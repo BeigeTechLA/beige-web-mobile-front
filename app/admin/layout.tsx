@@ -9,6 +9,7 @@ import Sidebar from "@/components/admin/Sidebar";
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import WebPushRegistration from '@/components/chat/WebPushRegistration';
+import NotificationPopup from '@/components/notifications/NotificationPopup';
 import { fetchAndCommitUserPermissions } from '@/lib/permissionsActions';
 import { canAccessPortalPath, getFirstAllowedPortalPath } from '@/lib/permissions';
 
@@ -56,6 +57,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       <main className="flex-1 overflow-y-auto custom-scrollbar">
         {children}
       </main>
+
+      <NotificationPopup portal="admin" />
     </div>
   );
 }

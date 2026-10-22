@@ -39,7 +39,14 @@ const priorityClass = (priority: AdminNotification["priority"]) => {
   return "bg-[#ECECEC] text-[#6B6B6B]";
 };
 
-export default function NotificationCenterPage({ portal }: { portal: NotificationPortal }) {
+type NotificationCenterPageProps = {
+  portal: NotificationPortal;
+  variant?: "page" | "modal";
+  onNavigate?: () => void; // lets the popup close itself when we navigate away
+};
+
+export default function NotificationCenterPage({ portal, variant = "page", onNavigate }: NotificationCenterPageProps) {
+  const isModal = variant === "modal";
   const pathname = usePathname();
   const router = useRouter();
   const notificationsPath = notificationPortalPaths[portal];
@@ -103,6 +110,7 @@ export default function NotificationCenterPage({ portal }: { portal: Notificatio
   }, [refresh]);
 
   useEffect(() => {
+    if (isModal) return;
     const params = new URLSearchParams(window.location.search);
     const notificationId = Number(params.get("notificationId"));
     if (!Number.isInteger(notificationId) || notificationId < 1) return;
@@ -120,7 +128,7 @@ export default function NotificationCenterPage({ portal }: { portal: Notificatio
         toast.error("Could not open this notification.");
       }
     })();
-  }, [router, portal]);
+  }, [router, portal, isModal]);
 
   const isDark = !mounted || theme === "dark";
   const tabCounts: Record<NotificationTab, number> = {
@@ -141,6 +149,7 @@ export default function NotificationCenterPage({ portal }: { portal: Notificatio
       const destination = getNotificationDestination(item, portal);
       if (destination) {
         setSelectedNotification(null);
+        onNavigate?.();
         router.push(destination);
       } else {
         setSelectedNotification({ ...item, unread: false });
@@ -205,11 +214,17 @@ export default function NotificationCenterPage({ portal }: { portal: Notificatio
 
   return (
     <>
-      <Topbar
-        pathname={pathname}
-        title="Notifications"
-        actions={<NotificationHeaderActions portal={portal} showMarkAll={!showArchived} />}
-      />
+      {isModal ? (
+        <div className={`flex items-center justify-between border-b px-6 py-4 ${isDark ? "border-[#303030]" : "border-[#E4E4E4]"}`}>
+          <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Notifications</h2>
+        </div>
+      ) : (
+        <Topbar
+          pathname={pathname}
+          title="Notifications"
+          actions={<NotificationHeaderActions portal={portal} showMarkAll={!showArchived} />}
+        />
+      )}
 
       <div className={`border-b px-6 py-4 lg:px-10 ${isDark ? "border-[#3A332A] bg-[#2A241D]" : "border-[#E8D1AB] bg-[#F7F0E4]"}`}>
         <div className="flex items-center justify-between gap-4">
@@ -218,14 +233,14 @@ export default function NotificationCenterPage({ portal }: { portal: Notificatio
             <button type="button" onClick={() => { setActiveTab("All"); setShowArchived((current) => !current); }} className={`flex items-center gap-2 ${isDark ? "text-white/80" : "text-black/70"}`}>
               <Archive size={16} /> {showArchived ? "Inbox" : `Archive${counts.archived ? ` (${counts.archived})` : ""}`}
             </button>
-            <button type="button" onClick={() => router.push(`${notificationsPath}/preferences`)} className={`flex items-center gap-2 ${isDark ? "text-white/80" : "text-black/70"}`}>
+            <button type="button" onClick={() => { onNavigate?.(); router.push(`${notificationsPath}/preferences`); }} className={`flex items-center gap-2 ${isDark ? "text-white/80" : "text-black/70"}`}>
               <BellOff size={16} /> Push Preferences
             </button>
           </div>
         </div>
       </div>
 
-      <main className={`min-h-screen px-4 py-6 lg:px-9 lg:py-8 ${isDark ? "bg-transparent" : "bg-[#F4F5F7]" }`} style={{ fontFamily: "var(--font-instrument-sans)" }}>
+      <main className={`${isModal ? "" : "min-h-screen"} px-4 py-6 lg:px-9 lg:py-8 ${isDark ? "bg-transparent" : "bg-[#F4F5F7]" }`} style={{ fontFamily: "var(--font-instrument-sans)" }}>
         <div className={`relative flex h-12 items-center rounded-xl border ${isDark ? "border-[#3D3D3D] bg-[#202020]" : "border-[#E3E3E3] bg-white"}`}>
           <Search size={18} className={`absolute left-4 ${isDark ? "text-white/35" : "text-black/35"}`} />
           <input
