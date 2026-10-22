@@ -447,6 +447,13 @@ export default function AdminAgreementDetailsPage() {
   if (isLoadingShoot) {
     return <><Topbar pathname={pathname} /><div className={`min-h-screen flex items-center justify-center ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}><Loader2 className="h-8 w-8 animate-spin" aria-label="Loading shoot agreement" /></div></>;
   }
+  if (isSuccessOpen) {
+    return <ShootAgreementSuccessModal
+      onBackToShoots={() => router.replace(`/admin/shoots/${params.id}`)}
+      count={cpList.length}
+      mode={selectedMode}
+    />;
+  }
   if (!cpList.length) {
     return <><Topbar pathname={pathname} /><div className={`min-h-screen p-10 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}><p>No pending CP assignment is ready for a shoot agreement.</p><Button className="mt-4" onClick={() => router.back()}>Back</Button></div></>;
   }
@@ -599,14 +606,6 @@ export default function AdminAgreementDetailsPage() {
         assignAndSubmit={Boolean(pendingPlan)}
       />
 
-      <ShootAgreementSuccessModal
-        isOpen={isSuccessOpen}
-        onClose={() => setIsSuccessOpen(false)}
-        onBackToShoots={() => router.push("/admin/shoots")}
-        onViewAgreement={() => router.push("/admin/agreements")}
-        count={cpList.length}
-        mode={selectedMode}
-      />
     </>
   );
 }

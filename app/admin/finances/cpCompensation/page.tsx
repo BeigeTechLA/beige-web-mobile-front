@@ -1119,6 +1119,7 @@ export default function AdminFinancesPage() {
           isSubmitting={isAddSubmitting}
           initialShootId={selectedPendingShootId}
           enableAdvanceProofUpload
+          showAgreementAction={false}
           onSubmit={handleAddSubmit}
         />
 

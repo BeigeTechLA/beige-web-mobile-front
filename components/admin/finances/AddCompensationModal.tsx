@@ -17,6 +17,7 @@ interface AddCompensationModalProps {
   isSubmitting?: boolean;
   onSubmit?: (payload: AddCpCompensationPayload) => Promise<void>;
   onPrepareAgreement?: (payload: AddCpCompensationPayload, creators: PendingCompensationShoot["creators"]) => Promise<void>;
+  showAgreementAction?: boolean;
   enableAdvanceProofUpload?: boolean;
   initialShootId?: number | null;
 }
@@ -244,6 +245,7 @@ export default function AddCompensationModal({
   isSubmitting = false,
   onSubmit,
   onPrepareAgreement,
+  showAgreementAction = true,
   enableAdvanceProofUpload = false,
   initialShootId,
 }: AddCompensationModalProps) {
@@ -1166,7 +1168,7 @@ export default function AddCompensationModal({
             </div>
           )}
 
-          <div className={`grid grid-cols-1 gap-4 ${onPrepareAgreement ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+          <div className={`grid grid-cols-1 gap-4 ${onPrepareAgreement || !showAgreementAction ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
             <button
               type="button"
               onClick={onClose}
@@ -1182,7 +1184,7 @@ export default function AddCompensationModal({
             >
               {isSubmitting ? "Submitting..." : "Submit To Finance"}
             </button>}
-            <button
+            {showAgreementAction && <button
               type="button"
               disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0 || (!onPrepareAgreement && !canOpenExistingAgreement)}
               onClick={onPrepareAgreement ? handleFormSubmit : () => router.push(`/admin/shoots/${selectedShootId}/shoot-agreement`)}
@@ -1190,9 +1192,9 @@ export default function AddCompensationModal({
               className="h-12 rounded-lg flex items-center justify-center bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black font-semibold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
             >
               Add Shoot Agreement
-            </button>
+            </button>}
           </div>
-          {!onPrepareAgreement && selectedShootId && selectedCreators.length > 0 && (
+          {showAgreementAction && !onPrepareAgreement && selectedShootId && selectedCreators.length > 0 && (
             <p className={`mt-3 text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
               Submit compensation first. This assigns the selected Creative Partner(s), after which you can create their shoot agreement.
             </p>

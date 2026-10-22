@@ -48,7 +48,7 @@ export function SendAgreementModal({
   const cpNamesText = cps.map((cp) => cp.name).join(" and ");
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isSubmitting && onClose()}>
       <DialogContent className={`lg:max-w-[813px] w-[92vw] lg:w-full p-0 overflow-hidden [&>button]:hidden transition-colors duration-200 border gap-0 ${isDark
         ? "border-white/40 bg-[#000000] text-white"
         : "border-[#D7D7D7] bg-white text-black"
@@ -63,6 +63,7 @@ export function SendAgreementModal({
             <button
               type="button"
               onClick={onClose}
+              disabled={isSubmitting}
               className={`rounded-full p-2 lg:p-3.5 transition-colors shrink-0 ${isDark ? "bg-[#2B2626] text-white hover:text-white/70" : "bg-black/5 text-black/60 hover:text-black"}`}
             >
               <X size={28} />
@@ -78,7 +79,7 @@ export function SendAgreementModal({
               ? `One common agreement will be sent to ${cpNamesText}. Each CP must review and accept the agreement individually.`
               : `Separate agreements will be sent to ${cpNamesText}. Each CP will receive their own agreement and must accept it before their assignment is confirmed.`}
           </p>
-          {assignAndSubmit && <p className={`text-sm ${isDark ? "text-white/70" : "text-black/70"}`}>This action also assigns the selected CPs and submits their compensation for finance approval.</p>}
+          {assignAndSubmit && <p className={`text-sm ${isDark ? "text-white/70" : "text-black/70"}`}>This will also assign the selected CPs and submit their compensation details to Finance for approval.</p>}
           {/* CP List Box */}
           <div className={`border rounded-xl p-3.5 space-y-3 ${isDark ? "bg-[#0E0E0D] border-[#1E1E1C] " : "bg-[#D7D7D7]/80 border-[#D7D7D7]"}`}>
             {
@@ -157,7 +158,7 @@ export function SendAgreementModal({
             disabled={isSubmitting}
             className="flex-1 w-full h-12 px-5 rounded-lg text-sm font-semibold bg-[#E8D1AB] text-black hover:bg-[#D5C5A8] transition-all"
           >
-            {isSubmitting ? "Sending..." : "Save and Send"}
+            {isSubmitting ? "Sending..." : assignAndSubmit ? "Send Agreement & Submit to Finance" : "Save and Send"}
           </Button>
         </DialogFooter>
       </DialogContent>
