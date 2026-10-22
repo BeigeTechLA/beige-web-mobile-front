@@ -3063,6 +3063,16 @@ export default function QuoteDetailsPage({
                     <DetailRow label="Tax Rate" value={`${taxRate}%`} isDark={isDark} />
                     <div className="border-t border-[#2B2B2B]" />
                     <DetailRow label="Tax Amount" value={formatQuoteCurrency(taxAmount)} isDark={isDark} />
+                    {!quote?.card_payment_charge_enabled ? (
+                      <>
+                        <div className="border-t border-[#2B2B2B]" />
+                        <DetailRow
+                          label="Payment Method"
+                          value={String(quote.card_payment_method || "Not selected").replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}
+                          isDark={isDark}
+                        />
+                      </>
+                    ) : null}
                   </div>
                 )}
 
