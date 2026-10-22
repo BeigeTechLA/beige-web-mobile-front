@@ -7,21 +7,18 @@ import { useRouter, usePathname } from "next/navigation";
 import { ArrowLeft, Camera, Send, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
-import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { adminApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
 import AddCompensationModal from "@/components/admin/finances/AddCompensationModal";
 import { type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 import { shootAgreementPlanKey, type ShootAgreementPlan } from "@/lib/shootAgreementPlan";
 import { usePermissions } from "@/lib/hooks/usePermissions";
-import { useAuth } from "@/lib/hooks/useAuth";
 
 type FulfillmentStats = {
   fulfillment_stats?: {
     videographer?: string;
     photographer?: string;
   };
-  cp_compensation_locked?: boolean;
   cp_compensation_has_pending?: boolean;
   cp_compensation_status?: string | null;
   location?: string;
@@ -135,7 +132,6 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
   const { canEdit, isLoading: isPermissionsLoading } = usePermissions("shoots");
-  const { user } = useAuth();
 
   const { id: projectId } = use(params);
 
@@ -146,18 +142,13 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [selectionCounts, setSelectionCounts] = useState({ videographer: 0, photographer: 0 });
   const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
   const [projectLocation, setProjectLocation] = useState<string>("");
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isAddCompOpen, setIsAddCompOpen] = useState(false);
   const [selectedCreatives, setSelectedCreatives] = useState<SelectedCreative[]>([]);
 
   const [roleType, setRoleType] = useState<string>('videographer');
   const [stats, setStats] = useState<FulfillmentStats | null>(null);
 
-  const cpCompensationLocked = Boolean(stats?.cp_compensation_locked);
   const cpCompensationHasPending = Boolean(stats?.cp_compensation_has_pending);
-  const normalizedRole = String(user?.role ?? user?.userRole ?? "").trim().toLowerCase();
-  const isSuperAdmin = Number(user?.user_type_id ?? user?.userTypeId) === 8 || ["super_admin", "superadmin"].includes(normalizedRole);
-  const isAssignmentLockedForUser = cpCompensationLocked && !isSuperAdmin;
 
   useEffect(() => {
     setMounted(true);
@@ -286,40 +277,23 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       return false;
     }
 
-    const isOverVideographers = selectionCounts.videographer > reqCounts.videographer;
-    const isOverPhotographers = selectionCounts.photographer > reqCounts.photographer;
-
-    if (isOverVideographers || isOverPhotographers) {
-      setIsConfirmModalOpen(true);
-      return false;
-    }
-
     return true;
   };
 
   const handleContinueToCompensation = () => {
-    if (isAssignmentLockedForUser) {
-      toast.error("All assigned CPs have accepted and their compensation has been approved. You cannot assign more CPs.");
-      return;
-    }
     if (!validateSelectedCounts()) return;
     openCompensationDrawer();
   };
 
   const handleCreativeSelectionChange = useCallback((ids: number[]) => {
-    if (isAssignmentLockedForUser) {
-      toast.error("All assigned CPs have accepted and their compensation has been approved. You cannot assign more CPs.");
-      return;
-    }
     setSelectedCreativeIds(ids);
-  }, [isAssignmentLockedForUser]);
+  }, []);
 
   const openCompensationDrawer = () => {
     if (!selectedCompensationShoot?.creators.length) {
       toast.error("Selected CP details are still loading. Please try again.");
       return;
     }
-    setIsConfirmModalOpen(false);
     setIsAddCompOpen(true);
   };
 
@@ -350,8 +324,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
             <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
               <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
                 {[
-                  { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer, target: reqCounts.videographer || '0' },
-                  { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer, target: reqCounts.photographer || '0' }
+                  { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer },
+                  { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer }
                 ].map((btn) => (
                   <div
                     key={btn.type}
@@ -362,7 +336,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
                       }`}
                   >
                     <btn.icon size={16} />
-                    <span>{btn.label} : {btn.count}/{btn.target}</span>
+                    <span>{btn.label} : {btn.count} selected</span>
                   </div>
                 ))}
               </div>
@@ -372,20 +346,16 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         />
 
         {/* Conditional Message Banner Block */}
-        {(cpCompensationLocked || cpCompensationHasPending) && (
+        {cpCompensationHasPending && (
           <div className="w-full px-6 py-3 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
             <p className="font-['Instrument_Sans'] text-sm leading-5 text-[#E8D1AB]">
-              {cpCompensationLocked
-                ? isSuperAdmin
-                  ? "This shoot is closed, but Super Admin can replace a removed CP."
-                  : "All assigned CPs have accepted and their compensation has been approved. Adding more CPs is locked."
-                : "This shoot has pending CP compensation. You can still add or remove CPs until all CPs and Finance approve."}
+              This shoot has pending CP compensation. You can still add CPs and send their agreements.
             </p>
           </div>
         )}
 
         {/* Pinned Creative Counter Action Tray Bar */}
-        {selectedCreativeIds.length > 0 && !isAssignmentLockedForUser && (
+        {selectedCreativeIds.length > 0 && (
           <div className="w-full flex flex-col items-start pt-3 px-6 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
             <div className="w-full flex flex-col lg:flex-row justify-between items-start lg:items-center mb-3">
               {/* Left Side: Count */}
@@ -410,7 +380,6 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
                 {/* Continue to Compensation Button */}
                 <button
                   onClick={() => { handleContinueToCompensation(); }}
-                  disabled={isAssignmentLockedForUser}
                   className="w-[232px] pt-[5px] pb-[7px] px-4 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-black/90 transition-colors cursor-pointer"
                 >
                   <Send size={14} className="text-[#E8D1AB]" strokeWidth={1.5} />
@@ -459,8 +428,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-black" : "bg-[#F4F5F7]"}`}>
           <div className="flex gap-2 w-full">
             {[
-              { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer, target: reqCounts.videographer || '0' },
-              { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer, target: reqCounts.photographer || '0' }
+              { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer },
+              { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer }
             ].map((btn) => (
               <div
                 key={btn.type}
@@ -471,23 +440,16 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
                   }`}
               >
                 <btn.icon size={16} />
-                <span>{btn.label} : {btn.count}/{btn.target}</span>
+                <span>{btn.label} : {btn.count} selected</span>
               </div>
             ))}
           </div>
 
-          <Button onClick={handleContinueToCompensation} disabled={selectedCreativeIds.length === 0 || isAssignmentLockedForUser} className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50">Continue to Compensation</Button>
+          <Button onClick={handleContinueToCompensation} disabled={selectedCreativeIds.length === 0} className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50">Continue to Compensation</Button>
         </div>
       </div>
 
       {/* Modals outside the flow rules container layout */}
-      <AssignmentConfirmationModal
-        isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={openCompensationDrawer}
-        videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
-        photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
-      />
     </div>
   );
 }

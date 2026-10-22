@@ -40,6 +40,7 @@ interface Step2AgreementDetailsProps {
   endTime: string;
   setEndTime: (val: string) => void;
   sections: ClauseSection[];
+  agreementVersion?: string;
   toggleSection: (id: string) => void;
   updateSectionTitle: (id: string, title: string) => void;
   updateSectionContent: (id: string, content: string) => void;
@@ -64,6 +65,7 @@ export function Step2AgreementDetails({
   endTime,
   setEndTime,
   sections,
+  agreementVersion = "v1",
   toggleSection,
   updateSectionTitle,
   updateSectionContent,
@@ -103,10 +105,9 @@ export function Step2AgreementDetails({
 
         <Button
           type="button"
-          onClick={() => console.log("Auto Generated Version")}
           className="flex-0 w-full lg:w-auto bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] h-10 px-5 rounded-lg font-semibold text-xs transition-all shrink-0"
         >
-          Version v1.0 (auto-generated)
+          Version {agreementVersion}
         </Button>
       </div>
 
@@ -673,7 +674,7 @@ export function Step2AgreementDetails({
         </svg>
         <span>
           The system automatically generates:{" "}
-          <span>Beige Sheet Version: v1.0</span>
+          <span>Beige Sheet Version: {agreementVersion}</span>
         </span>
       </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter, usePathname, useParams, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,7 @@ export default function AdminAgreementDetailsPage() {
   const [draftAgreementIds, setDraftAgreementIds] = useState<Record<string, number>>({});
   const [sentAgreementIds, setSentAgreementIds] = useState<number[]>([]);
   const [revisionSourceId, setRevisionSourceId] = useState<number | null>(null);
+  const [agreementVersion, setAgreementVersion] = useState("v1");
 
   // Editable Clause Sections State
   const [sections, setSections] = useState<ClauseSection[]>([
@@ -67,48 +68,54 @@ export default function AdminAgreementDetailsPage() {
       id: "scope",
       num: "01",
       title: "Scope of Services",
-      content: "",
+      content: "The Creative Partner will provide the services described in the shoot brief for the project listed above.",
       isExpanded: true,
     },
     {
       id: "equipment",
       num: "02",
       title: "Equipment Requirements",
-      subtitle:
-        "This agreement defines the Shoot terms, responsibilities, and expectations...",
-      content: "",
+      content: "The Creative Partner will bring the equipment agreed for this assignment and notify Beige if the equipment plan changes before the shoot.",
       isExpanded: false,
     },
     {
       id: "deliverables",
       num: "03",
       title: "Deliverables / Media Transfer",
-      subtitle:
-        "Additional terms and conditions applicable to this agreement....",
-      content: "",
+      content: "The Creative Partner will provide the agreed media or deliverables in the shoot brief and coordinate their transfer with Beige.",
       isExpanded: false,
     },
     {
       id: "expenses",
       num: "04",
       title: "Approved Expenses / Travel",
-      subtitle:
-        "Additional terms and conditions applicable to this agreement....",
-      content: "",
+      content: "Any travel or other expenses must be agreed with Beige before they are incurred.",
       isExpanded: false,
     },
     {
       id: "additional",
       num: "05",
       title: "Special Instructions",
-      subtitle:
-        "Additional terms and conditions applicable to this agreement....",
-      content: "",
+      content: "Follow the confirmed production schedule and share any project-specific changes with Beige before the shoot.",
       isExpanded: false,
     },
   ]);
   const [sectionsByCreator, setSectionsByCreator] = useState<Record<string, ClauseSection[]>>({});
   const defaultSections = useRef(sections.map((section) => ({ ...section })));
+  const agreementPageRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (isLoadingShoot) return;
+    const scrollToTop = () => {
+      agreementPageRef.current?.closest("main")?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    scrollToTop();
+    const frame = window.requestAnimationFrame(scrollToTop);
+    return () => window.cancelAnimationFrame(frame);
+  }, [isLoadingShoot, currentStep, activeCpIndex, reviewCpIndex]);
 
   useEffect(() => {
     setMounted(true);
@@ -141,6 +148,7 @@ export default function AdminAgreementDetailsPage() {
           applyBookingDetails(bookingPayload?.project ?? bookingPayload);
           const draft = source.status === "draft" ? source : agreementsResponse.data.find((item) => item.status === "draft" && Number(item.parent_document_id) === requestedRevisionId);
           const editable = draft || source;
+          setAgreementVersion(draft ? draft.display_version : `v${Number(source.version_no) + 1}`);
           if (draft) setDraftAgreementIds({ [String(source.assignment_id)]: draft.agreement_document_id });
           else if (!source.is_current || !["accepted", "pending_acceptance", "rejected"].includes(source.status)) throw new Error("Only the current agreement can be revised");
           setRevisionSourceId(draft ? Number(draft.parent_document_id) || null : requestedRevisionId);
@@ -280,12 +288,10 @@ export default function AdminAgreementDetailsPage() {
         setSectionsByCreator((previous) => ({ ...previous, [currentId]: sections.map((section) => ({ ...section })) }));
         setSections(sectionsByCreator[nextId]?.map((section) => ({ ...section })) || defaultSections.current.map((section) => ({ ...section })));
         setActiveCpIndex((prev) => prev + 1);
-        window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
         if (selectedMode === "individual") setSectionsByCreator((previous) => ({ ...previous, [cpList[activeCpIndex].id]: sections.map((section) => ({ ...section })) }));
         setCurrentStep(3);
         setReviewCpIndex(0);
-        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     }
   };
@@ -300,7 +306,6 @@ export default function AdminAgreementDetailsPage() {
         setSectionsByCreator((previous) => ({ ...previous, [cpList[activeCpIndex].id]: sections.map((section) => ({ ...section })) }));
         setSections(sectionsByCreator[cpList[activeCpIndex - 1].id]?.map((section) => ({ ...section })) || sections);
         setActiveCpIndex((prev) => prev - 1);
-        window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
         if (cpList.length === 1) router.back();
         else setCurrentStep(1);
@@ -477,7 +482,7 @@ export default function AdminAgreementDetailsPage() {
         }
       />
 
-      <div className={`min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 font-sans pb-40 transition-colors space-y-4 lg:space-y-9 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}>
+      <div ref={agreementPageRef} className={`min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 font-sans pb-40 transition-colors space-y-4 lg:space-y-9 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}>
         <Button
           type="button"
           onClick={handlePreviousStep}
@@ -517,6 +522,7 @@ export default function AdminAgreementDetailsPage() {
             endTime={endTime}
             setEndTime={setEndTime}
             sections={sections}
+            agreementVersion={agreementVersion}
             allCPs={cpList}
             toggleSection={toggleSection}
             updateSectionTitle={updateSectionTitle}
@@ -542,6 +548,7 @@ export default function AdminAgreementDetailsPage() {
             callTime={callTime}
             endTime={endTime}
             sections={selectedMode === "individual" ? sectionsByCreator[cpList[reviewCpIndex]?.id] || sections : sections}
+            agreementVersion={agreementVersion}
             onOpenSendDialog={() => setIsSendDialogOpen(true)}
             onPrevious={handlePreviousStep}
             onSave={() => setIsSendDialogOpen(true)}

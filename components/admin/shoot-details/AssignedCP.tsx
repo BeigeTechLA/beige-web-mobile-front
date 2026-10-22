@@ -108,13 +108,9 @@ export default function AssignedCP({
   const isSuperAdmin = userTypeId === 8 || ["super_admin", "superadmin"].includes(normalizedRole);
   const isSalesShootPage = pathname?.startsWith("/sales/shoots/");
   const isCompensationApproved = String(cpCompensationStatus || "").toLowerCase() === "approved";
-  const canAssignCP = canCreate && (!isCompensationApproved || isSuperAdmin);
+  const canAssignCP = canCreate;
   const canRemoveCP = canEdit && (!isCompensationApproved || isSuperAdmin);
-  const assignmentLockTitle = !canCreate
-    ? "Create permission not allowed"
-    : isCompensationApproved
-      ? "All assigned CPs have accepted and their compensation has been approved. Adding more CPs is locked."
-      : undefined;
+  const assignmentLockTitle = !canCreate ? "Create permission not allowed" : undefined;
   const removeLockTitle = !canEdit
     ? "Edit permission not allowed"
     : isCompensationApproved
@@ -125,11 +121,6 @@ export default function AssignedCP({
 
   const handleOpenAssignment = () => {
     if (!canCreate) return;
-
-    if (isCompensationApproved && !isSuperAdmin) {
-      toast.error("All assigned CPs have accepted and their compensation has been approved. Adding more CPs is locked.");
-      return;
-    }
 
     const goToAddCreatives = () =>
       router.push(
@@ -188,8 +179,9 @@ export default function AssignedCP({
   const getProfileImage = (member: CrewAssignment) => {
     const s3Prefix = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 
-    if (member.crew_member?.crew_member_files?.length > 0) {
-      const photo = member.crew_member.crew_member_files.find((f) => f.file_type === "profile_photo" || f.file_type === "headshot");
+    const photos = member.crew_member?.crew_member_files || [];
+    if (photos.length > 0) {
+      const photo = photos.find((f) => f.file_type === "profile_photo" || f.file_type === "headshot");
       if (photo) {
         if (photo.file_url) return photo.file_url;
         if (photo.file_path) return `${s3Prefix}${photo.file_path}`;

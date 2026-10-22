@@ -17,6 +17,7 @@ interface Step3ReviewAgreementProps {
   callTime: string;
   endTime: string;
   sections: ClauseSection[];
+  agreementVersion?: string;
   onOpenSendDialog: () => void;
   onPrevious: () => void;
   onSave: () => void;
@@ -33,6 +34,7 @@ export function Step3ReviewAgreement({
   callTime,
   endTime,
   sections,
+  agreementVersion = "v1",
   onOpenSendDialog,
   onPrevious,
   onSave,
@@ -53,7 +55,7 @@ export function Step3ReviewAgreement({
               <span>
                 {cpList.map((cp) => cp.name).join(" · ")}
               </span>
-              {" - v1.0"}
+              {` - ${agreementVersion}`}
             </p>
           </div> : <div>
             <h1 className={`text-xl lg:text-2xl font-semibold mb-1 ${isDark ? "text-white" : "text-black"}`}>
@@ -64,7 +66,7 @@ export function Step3ReviewAgreement({
                 {" "}
                 Agreement {reviewCpIndex + 1} of {cpList.length}
               </span>{" "}
-              - {reviewCP.role} - {reviewCP.assignCode} - v1.0
+              - {reviewCP.role} - {reviewCP.assignCode} - {agreementVersion}
             </p>
           </div>
         }
@@ -108,7 +110,7 @@ export function Step3ReviewAgreement({
                       </h3>
 
                       <p className={`text-xs lg:text-sm ${isDark ? "text-[#737370]" : "text-gray-500"}`}>
-                        Agreement Version: v1.0 · {cpList.length} Recipients
+                        Agreement Version: {agreementVersion} · {cpList.length} Recipients
                       </p>
                     </div>
 
@@ -397,7 +399,7 @@ export function Step3ReviewAgreement({
           <div>
             <span className="text-[#E8D1AB]">Beige Sheet Version</span>
             <p className={`font-semibold text-sm lg:text-base ${isDark ? "text-white" : "text-black"}`}>
-              v1.0
+              {agreementVersion}
             </p>
           </div>
           <div>
