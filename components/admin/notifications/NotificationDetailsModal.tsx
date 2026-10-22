@@ -179,7 +179,7 @@ export default function NotificationDetailsModal({
               className={`flex h-11 items-center justify-center gap-2 rounded-lg border text-sm transition-colors ${isDark ? "border-[#4A4A4A] bg-[#111111] text-white hover:bg-[#1B1B1B]" : "border-[#DADADA] bg-white text-[#252525] hover:bg-[#F7F7F7]"}`}
             >
               <BellOff size={16} />
-              Mute Similar
+              Mute Similar Push
             </button>
           </div> : null}
 

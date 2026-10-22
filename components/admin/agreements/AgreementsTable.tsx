@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { MoreVertical, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
 import { useTheme } from "next-themes";
 
 export interface AgreementData {
@@ -16,7 +16,11 @@ export interface AgreementData {
   role: string;
   version: string;
   compensation?: number;
-  status: "Accepted" | "Expired" | "Not Accepted" | "Pending";
+  status: "Accepted" | "Expired" | "Not Accepted" | "Pending" | "Draft" | "Cancelled";
+  rawStatus?: "draft" | "pending_acceptance" | "accepted" | "rejected" | "cancelled" | "expired";
+  isCurrent?: boolean;
+  bookingId?: number | null;
+  assignmentId?: number | null;
 }
 
 const DEFAULT_DUMMY_AGREEMENTS: AgreementData[] = [
@@ -102,12 +106,16 @@ interface AgreementHistoryTableProps {
   generalData?: AgreementData[];
   shootData?: AgreementData[];
   onActionClick?: (item: AgreementData, e: React.MouseEvent) => void;
+  onRevise?: (item: AgreementData) => void;
+  onCancel?: (item: AgreementData) => void;
 }
 
 export default function GeneralAgreementHistoryTable({
   generalData = [],
   shootData = [],
   onActionClick,
+  onRevise,
+  onCancel,
 }: AgreementHistoryTableProps) {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -145,6 +153,8 @@ export default function GeneralAgreementHistoryTable({
         );
       case "Expired":
       case "Pending":
+      case "Draft":
+      case "Cancelled":
         return (
           <span
             className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm lg:text-base font-medium ${isDark
@@ -270,7 +280,7 @@ export default function GeneralAgreementHistoryTable({
               <th className="py-4 px-6">Role</th>
               <th className="py-4 px-6">Version</th>
               <th className="py-4 px-6">Status</th>
-              <th className="py-4 px-6 text-right">Action</th>
+              <th className="py-4 px-6 text-right">{activeTab === "general" ? "Details" : "Actions"}</th>
                 </>
               ) : (
                 <>
@@ -280,7 +290,7 @@ export default function GeneralAgreementHistoryTable({
                   <th className="py-4 px-6">Version</th>
                   <th className="py-4 px-6">Compensation</th>
                   <th className="py-4 px-6">Status</th>
-                  <th className="py-4 px-6 text-right">Action</th>
+                  <th className="py-4 px-6 text-right">Actions</th>
                 </>
               )}
             </tr>
@@ -344,17 +354,16 @@ export default function GeneralAgreementHistoryTable({
                   </>
                 )}
 
-                {/* Action Column */}
                 <td className="py-4 px-6 text-right">
-                  <button
-                    type="button"
-                    onClick={(e) => onActionClick?.(item, e)}
-                    className={`transition-colors ${
-                      isDark ? "text-white/70 hover:text-white" : "text-black/70 hover:text-black"
-                      }`}
-                  >
-                    <MoreVertical size={30} />
-                  </button>
+                  <div className="flex items-center justify-end gap-3 text-sm">
+                    <button type="button" onClick={(e) => onActionClick?.(item, e)} className="text-[#E8D1AB] hover:underline">View</button>
+                    {activeTab === "shoot" && item.rawStatus !== "draft" && item.isCurrent && ["accepted", "pending_acceptance", "rejected"].includes(item.rawStatus || "") &&
+                      <button type="button" onClick={() => onRevise?.(item)} className="text-[#E8D1AB] hover:underline">New version</button>}
+                    {activeTab === "shoot" && item.rawStatus === "draft" &&
+                      <button type="button" onClick={() => onRevise?.(item)} className="text-[#E8D1AB] hover:underline">Edit draft</button>}
+                    {activeTab === "shoot" && ["draft", "pending_acceptance"].includes(item.rawStatus || "") &&
+                      <button type="button" onClick={() => onCancel?.(item)} className="text-red-400 hover:underline">{item.rawStatus === "draft" ? "Discard" : "Cancel"}</button>}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -472,16 +481,13 @@ export default function GeneralAgreementHistoryTable({
                       <span className={isDark ? "text-white/50" : "text-black/50"}>Date</span>
                       <span className={isDark ? "text-white/80" : "text-black/80"}>{item.date}</span>
                     </div>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onActionClick?.(item, e);
-                        }}
-                        className={`p-1.5 rounded-lg ${isDark ? "text-white" : "text-black/70"}`}
-                      >
-                        <MoreVertical size={16} />
-                      </button>
+                      <div className="flex flex-wrap justify-end gap-3 text-sm">
+                        <button type="button" onClick={(e) => { e.stopPropagation(); onActionClick?.(item, e); }} className="text-[#E8D1AB]">View</button>
+                        {activeTab === "shoot" && (item.rawStatus === "draft" || (item.isCurrent && ["accepted", "pending_acceptance", "rejected"].includes(item.rawStatus || ""))) &&
+                          <button type="button" onClick={(e) => { e.stopPropagation(); onRevise?.(item); }} className="text-[#E8D1AB]">{item.rawStatus === "draft" ? "Edit draft" : "New version"}</button>}
+                        {activeTab === "shoot" && ["draft", "pending_acceptance"].includes(item.rawStatus || "") &&
+                          <button type="button" onClick={(e) => { e.stopPropagation(); onCancel?.(item); }} className="text-red-400">{item.rawStatus === "draft" ? "Discard" : "Cancel"}</button>}
+                      </div>
                     </div>
                   </div>
                 )}

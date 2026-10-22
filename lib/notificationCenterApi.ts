@@ -133,7 +133,10 @@ export const getNotificationDestination = (item: AdminNotification, portal: Noti
     return `${path}${disputeId ? `?dispute_id=${encodeURIComponent(disputeId)}` : ""}`;
   }
   const agreementId = payloadValue(payload, "agreement_document_id") || (item.referenceType === "agreement_document" ? item.referenceId || "" : "");
-  if (item.category === "Agreements" && portal === "creator") return `/creator/dashboard/request/review-agreement${agreementId ? `?agreement_id=${encodeURIComponent(agreementId)}` : ""}`;
+  if (item.category === "Agreements" && portal === "creator") {
+    if (payloadValue(payload, "agreement_type") === "general") return `/creator/dashboard/agreements/general-agreement${agreementId ? `?agreement_id=${encodeURIComponent(agreementId)}` : ""}`;
+    return `/creator/dashboard/request/review-agreement${agreementId ? `?agreement_id=${encodeURIComponent(agreementId)}` : ""}`;
+  }
   if (item.category === "Agreements" && portal === "admin") {
     const agreementBookingId = payloadValue(payload, "booking_id");
     return agreementBookingId ? `/admin/shoots/${encodeURIComponent(agreementBookingId)}/shoot-agreement` : "/admin/shoots";

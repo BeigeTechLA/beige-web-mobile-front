@@ -5,7 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, History, Pencil } from "lucide-react";
 import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
-import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
+import { agreementApi, AgreementDocument, type AgreementResponse } from "@/lib/api/agreements";
+import { AgreementSignatureEvidence } from "@/components/creator-profile/AgreementSignatureEvidence";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 
 type EventItem = { event_type?: string; created_at?: string; metadata?: Record<string, unknown> };
@@ -43,6 +44,7 @@ export default function AdminShootAgreementDetailsPage() {
   const agreementId = Number(params.get("agreement_id"));
   const [agreement, setAgreement] = useState<AgreementDocument | null>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [signatureResponse, setSignatureResponse] = useState<AgreementResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,6 +59,7 @@ export default function AdminShootAgreementDetailsPage() {
           return;
         }
         setAgreement(response.data.agreement);
+        setSignatureResponse(response.data.responses.find((item) => item.action === "accepted") || null);
         setEvents(Array.isArray(response.data.events) ? response.data.events as EventItem[] : []);
       })
       .catch(() => router.replace("/admin/agreements"))
@@ -71,9 +74,9 @@ export default function AdminShootAgreementDetailsPage() {
   const role = getPrimaryRoleLabel(cp.role);
   const agreementSections = getAgreementSections(agreement.content_json);
   const currency = agreement.currency || snapshot.compensation?.currency || "USD";
-  const canEdit = agreement.status === "draft" || agreement.status === "pending_acceptance";
+  const canEdit = agreement.status === "draft" || (agreement.is_current && ["pending_acceptance", "accepted", "rejected"].includes(agreement.status));
   const editUrl = agreement.booking_id && agreement.assignment_id
-    ? `/admin/shoots/${agreement.booking_id}/shoot-agreement?assignment_id=${agreement.assignment_id}`
+    ? `/admin/shoots/${agreement.booking_id}/shoot-agreement?revise_from=${agreement.agreement_document_id}`
     : "/admin/agreements";
 
   return (
@@ -81,7 +84,7 @@ export default function AdminShootAgreementDetailsPage() {
       <Topbar pathname={pathname} actions={
         <>
           <Button variant="outline" className="h-12 gap-2" onClick={() => router.push("/admin/agreements")}><History size={16} /> View Version History</Button>
-          {canEdit && <Button className="h-12 bg-[#E8D1AB] text-black hover:bg-[#d9c19a] gap-2" onClick={() => router.push(editUrl)}><Pencil size={16} /> Edit Agreement</Button>}
+          {canEdit && <Button className="h-12 bg-[#E8D1AB] text-black hover:bg-[#d9c19a] gap-2" onClick={() => router.push(editUrl)}><Pencil size={16} /> {agreement.status === "draft" ? "Edit Draft" : "Create New Version"}</Button>}
         </>
       } />
       <main className="min-h-screen bg-[#0A0A0A] px-4 py-7 text-white lg:px-10">
@@ -114,6 +117,7 @@ export default function AdminShootAgreementDetailsPage() {
                 )) : <section className="agreement-content text-sm leading-6 text-[#D8D8D8]" dangerouslySetInnerHTML={{ __html: agreement.content_html }} />}
               </div>
             </article>
+            <AgreementSignatureEvidence response={signatureResponse} />
           </section>
           <aside className="space-y-5">
             <section className="rounded-2xl border border-[#3D3D3D] bg-[#171717] p-5"><h2 className="mb-4 text-sm font-semibold">Version History</h2><div className="border-l border-[#5E533F] pl-4"><p className="text-sm font-medium">{agreement.display_version} <span className="ml-2 rounded-full bg-[#D4FFE4] px-2 py-0.5 text-[10px] text-[#16803F]">{titleCase(agreement.status)}</span></p><p className="mt-2 text-xs text-[#AAA7A7]">Created {formatDate(agreement.created_at)}</p><p className="mt-1 text-xs text-[#AAA7A7]">Compensation {formatMoney(agreement.compensation_amount ?? snapshot.compensation?.amount, currency)}</p></div></section>

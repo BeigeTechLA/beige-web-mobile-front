@@ -75,7 +75,7 @@ export function Step3ReviewAgreement({
           className="bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] h-12 px-5 rounded-lg font-medium text-sm flex items-center gap-2"
         >
           <Send size={14} />
-          Send Agreement To CP
+          Save and Send Agreement
         </Button>
       </div>
 
@@ -351,7 +351,7 @@ export function Step3ReviewAgreement({
                   className={`shrink-0 ${isDark ? "text-[#E8D1AB]" : "text-gray-400"}`}
                 />
                 <span className={isDark ? "text-[#E8D1AB]" : "text-gray-500"}>
-                  Each creative partner's compensation is specified individually. All
+                  Each creative partner&apos;s compensation is specified individually. All
                   recipients are reviewing the same agreement.
                 </span>
               </div>
@@ -424,7 +424,7 @@ export function Step3ReviewAgreement({
           onClick={onSave}
           className="h-12 lg:h-18 lg:min-w-50 rounded-xl border text-sm lg:text-xl font-medium bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] transition-colors"
         >
-          Save
+          Save and Send
         </Button>
       </div >
     </div >

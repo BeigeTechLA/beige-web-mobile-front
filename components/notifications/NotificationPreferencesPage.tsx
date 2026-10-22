@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, CalendarDays, Camera, DollarSign, File, Folder, Info, Mail, MessageSquare, Settings, Smartphone } from "lucide-react";
+import { ArrowLeft, CalendarDays, Camera, DollarSign, File, Folder, Info, Mail, MessageSquare, Settings, Smartphone, Star, Scale, Users } from "lucide-react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 
@@ -14,11 +14,16 @@ import { defaultNotificationPreferences, type NotificationPreferences } from "@/
 
 const categories = [
   { key: "Shoots", description: "Shoot schedules, assignments, and updates", icon: Camera },
+  { key: "Leads", description: "Assigned leads and response deadlines", icon: Users },
   { key: "Payments", description: "Invoices, payment receipts, and reminders", icon: DollarSign },
+  { key: "Payouts", description: "Creator compensation and payout updates", icon: DollarSign },
   { key: "Messages", description: "Direct messages and mentions", icon: MessageSquare },
   { key: "Meetings", description: "Meeting invites, reminders, and updates", icon: CalendarDays },
   { key: "Proposals", description: "Proposal shares, approvals, and feedback", icon: File },
+  { key: "Agreements", description: "Shoot agreement actions and deadlines", icon: File },
   { key: "Files", description: "File uploads, shares, and review requests", icon: Folder },
+  { key: "Disputes", description: "Dispute comments, decisions, and refunds", icon: Scale },
+  { key: "Reviews", description: "Client reviews of creators", icon: Star },
   { key: "System", description: "Account and platform alerts", icon: Settings },
 ];
 
@@ -149,7 +154,7 @@ export default function NotificationPreferencesPage({ portal }: { portal: Notifi
             </div>
 
             <div className="px-4 py-3">
-              <p className={`mb-2 text-xs font-medium ${isDark ? "text-white/80" : "text-black/70"}`}>Notification centre categories</p>
+              <p className={`mb-2 text-xs font-medium ${isDark ? "text-white/80" : "text-black/70"}`}>Browser push categories</p>
               <div className="space-y-1">
                 {categories.map(({ key, description, icon: Icon }) => (
                   <div
@@ -189,7 +194,7 @@ export default function NotificationPreferencesPage({ portal }: { portal: Notifi
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F2DDFE] text-[#B126FF]"><Mail size={18} /></span>
               <div>
                 <p className={`text-sm font-medium ${isDark ? "text-white" : "text-black"}`}>Email Notifications</p>
-                <p className={`mt-0.5 text-xs ${isDark ? "text-white/40" : "text-black/45"}`}>Receive notifications via email</p>
+                  <p className={`mt-0.5 text-xs ${isDark ? "text-white/40" : "text-black/45"}`}>Receive supported notification emails; transactional emails may still be sent</p>
               </div>
             </div>
             <GoldSwitch checked={prefs.emailEnabled} onChange={(value) => { void updateEmail(value); }} isDark={isDark} disabled={loading} />
@@ -199,7 +204,7 @@ export default function NotificationPreferencesPage({ portal }: { portal: Notifi
             <Info size={18} className="mt-0.5 shrink-0" />
             <div className="text-xs leading-5">
               <p className="font-medium">Smart Delivery</p>
-              <p>Muting a category stops future non-critical notifications in that category. Existing notifications stay in your history. Browser push settings apply to this browser session.</p>
+              <p>Muting a category stops its future non-critical browser push alerts. Notifications still appear in your dashboard inbox. The main push switch applies to this browser session.</p>
             </div>
           </div>
 

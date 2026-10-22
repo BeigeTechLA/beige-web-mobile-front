@@ -26,6 +26,7 @@ interface SendAgreementModalProps {
   mode?: "individual" | "common";
   isDark?: boolean;
   isSubmitting?: boolean;
+  assignAndSubmit?: boolean;
 }
 
 const DEFAULT_CPS: CPDetail[] = [
@@ -41,6 +42,7 @@ export function SendAgreementModal({
   mode = "individual",
   isDark = true,
   isSubmitting = false,
+  assignAndSubmit = false,
 }: SendAgreementModalProps) {
   const isCommon = mode === "common";
   const cpNamesText = cps.map((cp) => cp.name).join(" and ");
@@ -55,7 +57,7 @@ export function SendAgreementModal({
         <DialogHeader className={`border-b px-4 py-4 lg:px-6 lg:py-5 text-left transition-colors duration-200 ${isDark ? "border-b-white/40" : "border-b-[#D7D7D7]"}`}>
           <div className="flex items-center justify-between gap-3 lg:gap-4">
             <DialogTitle className={`text-lg lg:text-3xl font-bold transition-colors text-wrap ${isDark ? "text-white" : "text-black"}`}>
-              Send 2 Individual Agreements?
+              {isCommon ? `Save and Send Agreement to ${cps.length} CPs?` : `Save and Send ${cps.length} Individual Agreement${cps.length === 1 ? "" : "s"}?`}
             </DialogTitle>
 
             <button
@@ -76,6 +78,7 @@ export function SendAgreementModal({
               ? `One common agreement will be sent to ${cpNamesText}. Each CP must review and accept the agreement individually.`
               : `Separate agreements will be sent to ${cpNamesText}. Each CP will receive their own agreement and must accept it before their assignment is confirmed.`}
           </p>
+          {assignAndSubmit && <p className={`text-sm ${isDark ? "text-white/70" : "text-black/70"}`}>This action also assigns the selected CPs and submits their compensation for finance approval.</p>}
           {/* CP List Box */}
           <div className={`border rounded-xl p-3.5 space-y-3 ${isDark ? "bg-[#0E0E0D] border-[#1E1E1C] " : "bg-[#D7D7D7]/80 border-[#D7D7D7]"}`}>
             {
@@ -94,7 +97,7 @@ export function SendAgreementModal({
                     Recipients
                   </p>
                   <p className={`font-medium ${isDark ? "text-[#E8E8E7]" : "text-black/80"}`}>
-                    {cpNamesText.length} CPs
+                    {cps.length} CPs
                   </p>
                 </div>
                 <div className="flex justify-between items-center">
@@ -154,7 +157,7 @@ export function SendAgreementModal({
             disabled={isSubmitting}
             className="flex-1 w-full h-12 px-5 rounded-lg text-sm font-semibold bg-[#E8D1AB] text-black hover:bg-[#D5C5A8] transition-all"
           >
-            {isSubmitting ? "Sending..." : "Submit"}
+            {isSubmitting ? "Sending..." : "Save and Send"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -18,11 +18,16 @@ export const defaultNotificationPreferences: NotificationPreferences = {
   emailEnabled: false,
   categories: {
     Shoots: true,
+    Leads: true,
     Payments: true,
+    Payouts: true,
     Messages: true,
     Meetings: true,
     Proposals: true,
+    Agreements: true,
     Files: true,
+    Disputes: true,
+    Reviews: true,
     System: true,
   },
 };

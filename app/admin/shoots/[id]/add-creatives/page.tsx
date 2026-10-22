@@ -6,13 +6,13 @@ import { toast } from "sonner";
 import { useRouter, usePathname } from "next/navigation";
 import { ArrowLeft, Camera, Send, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAssignCrewFromShootMutation } from "@/lib/redux/features/sales/salesApi";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
 import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { adminApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
 import AddCompensationModal from "@/components/admin/finances/AddCompensationModal";
-import { cpCompensationApi, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
+import { type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
+import { shootAgreementPlanKey, type ShootAgreementPlan } from "@/lib/shootAgreementPlan";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useAuth } from "@/lib/hooks/useAuth";
 
@@ -45,7 +45,6 @@ type SelectedCreative = {
   hourly_rate?: number | string;
 };
 
-type ConfirmAction = "assign" | "compensation";
 
 const toNumber = (value: unknown, fallback = 0) => {
   const numeric = Number(value);
@@ -148,15 +147,12 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
   const [projectLocation, setProjectLocation] = useState<string>("");
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction>("assign");
   const [isAddCompOpen, setIsAddCompOpen] = useState(false);
   const [selectedCreatives, setSelectedCreatives] = useState<SelectedCreative[]>([]);
-  const [isSubmittingCompensation, setIsSubmittingCompensation] = useState(false);
 
   const [roleType, setRoleType] = useState<string>('videographer');
   const [stats, setStats] = useState<FulfillmentStats | null>(null);
 
-  const [assignCrew, { isLoading }] = useAssignCrewFromShootMutation();
   const cpCompensationLocked = Boolean(stats?.cp_compensation_locked);
   const cpCompensationHasPending = Boolean(stats?.cp_compensation_has_pending);
   const normalizedRole = String(user?.role ?? user?.userRole ?? "").trim().toLowerCase();
@@ -242,7 +238,9 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       }));
     const creatorsById = new Map<number, PendingCompensationShoot["creators"][number]>();
 
-    [...getAssignedCompensationCreators(stats), ...selectedCreatorsForCompensation].forEach((creator) => {
+    [...getAssignedCompensationCreators(stats), ...selectedCreatorsForCompensation]
+      .filter((creator) => selectedCreativeIds.includes(Number(creator.creator_id)))
+      .forEach((creator) => {
       creatorsById.set(
         Number(creator.creator_id),
         mergeCompensationCreator(creatorsById.get(Number(creator.creator_id)), creator)
@@ -280,7 +278,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     });
   }, [selectedCreativeIds]);
 
-  const validateSelectedCounts = (action: ConfirmAction) => {
+  const validateSelectedCounts = () => {
     if (!canEdit) return;
 
     if (selectedCreativeIds.length === 0) {
@@ -292,7 +290,6 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     const isOverPhotographers = selectionCounts.photographer > reqCounts.photographer;
 
     if (isOverVideographers || isOverPhotographers) {
-      setConfirmAction(action);
       setIsConfirmModalOpen(true);
       return false;
     }
@@ -300,21 +297,12 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     return true;
   };
 
-  const handleAssign = async () => {
-    if (isAssignmentLockedForUser) {
-      toast.error("All assigned CPs have accepted and their compensation has been approved. You cannot assign more CPs.");
-      return;
-    }
-    if (!validateSelectedCounts("assign")) return;
-    executeAssignment();
-  };
-
   const handleContinueToCompensation = () => {
     if (isAssignmentLockedForUser) {
       toast.error("All assigned CPs have accepted and their compensation has been approved. You cannot assign more CPs.");
       return;
     }
-    if (!validateSelectedCounts("compensation")) return;
+    if (!validateSelectedCounts()) return;
     openCompensationDrawer();
   };
 
@@ -335,74 +323,11 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     setIsAddCompOpen(true);
   };
 
-  const executeAssignment = async () => {
-    if (!canEdit) return;
-
-    setIsConfirmModalOpen(false);
-    try {
-      const response = await assignCrew({
-        project_id: Number(projectId),
-        crew_member_ids: selectedCreativeIds,
-      }).unwrap();
-
-      if (response.success) {
-        toast.success("Crew assigned successfully");
-        router.back();
-      } else {
-        if (response.errors && Array.isArray(response.errors)) {
-          toast.error(response.errors.join(", "));
-        } else {
-          toast.error(response.message || "Failed to assign crew");
-        }
-      }
-    } catch (error: unknown) {
-      console.error("Failed to assign crew", error);
-      const data = typeof error === "object" && error !== null && "data" in error
-        ? (error as { data?: { errors?: string[]; message?: string } }).data
-        : undefined;
-      if (data?.errors && Array.isArray(data.errors)) {
-        toast.error(data.errors.join(", "));
-      } else if (data?.message) {
-        toast.error(data.message);
-      } else {
-        toast.error("An error occurred while assigning crew");
-      }
-    }
-  };
-
-  const handleCompensationSubmit = async (payload: AddCpCompensationPayload) => {
-    setIsSubmittingCompensation(true);
-    try {
-      const assignResponse = await assignCrew({
-        project_id: Number(projectId),
-        crew_member_ids: selectedCreativeIds,
-        defer_new_shoot_request_email: true,
-      }).unwrap();
-
-      if (!assignResponse.success) {
-        const message = Array.isArray(assignResponse.errors)
-          ? assignResponse.errors.join(", ")
-          : assignResponse.message || "Failed to assign crew";
-        toast.error(message);
-        return;
-      }
-
-      await cpCompensationApi.submitForApproval({ ...payload, new_shoot_request_creator_ids: selectedCreativeIds });
-      toast.success("CP assigned and compensation sent for finance approval");
-      setIsAddCompOpen(false);
-      // The assignment now exists, so the agreement wizard can safely create
-      // one document per selected CP using its assigned_crew record.
-      router.push(`/admin/shoots/${projectId}/shoot-agreement`);
-    } catch (error: unknown) {
-      console.error("Failed to submit CP compensation", error);
-      const data = typeof error === "object" && error !== null && "data" in error
-        ? (error as { data?: { errors?: string[]; message?: string } }).data
-        : undefined;
-      const message = data?.errors?.join(", ") || data?.message || "Failed to submit compensation for approval";
-      toast.error(message);
-    } finally {
-      setIsSubmittingCompensation(false);
-    }
+  const prepareShootAgreement = async (compensation: AddCpCompensationPayload, creators: PendingCompensationShoot["creators"]) => {
+    const plan: ShootAgreementPlan = { compensation, creators };
+    sessionStorage.setItem(shootAgreementPlanKey(projectId), JSON.stringify(plan));
+    setIsAddCompOpen(false);
+    router.push(`/admin/shoots/${projectId}/shoot-agreement`);
   };
 
   if (!mounted || isPermissionsLoading || !canEdit) {
@@ -442,13 +367,6 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
                 ))}
               </div>
 
-              {/* <Button
-                onClick={handleAssign}
-                disabled={isLoading || selectedCreativeIds.length === 0 || isAssignmentLockedForUser}
-                className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
-              >
-                {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
-              </Button> */}
             </div>
           }
         />
@@ -533,8 +451,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
             isOpen={isAddCompOpen}
             onClose={() => setIsAddCompOpen(false)}
             shoots={compensationShootOptions}
-            isSubmitting={isSubmittingCompensation || isLoading}
-            onSubmit={handleCompensationSubmit}
+            onPrepareAgreement={prepareShootAgreement}
           />
         )}
 
@@ -559,13 +476,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
             ))}
           </div>
 
-          <Button
-            onClick={handleAssign}
-            disabled={isLoading || selectedCreativeIds.length === 0 || isAssignmentLockedForUser}
-            className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
-          >
-            {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
-          </Button>
+          <Button onClick={handleContinueToCompensation} disabled={selectedCreativeIds.length === 0 || isAssignmentLockedForUser} className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50">Continue to Compensation</Button>
         </div>
       </div>
 
@@ -573,7 +484,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       <AssignmentConfirmationModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={confirmAction === "compensation" ? openCompensationDrawer : executeAssignment}
+        onConfirm={openCompensationDrawer}
         videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
         photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
       />

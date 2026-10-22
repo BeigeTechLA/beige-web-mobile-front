@@ -5,7 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Topbar from "@/components/admin/Topbar";
-import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
+import { agreementApi, AgreementDocument, type AgreementResponse } from "@/lib/api/agreements";
+import { AgreementSignatureEvidence } from "@/components/creator-profile/AgreementSignatureEvidence";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 
 type AgreementSection = { id?: string; num?: string; title?: string; content?: string };
@@ -39,6 +40,7 @@ export default function ShootAgreementPage() {
   const searchParams = useSearchParams();
   const [agreement, setAgreement] = useState<AgreementDocument | null>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [signatureResponse, setSignatureResponse] = useState<AgreementResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const agreementId = Number(searchParams.get("agreement_id"));
 
@@ -54,6 +56,7 @@ export default function ShootAgreementPage() {
           return;
         }
         setAgreement(response.data.agreement);
+        setSignatureResponse(response.data.responses.find((item) => item.action === "accepted") || null);
         setEvents(Array.isArray(response.data.events) ? response.data.events as EventItem[] : []);
       })
       .catch(() => router.replace("/creator/dashboard/profile"))
@@ -69,7 +72,7 @@ export default function ShootAgreementPage() {
   const currency = agreement.currency || snapshot.compensation?.currency || "USD";
   const compensation = Number(agreement.compensation_amount ?? snapshot.compensation?.amount ?? 0);
   const savedSections = getAgreementSections(agreement.content_json);
-  const fallbackSections = [
+  const fallbackSections: AgreementSection[] = [
     { title: "Scope of Services", content: String(shoot.scope || "") },
     { title: "Equipment Requirements", content: Array.isArray(shoot.equipment) ? shoot.equipment.join(", ") : String(shoot.equipment || "") },
     { title: "Deliverables / Media Transfer", content: Array.isArray(shoot.deliverables) ? shoot.deliverables.join(", ") : String(shoot.deliverables || "") },
@@ -113,6 +116,7 @@ export default function ShootAgreementPage() {
                 <section className="border-t border-dashed border-[#3D3D3D] pt-6 text-xs leading-5 text-[#9E9690]">This Shoot Assignment Agreement is issued under the Beige Creative Partner Agreement. By accepting, the Creative Partner confirms their ability to perform the assignment as described and agrees to the terms herein and the governing Beige Creative Partner Agreement.<div className="mt-4 flex gap-8"><div><p className="text-[#E8D1AB]">Beige Sheet Version</p><b className="text-white">{agreement.display_version}</b></div><div><p className="text-[#E8D1AB]">Created</p><b className="text-white">{formatDate(agreement.created_at, true)}</b></div></div></section>
               </div>
             </article>
+            <AgreementSignatureEvidence response={signatureResponse} />
           </section>
 
           <aside className="space-y-5">

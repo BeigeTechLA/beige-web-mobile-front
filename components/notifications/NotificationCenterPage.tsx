@@ -175,7 +175,7 @@ export default function NotificationCenterPage({ portal }: { portal: Notificatio
       const current = (await notificationCenterApi.preferences()).data.muted_categories || [];
       const category = item.category.toLowerCase();
       await notificationCenterApi.muteCategories([...new Set([...current, category])]);
-      toast.success(`Future ${item.category.toLowerCase()} notifications muted.`);
+      toast.success(`Future ${item.category.toLowerCase()} browser push alerts muted. Inbox items will still appear.`);
       setSelectedNotification(null);
     } catch {
       toast.error("Could not mute this category.");
@@ -219,7 +219,7 @@ export default function NotificationCenterPage({ portal }: { portal: Notificatio
               <Archive size={16} /> {showArchived ? "Inbox" : `Archive${counts.archived ? ` (${counts.archived})` : ""}`}
             </button>
             <button type="button" onClick={() => router.push(`${notificationsPath}/preferences`)} className={`flex items-center gap-2 ${isDark ? "text-white/80" : "text-black/70"}`}>
-              <BellOff size={16} /> Mute
+              <BellOff size={16} /> Push Preferences
             </button>
           </div>
         </div>
