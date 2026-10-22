@@ -32,13 +32,6 @@ const categoryIcon = (category: NotificationCategory) => {
   }
 };
 
-const priorityClass = (priority: AdminNotification["priority"]) => {
-  if (priority === "Critical") return "bg-[#FFF0F0] text-[#F04444]";
-  if (priority === "High") return "bg-[#FFF9E7] text-[#E39300]";
-  if (priority === "Medium") return "bg-[#E9F1FF] text-[#3A72F4]";
-  return "bg-[#ECECEC] text-[#6B6B6B]";
-};
-
 type NotificationCenterPageProps = {
   portal: NotificationPortal;
   variant?: "page" | "modal";
@@ -299,7 +292,7 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
                       <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs ${isDark ? "bg-[#343434] text-white/90" : "bg-[#EFEFEF] text-black/70"}`}>
                         {categoryIcon(item.category)} {item.category}
                       </span>
-                      <span className={`rounded-md px-3 py-1.5 text-xs ${priorityClass(item.priority)}`}>{item.priority}</span>
+                      {/* Priority badge hidden for now. */}
                     </div>
                   </div>
                 </div>

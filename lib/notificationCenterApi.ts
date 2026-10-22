@@ -1,4 +1,5 @@
 import apiClient from "@/lib/apiClient";
+import { formatChatRoomDisplayName } from "@/lib/chatRoomDisplayName";
 import type { AdminNotification, NotificationCategory, NotificationPriority } from "@/components/admin/notifications/notificationData";
 
 export const NOTIFICATIONS_UPDATED_EVENT = "beige-web-notifications-updated";
@@ -87,7 +88,10 @@ const priorityLabels: Record<string, NotificationPriority> = {
 export const formatNotification = (row: NotificationRow): AdminNotification => {
   const category = categoryLabels[String(row.category || "").toLowerCase()] || "System";
   const priority = priorityLabels[String(row.priority || "").toLowerCase()] || "Medium";
-  const senderName = row.sender?.name || row.sender?.email || "Beige";
+  const senderName = String(row.payload?.sender_name || row.sender?.name || row.sender?.email || "Beige");
+  const isChatMessage = category === "Messages" && ["direct_message", "mention"].includes(row.type);
+  const messagePreview = String(row.payload?.message_preview || "").trim();
+  const chatName = String(row.payload?.chat_name || row.payload?.chat_room_name || row.payload?.room_name || "").trim();
   const initials = senderName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "B";
   const date = new Date(row.created_at);
   const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
@@ -95,14 +99,15 @@ export const formatNotification = (row: NotificationRow): AdminNotification => {
 
   return {
     id: row.notification_id,
-    title: row.title,
-    description: row.message,
+    title: isChatMessage ? (messagePreview ? `${senderName}: ${messagePreview}` : row.message) : row.title,
+    description: isChatMessage ? `New message in ${chatName ? formatChatRoomDisplayName(chatName) : "chat room"}` : row.message,
     category,
     priority,
     timeLabel,
     unread: !row.is_read,
     actionLabel: row.action_label || "View details",
-    accent: priority === "Critical" ? "#FF5A5F" : priority === "High" ? "#FFB11B" : priority === "Low" ? "#7B7B7B" : "#4776FF",
+    // Keep the card accent neutral while priority indicators are hidden.
+    accent: "#E8D1AB",
     initials,
     avatarClass: "bg-[#E8D1AB] text-[#473925]",
     mention: row.type === "mention",

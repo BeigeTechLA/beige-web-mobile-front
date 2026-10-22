@@ -6,7 +6,6 @@ import {
   Clock3,
   ExternalLink,
   Mail,
-  Tag,
   X,
 } from "lucide-react";
 
@@ -82,7 +81,6 @@ export default function NotificationDetailsModal({
   const senderName = getSenderName(item);
   const senderRole = item.senderRole;
   const notificationType = getType(item);
-  const isCritical = notification.priority === "Critical";
 
   return (
     <div className={`fixed inset-0 z-[140] flex items-center justify-center px-4 py-6 backdrop-blur-[2px] ${isDark ? "bg-black/65" : "bg-black/30"}`}>
@@ -102,16 +100,7 @@ export default function NotificationDetailsModal({
         </div>
 
         <div className="space-y-4 px-6 py-5">
-          <div
-            className={`flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-medium ${
-              isCritical
-                ? (isDark ? "bg-[#3A0E0E] text-[#FF5656]" : "bg-[#FFF0F0] text-[#D92D20]")
-                : (isDark ? "bg-[#2A241D] text-[#E8D1AB]" : "bg-[#F7F0E4] text-[#7B5B2D]")
-            }`}
-          >
-            <Tag size={16} />
-            {notification.priority.toUpperCase()} PRIORITY
-          </div>
+          {/* Priority banner hidden for now. */}
 
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
