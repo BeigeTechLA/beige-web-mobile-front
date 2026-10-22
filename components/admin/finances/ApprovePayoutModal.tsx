@@ -12,6 +12,7 @@ export type ApprovePayoutModalProps = {
   isOpen: boolean;
   onClose: () => void;
   rowContext: ShootCPRow | null;
+  payoutAmount?: number;
   onSubmit: (payload: { reason?: string; }) => void;
   isSubmitting?: boolean;
 };
@@ -21,7 +22,8 @@ export default function ApprovePayoutModal({
   isSubmitting = false,
   isOpen,
   onClose,
-  rowContext
+  rowContext,
+  payoutAmount,
 }: ApprovePayoutModalProps) {
   const { isDark } = useResolvedTheme();
   const [notes, setNotes] = useState<string>("");
@@ -74,7 +76,7 @@ export default function ApprovePayoutModal({
                 </p>
               </div>
               <div className={`flex items-center justify-center lg:justify-start rounded-full border-[1px] px-3 py-2 lg:px-5 lg:py-3 text-[#E8D1AB] text-sm lg:text-base ${isDark ? "bg-black border-white/20" : "bg-white border-black/20"}`}>
-                Current Payout: {formatCurrency(rowContext?.cpPayout || 12500)}
+                Current Payout: {formatCurrency(payoutAmount ?? rowContext?.cpPayout ?? 0)}
               </div>
             </div>
           </div>
