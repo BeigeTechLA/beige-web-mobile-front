@@ -11,6 +11,8 @@ import NotificationHeaderActions from "@/components/admin/notifications/Notifica
 import NotificationDetailsModal from "@/components/admin/notifications/NotificationDetailsModal";
 import { type AdminNotification, type NotificationCategory } from "@/components/admin/notifications/notificationData";
 import { formatNotification, getNotificationDestination, notificationCenterApi, notificationPortalPaths, notifyNotificationsChanged, NOTIFICATIONS_UPDATED_EVENT, type NotificationCounts, type NotificationPortal } from "@/lib/notificationCenterApi";
+import { externalChatApi } from "@/lib/externalChatApi";
+import type { NotificationRow } from "@/lib/notificationCenterApi";
 
 const tabs = ["All", "Unread", "Mentions", "Payments", "Projects", "Files"] as const;
 type NotificationTab = (typeof tabs)[number];
@@ -31,6 +33,16 @@ const categoryIcon = (category: NotificationCategory) => {
       return <File size={15} />;
   }
 };
+
+const notificationRoomId = (row: NotificationRow) => String(
+  row.payload?.room_id || row.payload?.chat_room_id || (row.reference_type === "chat_room" ? row.reference_id : "") || "",
+).trim();
+
+const needsRoomName = (row: NotificationRow) =>
+  row.category?.toLowerCase() === "messages" &&
+  ["direct_message", "mention"].includes(row.type) &&
+  !String(row.payload?.chat_name || row.payload?.chat_room_name || row.payload?.room_name || "").trim() &&
+  Boolean(notificationRoomId(row));
 
 type NotificationCenterPageProps = {
   portal: NotificationPortal;
@@ -57,6 +69,35 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
   const [activeTab, setActiveTab] = useState<NotificationTab>("All");
   const [selectedNotification, setSelectedNotification] = useState<AdminNotification | null>(null);
   const requestSequence = useRef(0);
+  const roomNames = useRef(new Map<string, string>());
+  const roomLookup = useRef<Promise<void> | null>(null);
+  const roomLookupComplete = useRef(false);
+
+  const formatRows = useCallback(async (rows: NotificationRow[]) => {
+    if (rows.some(needsRoomName) && !roomLookupComplete.current) {
+      if (!roomLookup.current) {
+        roomLookup.current = (async () => {
+          let page = 1;
+          let hasMore = true;
+          while (hasMore) {
+            const result = await externalChatApi.listRoomsWithMeta({ page, limit: 100, sortBy: "updatedAt:desc" });
+            for (const room of result.rooms) {
+              const id = String(room.id || room._id || "").trim();
+              if (id && room.name) roomNames.current.set(id, room.name);
+            }
+            hasMore = result.hasMore && result.rooms.length > 0;
+            page += 1;
+          }
+          roomLookupComplete.current = true;
+        })().finally(() => { roomLookup.current = null; });
+      }
+      try { await roomLookup.current; } catch { /* Keep notifications visible if chat rooms cannot be loaded. */ }
+    }
+    return rows.map((row) => {
+      const name = needsRoomName(row) ? roomNames.current.get(notificationRoomId(row)) : undefined;
+      return formatNotification(name ? { ...row, payload: { ...row.payload, chat_name: name } } : row);
+    });
+  }, []);
 
   useEffect(() => setMounted(true), []);
 
@@ -76,7 +117,9 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
         notificationCenterApi.counts(),
       ]);
       if (requestId !== requestSequence.current) return;
-      setNotifications(listResponse.data.items.map(formatNotification));
+      const items = await formatRows(listResponse.data.items);
+      if (requestId !== requestSequence.current) return;
+      setNotifications(items);
       setCounts(countsResponse.data);
       setPage(1);
       setHasMore(listResponse.data.pagination.total_pages > 1);
@@ -86,7 +129,7 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [activeTab, debouncedSearch, showArchived]);
+  }, [activeTab, debouncedSearch, showArchived, formatRows]);
 
   useEffect(() => {
     void refresh();
@@ -190,7 +233,8 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
       const status = showArchived ? "archived" : activeTab === "Unread" ? "unread" : "all";
       const category = ["Mentions", "Payments", "Projects", "Files"].includes(activeTab) ? activeTab.toLowerCase() : undefined;
       const response = await notificationCenterApi.list({ status, category, search: debouncedSearch || undefined, page: nextPage, limit: 50 });
-      setNotifications((current) => [...current, ...response.data.items.map(formatNotification)]);
+      const items = await formatRows(response.data.items);
+      setNotifications((current) => [...current, ...items]);
       setPage(nextPage);
       setHasMore(nextPage < response.data.pagination.total_pages);
     } catch { toast.error("Could not load more notifications."); }
