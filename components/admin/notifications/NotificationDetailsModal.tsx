@@ -28,6 +28,8 @@ type NotificationDetailsModalProps = {
   onMuteSimilar: (notification: AdminNotification) => void;
   hasDestination?: boolean;
   archived?: boolean;
+  referenceLinks?: { label: string; href: string }[];
+  onReferenceNavigate?: (notification: AdminNotification, href: string) => void;
 };
 
 const getSenderName = (notification: ExtendedNotification) => {
@@ -71,6 +73,8 @@ export default function NotificationDetailsModal({
   onMuteSimilar,
   hasDestination = true,
   archived = false,
+  referenceLinks = [],
+  onReferenceNavigate,
 }: NotificationDetailsModalProps) {
   const { theme } = useTheme();
   const isDark = theme !== "light";
@@ -131,6 +135,14 @@ export default function NotificationDetailsModal({
           <div>
             <p className={`text-sm ${isDark ? "text-white/50" : "text-black/45"}`}>Details</p>
             <p className={`mt-1.5 text-sm leading-6 ${isDark ? "text-white/90" : "text-black/75"}`}>{notification.description}</p>
+            {referenceLinks.length ? <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+              {referenceLinks.map((link) => <button
+                key={link.href + link.label}
+                type="button"
+                onClick={() => onReferenceNavigate?.(notification, link.href)}
+                className={`text-sm underline underline-offset-2 hover:opacity-75 ${isDark ? "text-[#E8D1AB]" : "text-[#7B5B2D]"}`}
+              >{link.label}</button>)}
+            </div> : null}
           </div>
 
           <div className={`grid grid-cols-2 gap-4 border-y py-4 ${isDark ? "border-[#2D2D2D]" : "border-[#E7E7E7]"}`}>

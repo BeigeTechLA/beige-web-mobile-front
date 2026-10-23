@@ -86,15 +86,28 @@ const priorityLabels: Record<string, NotificationPriority> = {
   critical: "Critical", urgent: "Critical", high: "High", medium: "Medium", normal: "Medium", low: "Low",
 };
 
+const capitalizeName = (value: string) => value.replace(/(^|[\s-])\p{L}/gu, (part) => part.toUpperCase());
+
+const formatPaymentMessage = (message: string, category: NotificationCategory) => {
+  if (category !== "Payments") return message;
+  // Older notifications are stored with a bare amount in parentheses.
+  return message.replace(/Payment (succeeded|failed|partial) for booking (\d+) \((\d+(?:\.\d+)?)\)\./i,
+    (_match, status: string, bookingId: string, amount: string) => {
+      const formattedAmount = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(amount));
+      if (status.toLowerCase() === "failed") return `Payment of ${formattedAmount} failed for booking #${bookingId}.`;
+      return `${status.toLowerCase() === "partial" ? "Partial payment" : "Payment"} of ${formattedAmount} received for booking #${bookingId}.`;
+    });
+};
+
 export const formatNotification = (row: NotificationRow): AdminNotification => {
   const category = categoryLabels[String(row.category || "").toLowerCase()] || "System";
   const priority = priorityLabels[String(row.priority || "").toLowerCase()] || "Medium";
-  const senderName = String(row.payload?.sender_name || row.sender?.name || row.sender?.email || "Beige");
+  const senderName = capitalizeName(String(row.payload?.sender_name || row.sender?.name || row.sender?.email || "Beige"));
   const isChatMessage = category === "Messages" && ["direct_message", "mention"].includes(row.type);
   const isMention = category === "Messages" && row.type === "mention";
   const messagePreview = String(row.payload?.message_preview || "").trim();
   const chatName = String(row.payload?.chat_name || row.payload?.chat_room_name || row.payload?.room_name || "").trim();
-  const chatLocation = chatName ? formatChatRoomDisplayName(chatName) : "chat room";
+  const chatLocation = chatName ? formatChatRoomDisplayName(chatName) : "your conversation";
   const initials = senderName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "B";
   const date = new Date(row.created_at);
   const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
@@ -103,7 +116,7 @@ export const formatNotification = (row: NotificationRow): AdminNotification => {
   return {
     id: row.notification_id,
     title: isMention ? `${senderName} mentioned you` : isChatMessage ? (messagePreview ? `${senderName}: ${messagePreview}` : row.message) : row.title,
-    description: isMention ? (messagePreview ? `${messagePreview} · ${chatLocation}` : `In ${chatLocation}`) : isChatMessage ? `New message in ${chatLocation}` : row.message,
+    description: isMention ? (messagePreview ? `${messagePreview} · ${chatLocation}` : `In ${chatLocation}`) : isChatMessage ? `New message in ${chatLocation}` : formatPaymentMessage(row.message, category),
     category,
     priority,
     timeLabel,
@@ -192,4 +205,43 @@ export const getNotificationDestination = (item: AdminNotification, portal: Noti
     return creatorId ? `/creator/dashboard/reviews?creator_id=${encodeURIComponent(creatorId)}${reviewId ? `&review_id=${encodeURIComponent(reviewId)}` : ""}` : null;
   }
   return null;
+};
+
+export const getNotificationReferenceLinks = (item: AdminNotification, portal: NotificationPortal) => {
+  const payload = item.payload;
+  const basePath = portal === "creator" ? "/creator/dashboard" : portal === "client" ? "/affiliate" : "/admin";
+  const links: { label: string; href: string }[] = [];
+  const roomId = payloadValue(payload, "room_id", "chat_room_id", "roomId", "chatRoomId") || (item.referenceType === "chat_room" ? item.referenceId || "" : "");
+  if (roomId && item.category === "Messages") {
+    const chatName = payloadValue(payload, "chat_name", "chat_room_name", "room_name");
+    links.push({
+      label: chatName ? formatChatRoomDisplayName(chatName) : item.senderName ? `Chat with ${item.senderName}` : "View conversation",
+      href: `${basePath}/messages?roomId=${encodeURIComponent(roomId)}`,
+    });
+  }
+
+  const quoteId = payloadValue(payload, "sales_quote_id") || (item.referenceType === "sales_quote" ? item.referenceId || "" : "");
+  if (quoteId && item.category === "Proposals" && portal !== "creator") {
+    const quoteNumber = payloadValue(payload, "quote_number") || item.description.match(/\bBEIGE-\d+\b/i)?.[0] || quoteId;
+    links.push({ label: `Quote ${quoteNumber}`, href: `${basePath}/quotes/${encodeURIComponent(quoteId)}` });
+  }
+
+  const bookingId = payloadValue(payload, "booking_id", "bookingId") || (item.referenceType === "booking" ? item.referenceId || "" : "");
+  if (bookingId) {
+    const href = portal === "creator" ? `${basePath}/request?bookingId=${encodeURIComponent(bookingId)}` : `${basePath}/shoots/${encodeURIComponent(bookingId)}`;
+    links.push({ label: `Shoot #${bookingId}`, href });
+  }
+  const agreementId = payloadValue(payload, "agreement_document_id") || (item.referenceType === "agreement_document" ? item.referenceId || "" : "");
+  if (agreementId && item.category === "Agreements") {
+    const href = getNotificationDestination(item, portal);
+    if (href) links.push({ label: `Agreement #${agreementId}`, href });
+  }
+  const leadId = payloadValue(payload, "lead_id") || (item.referenceType === "sales_lead" ? item.referenceId || "" : "");
+  if (leadId && item.category === "Leads" && portal === "admin") links.push({ label: `Lead #${leadId}`, href: `/sales/leads/${encodeURIComponent(leadId)}` });
+  const disputeId = payloadValue(payload, "dispute_id") || (item.referenceType === "finance_dispute" ? item.referenceId || "" : "");
+  if (disputeId && item.category === "Disputes") {
+    const href = getNotificationDestination(item, portal);
+    if (href) links.push({ label: `Dispute #${disputeId}`, href });
+  }
+  return links;
 };

@@ -10,9 +10,7 @@ import Topbar from "@/components/admin/Topbar";
 import NotificationHeaderActions from "@/components/admin/notifications/NotificationHeaderActions";
 import NotificationDetailsModal from "@/components/admin/notifications/NotificationDetailsModal";
 import { type AdminNotification, type NotificationCategory } from "@/components/admin/notifications/notificationData";
-import { formatNotification, getNotificationDestination, notificationCenterApi, notificationPortalPaths, notifyNotificationsChanged, NOTIFICATIONS_UPDATED_EVENT, type NotificationCounts, type NotificationPortal } from "@/lib/notificationCenterApi";
-import { externalChatApi } from "@/lib/externalChatApi";
-import type { NotificationRow } from "@/lib/notificationCenterApi";
+import { formatNotification, getNotificationDestination, getNotificationReferenceLinks, notificationCenterApi, notificationPortalPaths, notifyNotificationsChanged, NOTIFICATIONS_UPDATED_EVENT, type NotificationCounts, type NotificationPortal } from "@/lib/notificationCenterApi";
 
 const tabs = ["All", "Unread", "Mentions", "Payments", "Projects", "Files"] as const;
 type NotificationTab = (typeof tabs)[number];
@@ -68,16 +66,6 @@ const NotificationListSkeleton = ({ isDark }: { isDark: boolean }) => {
   );
 };
 
-const notificationRoomId = (row: NotificationRow) => String(
-  row.payload?.room_id || row.payload?.chat_room_id || (row.reference_type === "chat_room" ? row.reference_id : "") || "",
-).trim();
-
-const needsRoomName = (row: NotificationRow) =>
-  row.category?.toLowerCase() === "messages" &&
-  ["direct_message", "mention"].includes(row.type) &&
-  !String(row.payload?.chat_name || row.payload?.chat_room_name || row.payload?.room_name || "").trim() &&
-  Boolean(notificationRoomId(row));
-
 type NotificationCenterPageProps = {
   portal: NotificationPortal;
   variant?: "page" | "modal";
@@ -96,42 +84,15 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadedKey, setLoadedKey] = useState("");
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab] = useState<NotificationTab>("All");
+  const viewKey = `${showArchived ? "archived" : activeTab}:${debouncedSearch}`;
   const [selectedNotification, setSelectedNotification] = useState<AdminNotification | null>(null);
   const requestSequence = useRef(0);
-  const roomNames = useRef(new Map<string, string>());
-  const roomLookup = useRef<Promise<void> | null>(null);
-  const roomLookupComplete = useRef(false);
-
-  const formatRows = useCallback(async (rows: NotificationRow[]) => {
-    if (rows.some(needsRoomName) && !roomLookupComplete.current) {
-      if (!roomLookup.current) {
-        roomLookup.current = (async () => {
-          let page = 1;
-          let hasMore = true;
-          while (hasMore) {
-            const result = await externalChatApi.listRoomsWithMeta({ page, limit: 100, sortBy: "updatedAt:desc" });
-            for (const room of result.rooms) {
-              const id = String(room.id || room._id || "").trim();
-              if (id && room.name) roomNames.current.set(id, room.name);
-            }
-            hasMore = result.hasMore && result.rooms.length > 0;
-            page += 1;
-          }
-          roomLookupComplete.current = true;
-        })().finally(() => { roomLookup.current = null; });
-      }
-      try { await roomLookup.current; } catch { /* Keep notifications visible if chat rooms cannot be loaded. */ }
-    }
-    return rows.map((row) => {
-      const name = needsRoomName(row) ? roomNames.current.get(notificationRoomId(row)) : undefined;
-      return formatNotification(name ? { ...row, payload: { ...row.payload, chat_name: name } } : row);
-    });
-  }, []);
 
   useEffect(() => setMounted(true), []);
 
@@ -142,6 +103,7 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
 
   const refresh = useCallback(async () => {
     const requestId = ++requestSequence.current;
+    const currentKey = `${showArchived ? "archived" : activeTab}:${debouncedSearch}`;
     setLoading(true);
     try {
       const status = showArchived ? "archived" : activeTab === "Unread" ? "unread" : "all";
@@ -151,19 +113,22 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
         notificationCenterApi.counts(),
       ]);
       if (requestId !== requestSequence.current) return;
-      const items = await formatRows(listResponse.data.items);
-      if (requestId !== requestSequence.current) return;
-      setNotifications(items);
+      setNotifications(listResponse.data.items.map(formatNotification));
+      setLoadedKey(currentKey);
       setCounts(countsResponse.data);
       setPage(1);
       setHasMore(listResponse.data.pagination.total_pages > 1);
       setError("");
     } catch (cause) {
-      if (requestId === requestSequence.current) setError(cause instanceof Error ? cause.message : "Could not load notifications.");
+      if (requestId === requestSequence.current) {
+        setLoadedKey(currentKey);
+        setNotifications([]);
+        setError(cause instanceof Error ? cause.message : "Could not load notifications.");
+      }
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [activeTab, debouncedSearch, showArchived, formatRows]);
+  }, [activeTab, debouncedSearch, showArchived]);
 
   useEffect(() => {
     void refresh();
@@ -229,6 +194,15 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
     }
   };
 
+  const handleReferenceLink = async (item: AdminNotification, href: string) => {
+    try {
+      if (item.unread) await markOneRead(item.id);
+      onNavigate?.();
+      router.push(href);
+    } catch {
+      toast.error("Could not open this notification.");
+    }
+  };
 
   const handleOpenDetails = async (item: AdminNotification) => {
     setSelectedNotification(item);
@@ -267,7 +241,7 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
       const status = showArchived ? "archived" : activeTab === "Unread" ? "unread" : "all";
       const category = ["Mentions", "Payments", "Projects", "Files"].includes(activeTab) ? activeTab.toLowerCase() : undefined;
       const response = await notificationCenterApi.list({ status, category, search: debouncedSearch || undefined, page: nextPage, limit: 50 });
-      const items = await formatRows(response.data.items);
+      const items = response.data.items.map(formatNotification);
       setNotifications((current) => [...current, ...items]);
       setPage(nextPage);
       setHasMore(nextPage < response.data.pagination.total_pages);
@@ -287,7 +261,14 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
     <>
       {isModal ? (
         <div className={`flex items-center justify-between border-b px-6 py-4 ${isDark ? "border-[#303030]" : "border-[#E4E4E4]"}`}>
-          <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Notifications</h2>
+          <div className="flex items-center gap-3">
+            <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Notifications</h2>
+            {counts.unread > 0 ? (
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${isDark ? "bg-[#E8D1AB]/15 text-[#E8D1AB] border border-[#E8D1AB]/30" : "bg-[#F2E6CF] text-[#7B5B2D] border border-[#E8D1AB]"}`}>
+                {counts.unread} unread
+              </span>
+            ) : null}
+          </div>
         </div>
       ) : (
         <Topbar
@@ -299,7 +280,14 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
 
       <div className={`border-b px-6 py-4 lg:px-10 ${isDark ? "border-[#3A332A] bg-[#2A241D]" : "border-[#E8D1AB] bg-[#F7F0E4]"}`}>
         <div className="flex items-center justify-between gap-4">
-          <p className={`text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#7B5B2D]"}`}>{counts.unread} unread notifications</p>
+          <div className="flex items-center gap-2">
+            {counts.unread > 0 ? (
+              <span className="h-2 w-2 rounded-full bg-[#E8D1AB] animate-pulse" />
+            ) : null}
+            <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7B5B2D]"}`}>
+              {counts.unread} unread notification{counts.unread === 1 ? "" : "s"}
+            </p>
+          </div>
           <div className="flex items-center gap-6 text-sm">
             <button type="button" onClick={() => { setActiveTab("All"); setShowArchived((current) => !current); }} className={`flex items-center gap-2 ${isDark ? "text-white/80" : "text-black/70"}`}>
               <Archive size={16} /> {showArchived ? "Inbox" : `Archive${counts.archived ? ` (${counts.archived})` : ""}`}
@@ -328,6 +316,8 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
           {!showArchived ? <div className={`grid grid-cols-3 border-b px-3 sm:grid-cols-6 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
             {tabs.map((tab) => {
               const active = activeTab === tab;
+              const isUnread = tab === "Unread";
+              const count = tabCounts[tab];
               return (
                 <button
                   key={tab}
@@ -336,8 +326,18 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
                   className={`relative flex h-14 items-center justify-center gap-2 text-sm transition ${active ? (isDark ? "text-[#E8D1AB]" : "text-[#7B5B2D]") : (isDark ? "text-white/60" : "text-black/55")}`}
                 >
                   {tab}
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] ${active ? (isDark ? "bg-[#2A241D] text-[#E8D1AB]" : "bg-[#F2E6CF] text-[#7B5B2D]") : (isDark ? "bg-[#2A2A2A] text-white/85" : "bg-[#EEEEEE] text-black/70")}`}>
-                    {String(tabCounts[tab]).padStart(tab === "All" ? 1 : 2, "0")}
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    isUnread && count > 0
+                      ? active
+                        ? "bg-[#E8D1AB] text-black"
+                        : isDark
+                          ? "bg-[#E8D1AB]/20 text-[#E8D1AB]"
+                          : "bg-[#7B5B2D]/20 text-[#7B5B2D]"
+                      : active
+                        ? (isDark ? "bg-[#2A241D] text-[#E8D1AB]" : "bg-[#F2E6CF] text-[#7B5B2D]")
+                        : (isDark ? "bg-[#2A2A2A] text-white/85" : "bg-[#EEEEEE] text-black/70")
+                  }`}>
+                    {String(count).padStart(tab === "All" ? 1 : 2, "0")}
                   </span>
                   {active ? <span className="absolute bottom-0 left-[12%] right-[12%] h-[3px] rounded-full bg-[#E8D1AB]" /> : null}
                 </button>
@@ -346,7 +346,7 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
           </div> : null}
 
           <div>
-            {loading && !notifications.length ? <NotificationListSkeleton isDark={isDark} /> : notifications.length ? notifications.map((item) => (
+            {(loading && !loadedKey) || loadedKey !== viewKey ? <NotificationListSkeleton isDark={isDark} /> : notifications.length ? notifications.map((item) => (
               <article
                 key={item.id}
                 role="button"
@@ -358,14 +358,30 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
                     handleOpenDetails(item);
                   }
                 }}
-                className={`relative flex flex-col gap-4 border-b px-4 py-6 last:border-b-0 sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-[#303030] bg-[#1C1C1C]" : "border-[#EEEEEE] bg-white"}`}
-                style={{ borderLeft: `4px solid ${item.accent}` }}
+                className={`relative flex flex-col gap-4 border-b px-4 py-6 last:border-b-0 sm:flex-row sm:items-center sm:justify-between transition-colors ${
+                  item.unread
+                    ? isDark
+                      ? "border-[#303030] bg-[#221D16]"
+                      : "border-[#EEEEEE] bg-[#FAF6EE]"
+                    : isDark
+                      ? "border-[#303030] bg-[#1C1C1C]"
+                      : "border-[#EEEEEE] bg-white"
+                }`}
+                style={{ borderLeft: item.unread ? `4px solid ${item.accent}` : "4px solid transparent" }}
               >
                 <div className="flex min-w-0 gap-3">
                   <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${item.avatarClass}`}>{item.initials}</div>
                   <div className="min-w-0">
-                    <h3 className={`text-sm font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>{item.title}</h3>
-                    <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>{item.description}</p>
+                    <h3 className={`text-sm ${item.unread ? "font-semibold" : "font-medium"} ${isDark ? "text-white" : "text-[#171717]"}`}>{item.title}</h3>
+                    <p className={`mt-1 text-xs ${isDark ? (item.unread ? "text-white/60" : "text-white/45") : (item.unread ? "text-black/60" : "text-black/45")}`}>{item.description}</p>
+                    {getNotificationReferenceLinks(item, portal).length ? <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                      {getNotificationReferenceLinks(item, portal).map((link) => <button
+                        key={link.href + link.label}
+                        type="button"
+                        onClick={(event) => { event.stopPropagation(); void handleReferenceLink(item, link.href); }}
+                        className={`text-xs underline underline-offset-2 hover:opacity-75 ${isDark ? "text-[#E8D1AB]" : "text-[#7B5B2D]"}`}
+                      >{link.label}</button>)}
+                    </div> : null}
                     <div className="mt-4 flex flex-wrap gap-2">
                       <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs ${isDark ? "bg-[#343434] text-white/90" : "bg-[#EFEFEF] text-black/70"}`}>
                         {categoryIcon(item.category)} {item.mention ? "Mentions" : item.category}
@@ -378,7 +394,17 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
                 <div className="flex shrink-0 items-center justify-between gap-4 sm:block sm:text-right">
                   <div className={`mb-4 flex items-center justify-end gap-2 text-xs ${isDark ? "text-white/55" : "text-black/45"}`}>
                     {item.timeLabel}
-                    <span className={`h-2 w-2 rounded-full ${item.unread ? "bg-[#E8D1AB]" : isDark ? "bg-white/35" : "bg-black/25"}`} />
+                    {item.unread ? (
+                      <span
+                        title="Unread"
+                        className="relative flex h-2 w-2"
+                      >
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#E8D1AB] opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-[#E8D1AB] shadow-[0_0_6px_rgba(232,209,171,0.8)]" />
+                      </span>
+                    ) : (
+                      <span className={`h-2 w-2 rounded-full ${isDark ? "bg-white/20" : "bg-black/15"}`} />
+                    )}
                   </div>
                   <div className="flex items-center justify-end gap-2">
                     <button type="button" onClick={(event) => { event.stopPropagation(); void handleArchive(item); }} className={`h-9 rounded-lg border px-3 text-xs ${isDark ? "border-white/20 text-white" : "border-black/20 text-black"}`}>
@@ -414,6 +440,8 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
         onMarkUnread={(item) => { void handleMarkUnread(item); }}
         onMuteSimilar={(item) => { void handleMuteSimilar(item); }}
         hasDestination={selectedNotification ? Boolean(getNotificationDestination(selectedNotification, portal)) : false}
+        referenceLinks={selectedNotification ? getNotificationReferenceLinks(selectedNotification, portal) : []}
+        onReferenceNavigate={(item, href) => { void handleReferenceLink(item, href); }}
       />
     </>
   );

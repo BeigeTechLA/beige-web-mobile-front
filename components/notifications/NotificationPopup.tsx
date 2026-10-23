@@ -115,7 +115,11 @@ export default function NotificationPopup({ portal = "admin" }: { portal?: Notif
         >
           <Bell size={20} />
           {unread > 0 ? (
-            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F04444] px-1 text-[10px] font-semibold text-white">
+            <span
+              className={`pointer-events-none absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full border-2 ${
+                isDark ? "border-[#141414]" : "border-white"
+              } bg-[#E5484D] px-1 text-[10px] font-bold leading-none text-white shadow-md tabular-nums`}
+            >
               {unread > 99 ? "99+" : unread}
             </span>
           ) : null}
