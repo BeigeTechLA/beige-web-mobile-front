@@ -368,7 +368,7 @@ export default function NotificationCenterPage({ portal, variant = "page", onNav
                     <p className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>{item.description}</p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs ${isDark ? "bg-[#343434] text-white/90" : "bg-[#EFEFEF] text-black/70"}`}>
-                        {categoryIcon(item.category)} {item.category}
+                        {categoryIcon(item.category)} {item.mention ? "Mentions" : item.category}
                       </span>
                       {/* Priority badge hidden for now. */}
                     </div>

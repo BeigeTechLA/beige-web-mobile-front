@@ -1,4 +1,5 @@
 import apiClient from "@/lib/apiClient";
+import { format } from "date-fns";
 import { formatChatRoomDisplayName } from "@/lib/chatRoomDisplayName";
 import type { AdminNotification, NotificationCategory, NotificationPriority } from "@/components/admin/notifications/notificationData";
 
@@ -90,8 +91,10 @@ export const formatNotification = (row: NotificationRow): AdminNotification => {
   const priority = priorityLabels[String(row.priority || "").toLowerCase()] || "Medium";
   const senderName = String(row.payload?.sender_name || row.sender?.name || row.sender?.email || "Beige");
   const isChatMessage = category === "Messages" && ["direct_message", "mention"].includes(row.type);
+  const isMention = category === "Messages" && row.type === "mention";
   const messagePreview = String(row.payload?.message_preview || "").trim();
   const chatName = String(row.payload?.chat_name || row.payload?.chat_room_name || row.payload?.room_name || "").trim();
+  const chatLocation = chatName ? formatChatRoomDisplayName(chatName) : "chat room";
   const initials = senderName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "B";
   const date = new Date(row.created_at);
   const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
@@ -99,8 +102,8 @@ export const formatNotification = (row: NotificationRow): AdminNotification => {
 
   return {
     id: row.notification_id,
-    title: isChatMessage ? (messagePreview ? `${senderName}: ${messagePreview}` : row.message) : row.title,
-    description: isChatMessage ? `New message in ${chatName ? formatChatRoomDisplayName(chatName) : "chat room"}` : row.message,
+    title: isMention ? `${senderName} mentioned you` : isChatMessage ? (messagePreview ? `${senderName}: ${messagePreview}` : row.message) : row.title,
+    description: isMention ? (messagePreview ? `${messagePreview} · ${chatLocation}` : `In ${chatLocation}`) : isChatMessage ? `New message in ${chatLocation}` : row.message,
     category,
     priority,
     timeLabel,
@@ -110,10 +113,10 @@ export const formatNotification = (row: NotificationRow): AdminNotification => {
     accent: "#E8D1AB",
     initials,
     avatarClass: "bg-[#E8D1AB] text-[#473925]",
-    mention: row.type === "mention",
+    mention: isMention,
     senderName,
     type: row.type,
-    createdAt: Number.isNaN(date.getTime()) ? undefined : date.toLocaleString(),
+    createdAt: Number.isNaN(date.getTime()) ? undefined : format(date, "d MMM, yyyy h:mm a"),
     referenceId: row.reference_id,
     referenceType: row.reference_type,
     payload: row.payload,
