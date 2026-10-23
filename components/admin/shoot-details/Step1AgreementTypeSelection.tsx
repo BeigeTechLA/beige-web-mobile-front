@@ -24,6 +24,7 @@ interface Step1ModeSelectionProps {
   cpList: CPDetail[];
   onNext: () => void;
   onPrevious: () => void;
+  receiverType?: "cp" | "editor";
 }
 
 export function Step1ModeSelection({
@@ -33,6 +34,7 @@ export function Step1ModeSelection({
   cpList,
   onNext,
   onPrevious,
+  receiverType = "cp",
 }: Step1ModeSelectionProps) {
   return (
     <div className="space-y-6">
@@ -74,7 +76,7 @@ export function Step1ModeSelection({
           </h2>
           <p className={`text-xs lg:text-sm ${isDark ? "text-[#747471]" : "text-black/60"}`}>
             Choose whether to create separate agreements or one common agreement
-            for the selected CPs.
+            for the selected {receiverType === "cp" ? "CPs" : "Editors"}.
           </p>
         </div>
 
@@ -130,17 +132,11 @@ export function Step1ModeSelection({
             </div>
 
             <div className="space-y-1">
-              <h4
-                className={`text-xs font-semibold ${isDark ? "text-white" : "text-black"
-                  }`}
-              >
-                One agreement per CP
+              <h4 className={`text-xs font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                One agreement per {receiverType === "cp" ? "CP" : "Editor"}.
               </h4>
-              <p
-                className={`text-xs leading-relaxed ${isDark ? "text-[#747471]" : "text-black/50"
-                  }`}
-              >
-                Create a separate agreement for each selected creative partner.
+              <p className={`text-xs leading-relaxed ${isDark ? "text-[#747471]" : "text-black/50"}`}>
+                Create a separate agreement for each selected {receiverType === "cp" ? "creative partner" : "editor"}.
                 Compensation, role, scope, and details can be managed individually.
               </p>
             </div>
@@ -227,10 +223,10 @@ export function Step1ModeSelection({
 
             <div className="space-y-1">
               <h4 className={`text-xs font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                One agreement for multiple CPs
+                One agreement for multiple {receiverType === "cp" ? "CPs" : "Editors"}.
               </h4>
               <p className={`text-xs leading-relaxed ${isDark ? "text-[#747471]" : "text-black/50"}`}>
-                Create one agreement shared with all selected creative partners. Use
+                Create one agreement shared with all selected {receiverType === "cp" ? "creative partners" : "editors"}. Use
                 this when the agreement terms are common to everyone.
               </p>
             </div>
@@ -298,7 +294,7 @@ export function Step1ModeSelection({
             </div>
             <div>
               <span className={isDark ? "text-[#747471]" : "text-black/60"}>
-                CPs:{" "}
+                {receiverType === "cp" ? "CPs" : "Editors"}:{" "}
               </span>
               <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
                 {cpList.length}

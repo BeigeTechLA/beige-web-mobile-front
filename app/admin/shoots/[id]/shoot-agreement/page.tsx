@@ -33,6 +33,8 @@ export default function AdminAgreementDetailsPage() {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
+  const [receiverType, setReceiverType] = useState<"cp" | "editor">("cp");
+
   // Flow & Mode States
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [selectedMode, setSelectedMode] =
@@ -102,6 +104,87 @@ export default function AdminAgreementDetailsPage() {
         "Additional terms and conditions applicable to this agreement....",
       content:
         "Client requires all crew to sign NDA upon arrival. Business casual attire. Shoot brief will be provided 48 hours before the production date.",
+      isExpanded: false,
+    },
+  ]);
+
+  const [editorSections, setEditorSections] = useState<ClauseSection[]>([
+    {
+      id: "scope",
+      num: "01",
+      title: "Scope of Services",
+      content:
+        "Capture photography coverage for the corporate event, including event highlights and speaker sessions.",
+      isExpanded: true,
+    },
+    {
+      id: "deliverables",
+      num: "02",
+      title: "Deliverables",
+      subtitle:
+        "Additional terms and conditions applicable to this agreement....",
+      content:
+        "Upload all raw media to the designated Beige folder within 24 hours of shoot completion.",
+      isExpanded: false,
+    },
+    {
+      id: "expectedTurnaround",
+      num: "03",
+      title: "Expected Turnaorund",
+      subtitle:
+        "Expected TAT for the project....",
+      content:
+        "",
+      isExpanded: false,
+    },
+    {
+      id: "revisionExpectations",
+      num: "04",
+      title: "Revision Expectations",
+      subtitle:
+        "",
+      content:
+        "",
+      isExpanded: false,
+    },
+    {
+      id: "filetransferRequirements",
+      num: "05",
+      title: "File transfer requirements",
+      subtitle:
+        "",
+      content:
+        "",
+      isExpanded: false,
+    },
+    {
+      id: "expenses",
+      num: "06",
+      title: "Expenses, if applicable",
+      subtitle:
+        "Additional terms and conditions applicable to this agreement....",
+      content:
+        "Travel to and from shoot location (up to $75 round trip). Parking at venue. No additional expenses without prior written approval.",
+      isExpanded: false,
+    },
+    {
+      id: "additional",
+      num: "07",
+      title: "Special Instructions",
+      subtitle:
+        "Additional terms and conditions applicable to this agreement....",
+      content:
+        "Client requires all crew to sign NDA upon arrival. Business casual attire. Shoot brief will be provided 48 hours before the production date.",
+      isExpanded: false,
+    },
+    {
+      id: "agreementVersion",
+      num: "08",
+      title: "Agreement Version",
+      subtitle:
+        "Agreement version....",
+      content:
+        "",
       isExpanded: false,
     },
   ]);
@@ -274,8 +357,8 @@ export default function AdminAgreementDetailsPage() {
           type="button"
           onClick={handlePreviousStep}
           className={`transition-colors flex items-center gap-2 lg:mb-5 p-0 bg-transparent hover:bg-transparent ${isDark
-              ? "text-white hover:text-white/80"
-              : "text-black hover:text-black/70"
+            ? "text-white hover:text-white/80"
+            : "text-black hover:text-black/70"
             }`}
         >
           <ArrowLeft size={24} />
@@ -291,6 +374,7 @@ export default function AdminAgreementDetailsPage() {
             cpList={cpList}
             onNext={handleNextStep}
             onPrevious={handlePreviousStep}
+            receiverType={receiverType}
           />
         )}
 
@@ -308,12 +392,13 @@ export default function AdminAgreementDetailsPage() {
             setCallTime={setCallTime}
             endTime={endTime}
             setEndTime={setEndTime}
-            sections={sections}
+            sections={receiverType === "cp" ? sections : editorSections}
             toggleSection={toggleSection}
             updateSectionTitle={updateSectionTitle}
             updateSectionContent={updateSectionContent}
             onNext={handleNextStep}
             onPrevious={handlePreviousStep}
+            receiverType={receiverType}
           />
         )}
 
@@ -329,24 +414,22 @@ export default function AdminAgreementDetailsPage() {
             location={location}
             callTime={callTime}
             endTime={endTime}
-            sections={sections}
+            sections={receiverType === "cp" ? sections : editorSections}
             onOpenSendDialog={() => setIsSendDialogOpen(true)}
             onPrevious={handlePreviousStep}
             onSave={() => router.push("/admin/agreements")}
+            receiverType={receiverType}
           />
         )}
 
         {/* Mobile Sticky Action Bar */}
-        <div
-          className={`lg:hidden fixed flex flex-wrap gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
-            }`}
-        >
+        <div className={`lg:hidden fixed flex flex-wrap gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
             type="button"
             onClick={handlePreviousStep}
             className={`flex-1 h-12 rounded-lg border text-sm font-medium bg-transparent ${isDark
-                ? "border-white/20 text-white"
-                : "border-black/20 text-black"
+              ? "border-white/20 text-white"
+              : "border-black/20 text-black"
               }`}
           >
             Back
