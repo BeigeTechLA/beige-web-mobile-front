@@ -12,6 +12,7 @@ type MobileRowProps = {
     event_location?: string;
     location?: string;
     guest_email?: string;
+    compensationLabel?: string;
   };
   onApprove: () => void;
   onDecline: () => void;
@@ -113,6 +114,12 @@ export function MobileRow({ item, onApprove, onDecline, onViewDetails, onReview,
               <p className={`text-sm truncate ${isDark ? "text-white/80" : "text-black/80"}`}>
                 {item.event_location || item.location || "N/A"}
               </p>
+            </div>
+
+            {/* Compensation */}
+            <div className="col-span-2 space-y-1">
+              <span className={`text-xs font-bold uppercase ${isDark ? "text-white/30" : "text-black/40"}`}>Compensation</span>
+              <p className={`text-sm ${isDark ? "text-white/80" : "text-black/80"}`}>{item.compensationLabel || "Not set"}</p>
             </div>
 
             {/* Email */}
