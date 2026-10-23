@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { ComposedChart, Bar, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Info } from 'lucide-react';
-import { useTheme } from "next-themes";
+import { ComposedChart, Bar, Cell, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { ArrowUpRight, Info } from 'lucide-react';import { useTheme } from "next-themes";
 import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
 
 /* ------------------------------------------------------------------ */
@@ -189,6 +188,12 @@ function InfoTooltip({
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
+export interface SelectedShootCP {
+  id: string;
+  name: string;
+  shoots: number;
+}
+
 interface TopCPsByShootsProps {
   data?: FinanceAnalyticsData['creative_partners']['top_by_shoots'] | null;
   loading?: boolean;
@@ -196,6 +201,8 @@ interface TopCPsByShootsProps {
   between?: number[];
   title?: string;
   infoText?: string;
+  selectedId?: string | null;
+  onSelectCP?: (cp: SelectedShootCP | null) => void;
 }
 
 export default function TopCPsByShoots({
@@ -204,6 +211,8 @@ export default function TopCPsByShoots({
   between,
   title = 'Top CPs By Shoots',
   infoText = 'Top 10 CPs with the highest number of assigned/completed shoots .',
+  selectedId = null,
+  onSelectCP,
 }: TopCPsByShootsProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -266,13 +275,29 @@ export default function TopCPsByShoots({
             </div>
           )}
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={isLoading ? [] : rows} margin={{ top: 44, right: 10, left: -10, bottom: 0 }} barCategoryGap="6%">
+            <ComposedChart
+              data={isLoading ? [] : rows}
+              margin={{ top: 44, right: 10, left: -10, bottom: 0 }}
+              barCategoryGap="6%"
+              style={{ cursor: onSelectCP ? 'pointer' : 'default' }}
+              onClick={(state: any) => {
+                const row = rows[state?.activeTooltipIndex];
+                if (!row?.isCP) return;
+                onSelectCP?.(selectedId === row.key ? null : { id: row.key, name: row.label, shoots: row.shoots ?? 0 });
+              }}
+            >
               <defs>
                 {/* Bars: solid blue at the top fading out toward the axis */}
                 <linearGradient id="cpShootsBarGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={barTop} stopOpacity={0.80} />
                   <stop offset="55%" stopColor={"#7DB3F380"} stopOpacity={0.55} />
                   <stop offset="100%" stopColor={"#FFFFFF00"} stopOpacity={0.02} />
+                </linearGradient>
+                {/* Selected bar: green version of the same gradient */}
+                <linearGradient id="cpShootsBarGradientGreen" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#22C55E" stopOpacity={0.9} />
+                  <stop offset="55%" stopColor="#4ADE80" stopOpacity={0.55} />
+                  <stop offset="100%" stopColor="#FFFFFF00" stopOpacity={0.02} />
                 </linearGradient>
                 {/* Area under the dashed line */}
                 <linearGradient id="cpShootsAreaGradient" x1="0" y1="0" x2="0" y2="1">
@@ -323,7 +348,16 @@ export default function TopCPsByShoots({
                 fill="url(#cpShootsBarGradient)"
                 radius={[6, 6, 0, 0]}
                 maxBarSize={38}
-              />
+              >
+                {rows.map((r: Row) => (
+                  <Cell
+                    key={r.key}
+                    fill={selectedId && r.key === selectedId ? 'url(#cpShootsBarGradientGreen)' : 'url(#cpShootsBarGradient)'}
+                    fillOpacity={selectedId && r.key !== selectedId ? 0.35 : 1}
+                    style={{ transition: 'fill-opacity 300ms ease' }}
+                  />
+                ))}
+              </Bar>
             </ComposedChart>
           </ResponsiveContainer>
         </div>

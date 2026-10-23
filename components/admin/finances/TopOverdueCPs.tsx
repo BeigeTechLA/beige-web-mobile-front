@@ -141,6 +141,8 @@ interface TopOverdueCPsProps {
   limit?: number;
   title?: string;
   infoText?: string;
+  selectedId?: string | null;
+  onSelectCP?: (cp: OverdueCP | null) => void;
 }
 
 export default function TopOverdueCPs({
@@ -150,6 +152,8 @@ export default function TopOverdueCPs({
   limit = 5,
   title = 'Top Overdue CPs',
   infoText = 'CPs with overdue payments, ranked by highest outstanding amount.',
+  selectedId = null,
+  onSelectCP,
 }: TopOverdueCPsProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -288,7 +292,11 @@ export default function TopOverdueCPs({
                 </tr>
               ))
               : rows.map((cp: OverdueCP, i: number) => (
-                <tr key={cp.id} className={`transition-colors ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.02]'}`}>
+                <tr
+                  key={cp.id}
+                  onClick={() => onSelectCP?.(selectedId === cp.id ? null : cp)}
+                  className={`cursor-pointer transition-colors ${selectedId === cp.id ? (isDark ? 'bg-white/[0.05]' : 'bg-black/[0.04]') : isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.02]'}`}
+                >
                   <td className={`px-5 py-2 ${i === 0 ? 'pt-5' : ''} ${i === rows.length - 1 ? 'pb-5' : ''}`}>
                     <div className="flex items-center gap-3 min-w-0">
                       {cp.avatarUrl ? (

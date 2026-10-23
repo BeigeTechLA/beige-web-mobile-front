@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Info } from 'lucide-react';
+import { Info, ArrowUpRight } from 'lucide-react';
+import DisputeHistoryPanel, { type DisputeHistoryItem } from '@/components/admin/finances/analytics/DisputeHistoryPanel';
 import { useTheme } from "next-themes";
 import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
 
@@ -20,6 +21,49 @@ export interface DisputeMetric {
 }
 
 type Disputes = FinanceAnalyticsData['disputes'];
+
+// TODO: replace with real API data later
+const STATIC_DISPUTES: DisputeHistoryItem[] = [
+  {
+    id: 'DIS-001',
+    shootId: 'SH-004',
+    invoiceId: 'INV-004-B',
+    category: 'Quality Issue',
+    description: 'The final photos did not meet the agreed quality standards.',
+    raisedBy: 'Emily Johnson',
+    raisedRole: 'Client',
+    raisedDate: '19-04-2026',
+    disputedAmount: '$5,000',
+    payoutHold: '$4,500',
+    status: 'Open',
+  },
+  {
+    id: 'DIS-002',
+    shootId: 'SH-005',
+    invoiceId: 'INV-005-A',
+    category: 'Payment Delay',
+    description: 'Payout has been delayed beyond the agreed timeline.',
+    raisedBy: 'Ryan Cooper',
+    raisedRole: 'Creator',
+    raisedDate: '17-04-2026',
+    disputedAmount: '$4,200',
+    payoutHold: '$3,696',
+    status: 'Open',
+  },
+  {
+    id: 'DIS-003',
+    shootId: 'SH-006',
+    invoiceId: 'INV-006-A',
+    category: 'Wrong Deliverable',
+    description: 'Received wrong edited files.',
+    raisedBy: 'Marcus Reid',
+    raisedRole: 'Client',
+    raisedDate: '22-03-2026',
+    disputedAmount: '$3,200',
+    payoutHold: '$1,200',
+    status: 'Open',
+  },
+];
 
 const buildMetrics = (d: Disputes | null | undefined): DisputeMetric[] => [
   { id: 'raised', label: 'Disputes Raised', info: 'Total new Disputes raised.', value: d?.raised ?? 0, textColor: 'text-white' },
@@ -145,6 +189,23 @@ export default function DisputesSummary({ data = null, loading = false }: Disput
   const metrics = useMemo(() => buildMetrics(data), [data]);
   const max = Math.max(1, ...metrics.map((m) => m.value));
 
+  // Which metric row is expanded
+  const [expandedId, setExpandedId] = useState<DisputeMetricId | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [monthFilter, setMonthFilter] = useState('Month');
+  const [typeFilter, setTypeFilter] = useState('All');
+
+  const filteredDisputes = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return STATIC_DISPUTES.filter(
+      (d) =>
+        (statusFilter === 'All' || d.status === statusFilter) &&
+        (typeFilter === 'All' || d.raisedRole === typeFilter) &&
+        (!q || d.id.toLowerCase().includes(q) || d.raisedBy.toLowerCase().includes(q))
+    );
+  }, [search, statusFilter, typeFilter]);
+
   return (
     <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full p-5 ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
       <ul className="space-y-5 lg:space-y-6">
@@ -152,7 +213,10 @@ export default function DisputesSummary({ data = null, loading = false }: Disput
           const color = isDark ? COLORS[m.id].dark : COLORS[m.id].light;
           const pct = Math.max(6, (m.value / max) * 100);
           return (
-            <li key={m.id}>
+            <li
+              key={m.id}
+              className={`transition-opacity duration-300 ${expandedId !== null && expandedId !== m.id ? 'opacity-40' : 'opacity-100'}`}
+            >
               <div className="flex items-center gap-1.5 mb-3">
                 <span className="text-xs lg:text-sm font-medium">{m.label}</span>
                 <InfoTooltip
@@ -171,17 +235,33 @@ export default function DisputesSummary({ data = null, loading = false }: Disput
                     <div className={`h-full w-2/3 rounded-full animate-pulse ${isDark ? 'bg-white/5' : 'bg-zinc-100'}`} />
                   ) : (
                     <div
-                      className="h-full rounded-r-full transition-[width] duration-700 ease-out"
-                      style={{
-                        width: `${pct}%`,
-                        background: `linear-gradient(90deg, ${color}00 0%, ${color}55 40%, ${color} 100%)`,
-                      }}
-                      role="progressbar"
-                      aria-label={m.label}
-                      aria-valuenow={m.value}
-                      aria-valuemin={0}
-                      aria-valuemax={max}
-                    />
+                      className="relative h-full transition-[width] duration-700 ease-out"
+                      style={{ width: `${pct}%` }}
+                    >
+                      <div
+                        className="h-full w-full rounded-r-full"
+                        style={{
+                          background: `linear-gradient(90deg, ${color}00 0%, ${color}55 40%, ${color} 100%)`,
+                        }}
+                        role="progressbar"
+                        aria-label={m.label}
+                        aria-valuenow={m.value}
+                        aria-valuemin={0}
+                        aria-valuemax={max}
+                      />
+                      <button
+                        type="button"
+                        aria-label={`${expandedId === m.id ? 'Hide' : 'View'} ${m.label}`}
+                        aria-expanded={expandedId === m.id}
+                        onClick={() => setExpandedId((prev) => (prev === m.id ? null : m.id))}
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center rounded-full p-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#E8D1AB] ${isDark ? 'text-black' : 'text-[#171717]'}`}
+                      >
+                        <ArrowUpRight
+                          size={14}
+                          className={`transition-transform duration-300 ${expandedId === m.id ? 'rotate-90' : ''}`}
+                        />
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -192,6 +272,23 @@ export default function DisputesSummary({ data = null, loading = false }: Disput
                   {isLoading ? '' : m.value}
                 </span>
               </div>
+
+              {expandedId === m.id && (
+                <div className="mt-4">
+                  <DisputeHistoryPanel
+                    items={filteredDisputes}
+                    searchValue={search}
+                    onSearchChange={setSearch}
+                    statusValue={statusFilter}
+                    onStatusChange={setStatusFilter}
+                    monthValue={monthFilter}
+                    onMonthChange={setMonthFilter}
+                    typeValue={typeFilter}
+                    onTypeChange={setTypeFilter}
+                    onViewDetails={(item) => console.log('View details', item.id)}
+                  />
+                </div>
+              )}
             </li>
           );
         })}

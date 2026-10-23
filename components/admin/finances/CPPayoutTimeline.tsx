@@ -22,6 +22,11 @@ const SEGMENTS: { id: SegmentId; label: string; color: string }[] = [
 /* Dummy data (USD)                                                    */
 /* ------------------------------------------------------------------ */
 
+export interface SelectedPayoutBucket {
+  id: string;
+  label: string;
+}
+
 export interface PayoutBucket {
   id: string;
   label: string;
@@ -144,6 +149,8 @@ interface CPPayoutTimelineProps {
   loading?: boolean;
   title?: string;
   infoText?: string;
+  selectedId?: string | null;
+  onSelectBucket?: (bucket: SelectedPayoutBucket | null) => void;
 }
 
 export default function CPPayoutTimeline({
@@ -151,6 +158,8 @@ export default function CPPayoutTimeline({
   loading = false,
   title = 'CP Payout Timeline',
   infoText = 'Timeline of payments made or due to Content Partners (CPs).',
+  selectedId = null,
+  onSelectBucket,
 }: CPPayoutTimelineProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -191,7 +200,11 @@ export default function CPPayoutTimeline({
         {/* Bars */}
         <ul className="space-y-5 lg:space-y-7">
           {rows.map((row) => (
-            <li key={row.id} className="grid grid-cols-[50px_minmax(0,1fr)_50px] sm:grid-cols-[70px_minmax(0,1fr)_60px] items-center gap-4 sm:gap-8">
+            <li
+              key={row.id}
+              onClick={() => !isLoading && onSelectBucket?.(selectedId === row.id ? null : { id: row.id, label: row.label })}
+              className={`grid grid-cols-[50px_minmax(0,1fr)_50px] sm:grid-cols-[70px_minmax(0,1fr)_60px] items-center gap-4 sm:gap-8 ${onSelectBucket ? 'cursor-pointer' : ''}`}
+            >
               <span className={`text-xs sm:text-sm ${mutedText}`}>{row.label}</span>
 
               {/* Track */}
@@ -200,8 +213,8 @@ export default function CPPayoutTimeline({
                   <div className={`h-full rounded-lg animate-pulse ${isDark ? 'bg-white/5' : 'bg-zinc-200'}`} style={{ width: '70%' }} />
                 ) : (
                   <div
-                    className="flex h-full rounded-lg overflow-hidden transition-[width] duration-700 ease-out"
-                    style={{ width: `${row.barPct}%` }}
+                    className="flex h-full rounded-lg overflow-hidden transition-[width,opacity] duration-500 ease-out"
+                    style={{ width: `${row.barPct}%`, opacity: selectedId && selectedId !== row.id ? 0.35 : 1 }}
                   >
                     {SEGMENTS.map((s) => {
                       const v = row.segments[s.id] ?? 0;

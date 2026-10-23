@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { LineChart, Line, YAxis, ResponsiveContainer } from 'recharts';
-import { Info } from 'lucide-react';
+import { Info, ArrowUpRight } from 'lucide-react';
 import { useTheme } from "next-themes";
 import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
+import ClientPaymentHistoryPanel from './analytics/ClientPaymentHistoryPanel';
 
 /* ------------------------------------------------------------------ */
 /* Dummy data                                                          */
@@ -151,6 +152,7 @@ export default function OutstandingPayment({
   const [mounted, setMounted] = useState(false);
   const isLoading = loading;
   const [hovered, setHovered] = useState<'paid' | 'remaining' | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
@@ -182,6 +184,7 @@ export default function OutstandingPayment({
   ];
 
   return (
+    <div className="contents">
     <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full overflow-hidden ${cardCls}`}>
       {/* Header */}
       <div className={`flex items-center gap-1.5 p-5 pt-6 border-b ${divider}`}>
@@ -197,9 +200,20 @@ export default function OutstandingPayment({
       <div className="p-5 space-y-5">
         {/* Total */}
         <div className="flex items-end justify-between gap-4">
-          {isLoading
-            ? <div className={`h-12 w-36 rounded animate-pulse ${isDark ? 'bg-white/10' : 'bg-zinc-200'}`} />
-            : <p className={`text-xl lg:text-4xl font-semibold leading-none ${isDark ? 'text-[#EAD6B5]' : 'text-[#9C7B45]'}`}>{formatCompactUSD(total)}</p>}
+          <div className="flex items-center gap-2">
+            {isLoading
+              ? <div className={`h-12 w-36 rounded animate-pulse ${isDark ? 'bg-white/10' : 'bg-zinc-200'}`} />
+              : <p className={`text-xl lg:text-4xl font-semibold leading-none ${isDark ? 'text-[#EAD6B5]' : 'text-[#9C7B45]'}`}>{formatCompactUSD(total)}</p>}
+            <button
+              type="button"
+              aria-label={historyOpen ? 'Close payment history' : 'Open payment history'}
+              aria-expanded={historyOpen}
+              onClick={() => setHistoryOpen((open) => !open)}
+              className={`inline-flex h-6 w-6 items-center justify-center rounded-full transition-colors ${isDark ? 'bg-white/15 text-white/80 hover:bg-white/25' : 'bg-black/10 text-[#323232] hover:bg-black/15'}`}
+            >
+              <ArrowUpRight size={13} className={`transition-transform duration-300 ${historyOpen ? 'rotate-90' : ''}`} />
+            </button>
+          </div>
           <p className={`text-sm lg:text-xl ${mutedText}`}>Total Outstanding</p>
         </div>
 
@@ -279,6 +293,9 @@ export default function OutstandingPayment({
           </div>
         </div>
       </div>
+    </div>
+
+    <ClientPaymentHistoryPanel open={historyOpen} isDark={isDark} />
     </div>
   );
 }

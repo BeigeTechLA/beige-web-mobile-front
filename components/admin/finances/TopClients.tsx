@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Info, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Info, Search, ChevronLeft, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { useTheme } from "next-themes";
 import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { SelectedShootCP } from './TopCPsByShoots';
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
 /* ------------------------------------------------------------------ */
@@ -155,6 +156,8 @@ interface TopClientsProps {
   onFiltersChange?: (filters: ClientFilters) => void;
   pageSize?: number;
   title?: string;
+  selectedId?: string | null;
+  onSelectClient?: (client: SelectedShootCP | null) => void;
 }
 
 // Default tooltip text per tab
@@ -170,6 +173,8 @@ export default function TopClients({
   onFiltersChange,
   pageSize = 8,
   title = 'Top Clients',
+  selectedId = null,
+  onSelectClient,
 }: TopClientsProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -314,7 +319,7 @@ export default function TopClients({
                 </tr>
               ))
               : rows.map((c: TopClient, i: number) => (
-                <tr key={c.id} className={`transition-colors ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.02]'}`}>
+                <tr key={c.id} className={`transition-all duration-300 ${selectedId && selectedId !== c.id ? 'opacity-40' : 'opacity-100'} ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.02]'}`}>
                   <td className={`p-5 ${i === 0 ? 'pt-5' : 'pt-3.5'} pb-3.5`}>
                     <div className="flex items-center gap-4 min-w-0">
                       {c.avatarUrl ? (
@@ -328,6 +333,15 @@ export default function TopClients({
                         </div>
                       )}
                       <span className="text-sm lg:text-base truncate">{c.name}</span>
+                      <button
+                        type="button"
+                        aria-label={selectedId === c.id ? `Close ${c.name} shoot history` : `Open ${c.name} shoot history`}
+                        aria-expanded={selectedId === c.id}
+                        onClick={() => onSelectClient?.(selectedId === c.id ? null : { id: c.id, name: c.name, shoots: c.shoots })}
+                        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${isDark ? 'bg-[#2C2C2B] text-white hover:bg-[#3A3A39]' : 'bg-[#E8E8E8] text-[#171717] hover:bg-[#DADADA]'}`}
+                      >
+                        <ArrowUpRight size={14} className={`transition-transform duration-300 ${selectedId === c.id ? 'rotate-90' : ''}`} />
+                      </button>
                     </div>
                   </td>
                   <td className={`p-5 text-center text-sm lg:text-base ${i === 0 ? 'pt-5' : 'pt-3.5'} pb-3.5`}>

@@ -12,11 +12,11 @@ import type { FinanceAnalyticsData } from "@/lib/api"; // same path
 import { endOfDay, endOfMonth, endOfWeek, endOfYear, format, startOfDay, startOfMonth, startOfWeek, startOfYear } from "date-fns";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import RevenueOverviewChart from "@/components/admin/finances/RevenueOverviewChart";
-import TopCPsByPayout from "@/components/admin/finances/TopCPsByPayout";
-import TopCPsByShoots from "@/components/admin/finances/TopCPsByShoots";
+import TopCPsByPayout, { type SelectedPayoutCP } from "@/components/admin/finances/TopCPsByPayout";
+import TopCPsByShoots, { type SelectedShootCP } from "@/components/admin/finances/TopCPsByShoots";
 import AvgPayoutMarginCount from "@/components/admin/finances/AvgPayoutMarginCount";
-import TopOverdueCPs from "@/components/admin/finances/TopOverdueCPs";
-import CPPayoutTimeline from "@/components/admin/finances/CPPayoutTimeline";
+import TopOverdueCPs, { type OverdueCP } from "@/components/admin/finances/TopOverdueCPs";
+import CPPayoutTimeline, { type SelectedPayoutBucket } from "@/components/admin/finances/CPPayoutTimeline";
 import ShootDistribution from "@/components/admin/finances/ShootDistribution";
 import AvgClientSpendPerShoot from "@/components/admin/finances/AvgClientSpendPerShoot";
 import TopClients from "@/components/admin/finances/TopClients";
@@ -24,6 +24,10 @@ import ClientPaymentOverview from "@/components/admin/finances/ClientPaymentOver
 import OutstandingPayment from "@/components/admin/finances/OutstandingPayment";
 import DisputesSummary from "@/components/admin/finances/DisputesSummary";
 import TopDisputeReasons from "@/components/admin/finances/TopDisputeReasons";
+import OverdueShootBreakdownPanel from "@/components/admin/finances/analytics/OverdueShootBreakdownPanel";
+import PartnerShootHistoryPanel from "@/components/admin/finances/analytics/PartnerShootHistoryPanel";
+import PayoutSchedulePanel from "@/components/admin/finances/analytics/PayoutSchedulePanel";
+import PartnerPayoutHistoryPanel from "@/components/admin/finances/analytics/PartnerPayoutHistoryPanel";
 
 
 export default function FinanceAnalyticsPage() {
@@ -32,6 +36,11 @@ export default function FinanceAnalyticsPage() {
 
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState<FinanceAnalyticsData | null>(null);
+  const [selectedOverdueCP, setSelectedOverdueCP] = useState<OverdueCP | null>(null);
+  const [selectedShootCP, setSelectedShootCP] = useState<SelectedShootCP | null>(null);
+  const [selectedClient, setSelectedClient] = useState<SelectedShootCP | null>(null);
+  const [selectedBucket, setSelectedBucket] = useState<SelectedPayoutBucket | null>(null);
+  const [selectedPayoutCP, setSelectedPayoutCP] = useState<SelectedPayoutCP | null>(null);
 
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -58,6 +67,11 @@ export default function FinanceAnalyticsPage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    setSelectedOverdueCP(null);
+    setSelectedShootCP(null);
+    setSelectedClient(null);
+    setSelectedBucket(null);
+    setSelectedPayoutCP(null);
 
     const load = async () => {
       if (Boolean(startDate) !== Boolean(endDate)) {
@@ -142,16 +156,73 @@ export default function FinanceAnalyticsPage() {
             </div>
 
             <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3 lg:gap-6">
-              <div className="min-w-0"><TopCPsByPayout data={analytics?.creative_partners.top_by_payout ?? null} loading={loading} /></div>
+              <div className="min-w-0">
+                <TopCPsByPayout
+                  data={analytics?.creative_partners.top_by_payout ?? null}
+                  loading={loading}
+                  selectedId={selectedPayoutCP?.id ?? null}
+                  onSelectCP={setSelectedPayoutCP}
+                />
+              </div>
               <div className="min-w-0"><AvgPayoutMarginCount data={analytics?.creative_partners.averages ?? null} loading={loading} /></div>
             </div>
 
-            <TopCPsByShoots data={analytics?.creative_partners.top_by_shoots ?? null} loading={loading} />
+            <PartnerPayoutHistoryPanel
+              open={!!selectedPayoutCP}
+              onClose={() => setSelectedPayoutCP(null)}
+              cpId={selectedPayoutCP?.id ?? ""}
+              cpName={selectedPayoutCP?.name ?? ""}
+              totalPayout={selectedPayoutCP?.payout ?? 0}
+            />
+
+            <div className="min-w-0">
+              <TopCPsByShoots
+                data={analytics?.creative_partners.top_by_shoots ?? null}
+                loading={loading}
+                selectedId={selectedShootCP?.id ?? null}
+                onSelectCP={setSelectedShootCP}
+              />
+              <PartnerShootHistoryPanel open={!!selectedShootCP} cpName={selectedShootCP?.name ?? ""} />
+            </div>
 
             <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] gap-3 lg:gap-6">
-              <div className="min-w-0"><CPPayoutTimeline data={analytics?.creative_partners.payout_timeline ?? null} loading={loading} /></div>
-              <div className="min-w-0"><TopOverdueCPs data={analytics?.creative_partners.top_overdue ?? null} loading={loading} /></div>
+              <div className="min-w-0">
+                <CPPayoutTimeline
+                  data={analytics?.creative_partners.payout_timeline ?? null}
+                  loading={loading}
+                  selectedId={selectedBucket?.id ?? null}
+                  onSelectBucket={(bucket) => {
+                    setSelectedBucket(bucket);
+                    if (bucket) setSelectedOverdueCP(null);
+                  }}
+                />
+              </div>
+              <div className="min-w-0">
+                <TopOverdueCPs
+                  data={analytics?.creative_partners.top_overdue ?? null}
+                  loading={loading}
+                  selectedId={selectedOverdueCP?.id ?? null}
+                  onSelectCP={(cp) => {
+                    setSelectedOverdueCP(cp);
+                    if (cp) setSelectedBucket(null);
+                  }}
+                />
+              </div>
             </div>
+
+            <PayoutSchedulePanel
+              open={!!selectedBucket}
+              bucketId={selectedBucket?.id ?? ""}
+              bucketLabel={selectedBucket?.label ?? ""}
+            />
+            <OverdueShootBreakdownPanel
+              open={!!selectedOverdueCP}
+              onClose={() => setSelectedOverdueCP(null)}
+              cpName={selectedOverdueCP?.name ?? ""}
+              totalOverdue={selectedOverdueCP?.amount ?? 0}
+              avatarUrl={selectedOverdueCP?.avatarUrl}
+            />
+
           </div>
 
           <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full space-y-3 lg:space-y-6 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
@@ -166,6 +237,11 @@ export default function FinanceAnalyticsPage() {
                 shootsData={analytics?.clients.top_by_shoots ?? null}
                 spendData={analytics?.clients.top_by_spend ?? null}
                 loading={loading}
+                selectedId={selectedClient?.id ?? null}
+                onSelectClient={(client) => {
+                  setSelectedClient(client);
+                  if (client) setSelectedShootCP(null);
+                }}
               /></div>
               <div className="min-w-0 space-y-3 lg:space-y-4">
                 <AvgClientSpendPerShoot
@@ -176,10 +252,14 @@ export default function FinanceAnalyticsPage() {
                 <ShootDistribution data={analytics?.clients.top_by_shoots ?? null} loading={loading} />
               </div>
             </div>
+            <PartnerShootHistoryPanel
+              open={!!selectedClient}
+              cpName={selectedClient?.name ?? ""}
+            />
 
             <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] gap-3 lg:gap-6">
               <div className="min-w-0"><ClientPaymentOverview data={analytics?.clients.payment_overview ?? null} loading={loading} /></div>
-              <div className="min-w-0"><OutstandingPayment data={analytics?.clients.outstanding ?? null} loading={loading} /></div>
+              <OutstandingPayment data={analytics?.clients.outstanding ?? null} loading={loading} />
             </div>
           </div>
 
