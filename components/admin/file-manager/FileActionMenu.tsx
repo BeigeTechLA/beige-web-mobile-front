@@ -10,7 +10,8 @@ import {
   UserRoundPlus,
   Share2,
   Download,
-  Trash2
+  Trash2,
+  MoveRight
 } from "lucide-react";
 
 interface FileActionMenuProps {
@@ -23,6 +24,8 @@ interface FileActionMenuProps {
   onOpen?: () => void;
   onDownload?: () => void;
   onDelete?: () => void;
+  onMove?: () => void;
+  moveLabel?: string;
   onRename?: () => void;
   onShare?: () => void;
   onAccess?: () => void;
@@ -45,6 +48,8 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
   onOpen,
   onDownload,
   onDelete,
+  onMove,
+  moveLabel = "Move folder",
   onRename,
   onShare,
   onAccess,
@@ -113,6 +118,7 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
               onClose();
             }} isDark={isDark} />
           ) : null}
+          {onMove ? <MenuButton icon={<MoveRight size={18} />} label={moveLabel} onClick={() => { onMove(); onClose(); }} isDark={isDark} /> : null}
           {/* Temporarily hidden action: Link to Shoot */}
           {/* <MenuButton
             icon={<LinkIcon size={18} />}
@@ -128,7 +134,7 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
               label="Visibility date"
               onClick={() => {
                 if (editVisibilityDisabled) return;
-                onEditVisibility();
+                onEditVisibility?.();
                 onClose();
               }}
               disabled={editVisibilityDisabled}
@@ -161,7 +167,7 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
               label="Share"
               onClick={() => {
                 if (shareDisabled) return;
-                onShare();
+                onShare?.();
                 onClose();
               }}
               disabled={shareDisabled}
@@ -205,7 +211,7 @@ const FileActionMenu: React.FC<FileActionMenuProps> = ({
                 variant="danger"
                 onClick={() => {
                   if (deleteDisabled) return;
-                  onDelete();
+                  onDelete?.();
                   onClose();
                 }}
                 disabled={deleteDisabled}

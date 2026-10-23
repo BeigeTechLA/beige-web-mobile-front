@@ -1348,6 +1348,25 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  async moveExternalEntries(payload: {
+    externalId: string;
+    phase: "pre" | "post";
+    targetPath: string;
+    sourcePaths: string[];
+  }) {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        total: number;
+        successCount: number;
+        failureCount: number;
+        hasMore?: boolean;
+        items: Array<{ sourcePath: string; destinationPath?: string; success: boolean; error?: string }>;
+      };
+    }>("external-file-manager/move-entries", payload);
+    return response.data;
+  },
+
   async reviewRevisionFile(payload: {
     externalId: string | number;
     filepath: string;

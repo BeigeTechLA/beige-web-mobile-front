@@ -39,6 +39,8 @@ interface FolderCardProps {
   showMenu?: boolean;
   onDownload?: () => void;
   onDelete?: () => void;
+  onMove?: () => void;
+  moveLabel?: string;
   onRename?: () => void;
   onShare?: () => void;
   onAccess?: () => void;
@@ -67,6 +69,8 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   showMenu = true,
   onDownload,
   onDelete,
+  onMove,
+  moveLabel,
   onRename,
   onShare,
   onAccess,
@@ -246,6 +250,8 @@ export const FolderCard: React.FC<FolderCardProps> = ({
             onAccess={onAccess}
             onActivity={onActivity}
             onDelete={onDelete}
+            onMove={onMove}
+            moveLabel={moveLabel}
             onRename={onRename}
             onEditVisibility={onEditVisibility}
             downloadDisabled={downloadDisabled}

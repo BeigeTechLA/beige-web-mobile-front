@@ -18,9 +18,6 @@ import {
   Upload,
   CheckSquare,
   Square,
-  X as CloseIcon,
-  Download as DownloadIcon,
-  Trash2 as TrashIcon
 } from "lucide-react";
 import { FolderOpen } from "lucide-react";
 import { FolderCard } from "@/components/admin/file-manager/FolderCard";
@@ -42,6 +39,9 @@ import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoa
 import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
 import Topbar from "@/components/admin/Topbar";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useAuth } from "@/lib/hooks/useAuth";
+import MoveEntriesModal from "@/components/admin/file-manager/MoveEntriesModal";
+import FileSelectionToolbar from "@/components/admin/file-manager/FileSelectionToolbar";
 import {
   fileManagerApi,
   getExternalWorkspaceDisplayName,
@@ -168,6 +168,11 @@ export default function AdminFileManagerPhasePage() {
   const { isDark } = useResolvedTheme();
   const routeStateKey = getFileManagerRouteStateKey(pathname);
   const { canCreate, canDelete } = usePermissions("file_manager");
+  const { user } = useAuth();
+  const isSuperAdmin = Number(user?.userTypeId) === 8 || ["super_admin", "superadmin"].includes(String(user?.userRole || user?.role || "").toLowerCase().replace(/\s+/g, "_"));
+  const [moveSourcePaths, setMoveSourcePaths] = useState<string[]>([]);
+  const canMoveFolder = (folder?: UiFolderItem | null) => isSuperAdmin && !isCommonEventWorkspace && Boolean(folder?.resourcePath) &&
+    !["root", "preproduction", "postproduction", "postproduction_raw_footage", "postproduction_edited_footage", "postproduction_final_deliverables"].includes(folder?.category || "");
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceStorageName, setWorkspaceStorageName] = useState("");
@@ -201,6 +206,10 @@ export default function AdminFileManagerPhasePage() {
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  useEffect(() => {
+    setSelectedFilePaths([]);
+    setIsSelectionMode(false);
+  }, [projectId, phaseSlug, rootFolderPath]);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareResource, setShareResource] = useState<{
     resourceType: "workspace" | "folder" | "file";
@@ -600,9 +609,9 @@ export default function AdminFileManagerPhasePage() {
     );
   };
 
-  const selectAllVisibleFiles = () => {
-    const allVisible = visibleFiles.map((file) => file.filepath || "").filter(Boolean);
-    setSelectedFilePaths(Array.from(new Set(allVisible)));
+  const selectAllFolderFiles = () => {
+    const allFolderPaths = viewState.files.map((file) => file.filepath || "").filter(Boolean);
+    setSelectedFilePaths(Array.from(new Set(allFolderPaths)));
     setIsSelectionMode(true);
   };
 
@@ -839,6 +848,7 @@ export default function AdminFileManagerPhasePage() {
                               setSelectedFolder(folder);
                               setIsDeleteModalOpen(true);
                             }}
+                            onMove={canMoveFolder(folder) ? () => setMoveSourcePaths([folder.resourcePath!]) : undefined}
                             deleteDisabled={!canDelete}
                             onShare={() => {
                               setSelectedFolder(folder);
@@ -936,6 +946,7 @@ export default function AdminFileManagerPhasePage() {
                           setSelectedFile(null);
                           setIsDeleteModalOpen(true);
                         }}
+                        onMove={canMoveFolder(folder) ? () => setMoveSourcePaths([folder.resourcePath!]) : undefined}
                         deleteDisabled={!canDelete}
                         onShare={() => {
                           setSelectedFolder(folder);
@@ -1217,13 +1228,14 @@ export default function AdminFileManagerPhasePage() {
                                       <th className="rounded-l-xl py-5 px-6 font-medium w-10">
                                         <div onClick={(e) => e.stopPropagation()}>
                                           <Checkbox
-                                            checked={visibleFiles.length > 0 && visibleFiles.every(f => selectedFilePaths.includes(f.filepath || ""))}
+                                            aria-label="Select all files in this folder"
+                                            checked={viewState.files.length > 0 && viewState.files.every(f => selectedFilePaths.includes(f.filepath || ""))}
                                             onCheckedChange={(checked: boolean | "indeterminate") => {
                                               if (checked === true) {
-                                                const allVisible = visibleFiles.map(f => f.filepath || "").filter(Boolean);
+                                                const allVisible = viewState.files.map(f => f.filepath || "").filter(Boolean);
                                                 setSelectedFilePaths(prev => Array.from(new Set([...prev, ...allVisible])));
                                               } else {
-                                                const allVisible = visibleFiles.map(f => f.filepath || "");
+                                                const allVisible = viewState.files.map(f => f.filepath || "");
                                                 setSelectedFilePaths(prev => prev.filter(p => !allVisible.includes(p)));
                                               }
                                             }}
@@ -1408,13 +1420,14 @@ export default function AdminFileManagerPhasePage() {
                               <th className="rounded-l-xl py-5 px-6 font-medium w-10">
                                 <div onClick={(e) => e.stopPropagation()}>
                                   <Checkbox
-                                    checked={visibleFiles.length > 0 && visibleFiles.every(f => selectedFilePaths.includes(f.filepath || ""))}
+                                    aria-label="Select all files in this folder"
+                                    checked={viewState.files.length > 0 && viewState.files.every(f => selectedFilePaths.includes(f.filepath || ""))}
                                     onCheckedChange={(checked: boolean | "indeterminate") => {
                                       if (checked === true) {
-                                        const allVisible = visibleFiles.map(f => f.filepath || "").filter(Boolean);
+                                        const allVisible = viewState.files.map(f => f.filepath || "").filter(Boolean);
                                         setSelectedFilePaths(prev => Array.from(new Set([...prev, ...allVisible])));
                                       } else {
-                                        const allVisible = visibleFiles.map(f => f.filepath || "");
+                                        const allVisible = viewState.files.map(f => f.filepath || "");
                                         setSelectedFilePaths(prev => prev.filter(p => !allVisible.includes(p)));
                                       }
                                     }}
@@ -1549,9 +1562,14 @@ export default function AdminFileManagerPhasePage() {
               setIsShareModalOpen(true);
             }}
             onDelete={() => setIsDeleteModalOpen(true)}
+            onMove={canMoveFolder(selectedFolder) ? () => setMoveSourcePaths([selectedFolder!.resourcePath!]) : undefined}
             onRename={() => toast.info("Folder rename is the next safe step.")}
             isDark={isDark}
           />
+        )}
+        {moveSourcePaths.length > 0 && (
+          <MoveEntriesModal externalId={projectId} sourcePaths={moveSourcePaths}
+            onClose={() => setMoveSourcePaths([])} onMoved={() => { setMoveSourcePaths([]); setSelectedFilePaths([]); loadPhase(); }} />
         )}
 
         <LinkToShootModal
@@ -1647,73 +1665,20 @@ export default function AdminFileManagerPhasePage() {
           resource={shareResource}
         />
 
-        {/* Batch Action Toolbar */}
-        {selectedFilePaths.length > 0 && (
-          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-[min(94vw,760px)] px-4">
-            <div className={`border rounded-2xl shadow-2xl p-3 lg:p-4 flex flex-wrap items-center justify-between gap-3 transition-colors duration-200 ${isDark ? "bg-[#171717]  border-[#E8D1AB]/50" : "bg-white border-black/10 "}`}>
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="bg-[#E8D1AB] text-black h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm">
-                  {selectedFilePaths.length}
-                </div>
-                <span className={`font-medium leading-tight ${isDark ? "text-white" : "text-black"}`}>Files selected</span>
-              </div>
-
-              <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => setSelectedFilePaths([])}
-                  className={`shrink-0 gap-2 transition-colors ${isDark
-                    ? "text-white/70 hover:text-white hover:bg-white/5"
-                    : "text-black/60 hover:text-black hover:bg-black/5"
-                    }`}
-                >
-                  Clear
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  onClick={selectAllVisibleFiles}
-                  className={`shrink-0 gap-2 ${isDark ? "text-white hover:bg-white/10" : "text-black hover:bg-black/5"}`}
-                >
-                  <CheckSquare size={18} />
-                  Select all
-                </Button>
-
-                <div className={`hidden sm:block h-6 w-[1px] mx-1 transition-colors ${isDark ? "bg-white/10" : "bg-black/10"}`} />
-
-                <Button
-                  onClick={handleBatchDownload}
-                  className={`shrink-0 gap-2 border transition-colors ${isDark
-                    ? "bg-white/10 text-white border-white/10 hover:bg-white/20"
-                    : "bg-black/[0.04] text-black border-black/5 hover:bg-black/[0.08]"
-                    }`}
-                >
-                  <DownloadIcon size={18} />
-                  Download
-                </Button>
-
-                <Button
-                  onClick={() => {
-                    if (!canDelete) return;
-                    setIsDeleteModalOpen(true);
-                  }}
-                  disabled={!canDelete}
-                  title={canDelete ? "Delete selected" : "Delete permission not allowed"}
-                  className="shrink-0 bg-[#F04438] text-white hover:bg-[#d7372d] gap-2 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <TrashIcon size={18} />
-                  Delete
-                </Button>
-              </div>
-
-              <button
-                onClick={() => setSelectedFilePaths([])}
-                className="shrink-0 text-white/40 hover:text-white"
-              >
-                <CloseIcon size={20} />
-              </button>
-            </div>
-          </div>
+        {/* Folder selection actions */}
+        {(isSelectionMode || selectedFilePaths.length > 0) && viewState.files.length > 0 && (
+          <FileSelectionToolbar
+            selectedCount={selectedFilePaths.length}
+            folderCount={viewState.files.length}
+            isDark={isDark}
+            canDelete={Boolean(canDelete)}
+            canMove={isSuperAdmin && !isCommonEventWorkspace}
+            onSelectAll={selectAllFolderFiles}
+            onClear={() => { setSelectedFilePaths([]); setIsSelectionMode(false); }}
+            onMove={() => setMoveSourcePaths(selectedFilePaths)}
+            onDownload={handleBatchDownload}
+            onDelete={() => setIsDeleteModalOpen(true)}
+          />
         )}
 
         {/* --- FLOATING MOBILE BUTTON --- */}
