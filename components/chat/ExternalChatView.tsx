@@ -34,6 +34,7 @@ import { notificationCenterApi, notifyNotificationsChanged } from "@/lib/notific
 import { formatChatRoomDisplayName } from "@/lib/chatRoomDisplayName";
 import {
   externalChatApi,
+  type ExternalChatMention,
   type ExternalChatMessage,
   type ExternalChatParticipantItem,
   type ExternalChatRoom,
@@ -504,6 +505,7 @@ const buildMessageFromSocketPayload = (payload: any): ExternalChatMessage | null
     createdAt: payload?.createdAt || payload?.updatedAt || new Date().toISOString(),
     updatedAt: payload?.updatedAt || payload?.createdAt || new Date().toISOString(),
     reply_to: payload?.replyTo || payload?.reply_to || null,
+    mentions: Array.isArray(payload?.mentions) ? payload.mentions : [],
   };
 };
 
@@ -553,7 +555,6 @@ const roomMatchesSalesUser = (room: ExternalChatRoom, appUser: any) => {
 const getComparableUserValues = (appUser: any) => {
   const ids = new Set<string>();
   const emails = new Set<string>();
-  const names = new Set<string>();
 
   [appUser?.id, appUser?.clientId, appUser?.client_id, appUser?.crew_member_id].forEach((value) => {
     if (value != null && String(value).trim()) {
@@ -564,10 +565,7 @@ const getComparableUserValues = (appUser: any) => {
   const email = String(appUser?.email || "").trim().toLowerCase();
   if (email) emails.add(email);
 
-  const name = String(appUser?.name || "").trim().toLowerCase();
-  if (name) names.add(name);
-
-  return { ids, emails, names };
+  return { ids, emails };
 };
 
 const participantMatchesAppUser = (
@@ -578,12 +576,10 @@ const participantMatchesAppUser = (
   const comparableValues = getComparableUserValues(appUser);
   const participantId = String(normalized?.id || "").trim();
   const participantEmail = String(normalized?.email || "").trim().toLowerCase();
-  const participantName = String(normalized?.name || "").trim().toLowerCase();
 
   return Boolean(
     (participantId && comparableValues.ids.has(participantId)) ||
-    (participantEmail && comparableValues.emails.has(participantEmail)) ||
-    (participantName && comparableValues.names.has(participantName))
+    (participantEmail && comparableValues.emails.has(participantEmail))
   );
 };
 
@@ -674,6 +670,59 @@ const getUnreadBoundaryMessageId = (
 };
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Bolds + underlines the part of a name that matches what the user typed after "@"
+const highlightMatch = (text: string, query: string): React.ReactNode => {
+  if (!query) return text;
+  const index = text.toLowerCase().indexOf(query.toLowerCase());
+  if (index === -1) return text;
+  return (
+    <>
+      {text.slice(0, index)}
+      <mark className="bg-transparent font-bold text-inherit underline decoration-[#E8D1AB] decoration-2 underline-offset-2">
+        {text.slice(index, index + query.length)}
+      </mark>
+      {text.slice(index + query.length)}
+    </>
+  );
+};
+
+// Highlights "@Name" in sent messages, using the names saved in message.mentions.
+const renderMessageWithMentions = (message: ExternalChatMessage, isDark: boolean): React.ReactNode => {
+  const text = getMessageText(message);
+  if (message.is_deleted || message.message_type === "system") return text;
+
+  const includesAllMention = /(^|\s)@(?:all|everyone)(?![\p{L}\p{N}_])/iu.test(text);
+  const names = Array.from(
+    new Set([
+      ...(message.mentions || []).map((item) => String(item?.name || "").trim()).filter(Boolean),
+      ...(includesAllMention && message.mentions?.length ? ["all", "everyone"] : []),
+    ])
+  ).sort((a, b) => b.length - a.length);
+  if (!names.length) return text;
+
+  const pattern = new RegExp(
+    `(${names.map((name) => `@${escapeRegExp(name)}(?![\\p{L}\\p{N}_])`).join("|")})`,
+    "gu"
+  );
+  return text.split(pattern).map((part, index) =>
+    index % 2 === 1 ? (
+      <span
+        key={`mention-${index}`}
+        className={`mx-0.5 inline-block rounded-md px-1.5 py-px font-semibold leading-5 ring-1 ring-inset ${isDark
+          ? "bg-[#E8D1AB]/15 text-[#E8D1AB] ring-[#E8D1AB]/25"
+          : "bg-zinc-900/5 text-zinc-900 ring-zinc-900/10"
+          }`}
+      >
+        {part}
+      </span>
+    ) : (
+      <React.Fragment key={`text-${index}`}>{part}</React.Fragment>
+    )
+  );
+};
 const ROOM_LIST_PAGE_SIZE = 10;
 
 export interface ExternalChatViewRef {
@@ -770,10 +819,14 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const [replyTarget, setReplyTarget] = useState<ExternalChatMessage | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
+  const [editingMentions, setEditingMentions] = useState<ExternalChatMention[]>([]);
   const [openMessageMenuId, setOpenMessageMenuId] = useState<string | null>(null);
   const [showReactionPickerId, setShowReactionPickerId] = useState<string | null>(null);
   const [openReactionDetails, setOpenReactionDetails] = useState<{ messageId: string; emoji: string } | null>(null);
   const [showComposerEmojis, setShowComposerEmojis] = useState(false);
+  const [draftMentions, setDraftMentions] = useState<ExternalChatMention[]>([]);
+  const [mentionState, setMentionState] = useState<{ start: number; query: string } | null>(null);
+  const [mentionActiveIndex, setMentionActiveIndex] = useState(0); 
   const [messagePendingDelete, setMessagePendingDelete] = useState<ExternalChatMessage | null>(null);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
@@ -888,7 +941,12 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           isBogusParticipantValue(item.name) &&
           isBogusParticipantValue(item.email)
         ) &&
-        array.findIndex((entry) => entry?.id === item.id) === index
+        array.findIndex((entry) => {
+          if (entry?.email && item.email) {
+            return String(entry.email).trim().toLowerCase() === String(item.email).trim().toLowerCase();
+          }
+          return entry?.id === item.id;
+        }) === index
     ) as Array<{ id?: string; name?: string; email?: string; role?: string }>;
   }, [participants]);
 
@@ -897,6 +955,106 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     return participant?.id ? String(participant.id) : userId;
   }, [participantList, effectiveUser, userId]);
   const canCreateMessageRoom = isAdminView && canCreateMessages;
+
+  // Only current room participants (excluding yourself) can be mentioned
+  const mentionCandidates = useMemo<Array<{
+    id?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+    isAll?: boolean;
+  }>>(() => {
+    if (!mentionState) return [];
+    const query = mentionState.query.toLowerCase();
+    const candidates = participantList
+      .filter((p) => p.id && String(p.id) !== String(chatUserId || "") && String(p.id) !== String(userId || ""))
+      .filter((p) => !draftMentions.some((m) =>
+        (m.email && p.email && String(m.email).trim().toLowerCase() === String(p.email).trim().toLowerCase()) ||
+        ((!m.email || !p.email) && String(m.id) === String(p.id))
+      ))
+      .filter(
+        (p) =>
+          !query ||
+          getReadableName(p).toLowerCase().includes(query) ||
+          String(p.email || "").toLowerCase().includes(query)
+      )
+      .slice(0, 8);
+    const allCandidate = { id: "__all__", name: "All", role: "everyone", isAll: true };
+    return !query || "all".includes(query) ? [allCandidate, ...candidates] : candidates;
+  }, [mentionState, participantList, chatUserId, userId, draftMentions]);
+
+  const updateMentionState = (value: string, cursor: number) => {
+    const match = /(^|\s)@([^\s@]{0,30})$/.exec(value.slice(0, cursor));
+    if (!match) {
+      setMentionState(null);
+      return;
+    }
+    setMentionState({ start: cursor - match[2].length - 1, query: match[2] });
+    setMentionActiveIndex(0);
+  };
+
+  const selectMention = (participant: { id?: string; name?: string; email?: string; role?: string; isAll?: boolean }) => {
+    if (!mentionState || !participant.id) return;
+    const name = participant.isAll ? "all" : getReadableName(participant);
+    const el = composerInputRef.current;
+    const cursor = el?.selectionStart ?? draftMessage.length;
+    const insert = `@${name} `;
+    const next = draftMessage.slice(0, mentionState.start) + insert + draftMessage.slice(cursor);
+    const caret = mentionState.start + insert.length;
+
+    setDraftMessage(next);
+    if (participant.isAll) {
+      setDraftMentions([{ id: "__all__", name: "All", email: null }]);
+    } else {
+      setDraftMentions((current) =>
+        current.some((item) =>
+          (item.email && participant.email && String(item.email).trim().toLowerCase() === String(participant.email).trim().toLowerCase()) ||
+          ((!item.email || !participant.email) && String(item.id) === String(participant.id))
+        )
+          ? current
+          : [...current, { id: String(participant.id), name, email: participant.email || null }]
+      );
+    }
+    setMentionState(null);
+    setTimeout(() => {
+      el?.focus();
+      el?.setSelectionRange(caret, caret);
+    }, 0);
+  };
+
+  const handleComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (sending) return;
+
+    if (mentionState) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMentionState(null);
+        return;
+      }
+      if (mentionCandidates.length) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setMentionActiveIndex((current) => (current + 1) % mentionCandidates.length);
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setMentionActiveIndex((current) => (current - 1 + mentionCandidates.length) % mentionCandidates.length);
+          return;
+        }
+        if ((e.key === "Enter" || e.key === "Tab") && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          selectMention(mentionCandidates[Math.min(mentionActiveIndex, mentionCandidates.length - 1)]);
+          return;
+        }
+      }
+    }
+
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
 
   // Expose the function to the parent component safely
   useImperativeHandle(ref, () => ({
@@ -1730,6 +1888,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
             ? {
               ...item,
               message: String(payload?.content || item.message || ""),
+              mentions: Array.isArray(payload?.mentions) ? payload.mentions : item.mentions || [],
               is_edited: true,
               updatedAt: payload?.updatedAt || item.updatedAt,
             }
@@ -1868,6 +2027,11 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     messagesRef.current = messages;
   }, [messages]);
 
+  useEffect(() => {
+    if (!mentionState) return;
+    document.getElementById(`mention-option-${mentionActiveIndex}`)?.scrollIntoView({ block: "nearest" });
+  }, [mentionActiveIndex, mentionState]);
+
   // Auto-resize composer textarea
   useEffect(() => {
     const el = composerInputRef.current;
@@ -1883,6 +2047,8 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     setIsSelectionMode(false);
     setSelectedMessageIds([]);
     setBatchDeletePending(false);
+    setDraftMentions([]);
+    setMentionState(null);
   }, [selectedRoom?.id, selectedRoom?._id]);
 
   useEffect(() => {
@@ -1948,11 +2114,20 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
 
     setSending(true);
     try {
+      // Only send mentions whose "@Name" text is still in the message
+      const includesAllMention = /(^|\s)@(?:all|everyone)(?![\p{L}\p{N}_])/iu.test(message);
+      const activeMentions = draftMentions.filter((item) =>
+        (includesAllMention && item.id === "__all__") ||
+        new RegExp(`@${escapeRegExp(String(item.name || ""))}(?![\\p{L}\\p{N}_])`, "u").test(message)
+      );
       const sent = await externalChatApi.sendMessage(roomId, message, {
         sender: currentSender,
         replyTo: getMessageId(replyTarget) || null,
+        mentions: activeMentions,
       });
       setDraftMessage("");
+      setDraftMentions([]);
+      setMentionState(null);
       setReplyTarget(null);
       setShowComposerEmojis(false);
       shouldStickToBottomRef.current = true;
@@ -2032,6 +2207,11 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const startEditingMessage = (message: ExternalChatMessage) => {
     setEditingMessageId(getMessageId(message));
     setEditingText(message.message || "");
+    setEditingMentions((message.mentions || []).map((mention) => ({
+      id: mention.id ?? mention.user_id,
+      name: mention.name,
+      email: mention.email,
+    })));
     setOpenMessageMenuId(null);
   };
 
@@ -2040,9 +2220,28 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     if (!editingMessageId || !editingText.trim()) return;
 
     try {
-      await externalChatApi.editMessage(editingMessageId, editingText.trim(), currentSender, roomId || undefined);
+      // Editing supports adding a mention by typing @ followed by the participant's exact name.
+      const text = editingText.trim();
+      const includesAllMention = /(^|\s)@(?:all|everyone)(?![\p{L}\p{N}_])/iu.test(text);
+      const detectedMentions = participantList
+        .filter((participant) => participant.id && String(participant.id) !== String(chatUserId || ""))
+        .filter((participant) => {
+          if (includesAllMention) return true;
+          const name = getReadableName(participant);
+          return name && new RegExp(`@${escapeRegExp(name)}(?![\\p{L}\\p{N}_])`, "u").test(text);
+        })
+        .map((participant) => ({ id: String(participant.id), name: getReadableName(participant), email: participant.email || null }));
+      const mentions = [...editingMentions, ...detectedMentions]
+        .filter((mention) => mention.id != null && mention.name &&
+          (includesAllMention || new RegExp(`@${escapeRegExp(String(mention.name))}(?![\\p{L}\\p{N}_])`, "u").test(text)))
+        .filter((mention, index, all) => all.findIndex((item) =>
+          (item.email && mention.email && String(item.email).trim().toLowerCase() === String(mention.email).trim().toLowerCase()) ||
+          ((!item.email || !mention.email) && String(item.id) === String(mention.id))
+        ) === index);
+      await externalChatApi.editMessage(editingMessageId, text, currentSender, roomId || undefined, mentions);
       setEditingMessageId(null);
       setEditingText("");
+      setEditingMentions([]);
     } catch (err: any) {
       toast.error(err?.message || "Failed to edit message");
     }
@@ -2992,6 +3191,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                             onClick={() => {
                                               setEditingMessageId(null);
                                               setEditingText("");
+                                              setEditingMentions([]);
                                             }}
                                             className={`rounded-full border px-3 py-1 text-xs transition ${isDark ? "border-white/10 text-white/70" : "border-zinc-200 text-zinc-600"}`}
                                           >
@@ -3008,7 +3208,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                       </div>
                                     ) : (
                                       <p className={`whitespace-pre-wrap text-sm leading-6 break-words [overflow-wrap:anywhere] max-w-full ${isDark ? "text-white/85" : "text-zinc-800"}`}>
-                                        {getMessageText(message)}
+                                        {renderMessageWithMentions(message, isDark)}
                                       </p>
                                     )}
                                   </div>
@@ -3152,6 +3352,115 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                     </div>
                   ) : null}
 
+                                 {draftMentions.length > 0 ? (
+                    <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                      <span className={`text-[10px] font-medium uppercase tracking-[0.12em] ${isDark ? "text-white/40" : "text-black/50"}`}>
+                        Mentioning
+                      </span>
+                      {draftMentions.map((item) => (
+                        <span
+                          key={`draft-mention-${item.email || item.id}`}
+                          className={`inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-1.5 text-xs font-medium ${isDark
+                            ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/10 text-[#E8D1AB]"
+                            : "border-zinc-300 bg-zinc-100 text-black"
+                            }`}
+                        >
+                          <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold ${isDark ? "bg-[#E8D1AB] text-black" : "bg-black text-white"}`}>
+                            {getInitials(item.name)}
+                          </span>
+                          <span className="max-w-[120px] truncate">{item.name}</span>
+                          <button
+                            type="button"
+                            aria-label={`Remove mention of ${item.name}`}
+                            onClick={() => {
+                              if (item.id === "__all__") {
+                                setDraftMessage((current) => current.replace(/(^|\s)@(?:all|everyone)(?![\p{L}\p{N}_])\s?/giu, "$1"));
+                              }
+                              setDraftMentions((current) => current.filter((m) => m.id !== item.id));
+                            }}
+                            className={`rounded-full p-0.5 transition-colors ${isDark ? "hover:bg-white/10" : "hover:bg-black/10"}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {mentionState ? (
+                    <div
+                      className={`absolute inset-x-3 bottom-[calc(100%-6px)] z-30 overflow-hidden rounded-2xl border shadow-[0_20px_50px_rgba(0,0,0,0.35)] backdrop-blur lg:inset-x-auto lg:left-8 lg:w-[22rem] ${isDark ? "border-white/10 bg-[#171717]/95" : "border-zinc-200 bg-white/95"}`}
+                    >
+                      <div className={`border-b px-3 py-2 ${isDark ? "border-white/10" : "border-zinc-100"}`}>
+                        <span className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${isDark ? "text-[#E8D1AB]" : "text-zinc-500"}`}>
+                          Mention a participant
+                        </span>
+                      </div>
+
+                      <div
+                        id="mention-listbox"
+                        role="listbox"
+                        aria-label="Mention a participant"
+                        className="max-h-56 overflow-y-auto p-1.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                      >
+                        {mentionCandidates.length === 0 ? (
+                          <div className="flex flex-col items-center gap-1 px-3 py-5 text-center">
+                            <Search className={`h-5 w-5 ${isDark ? "text-white/30" : "text-zinc-300"}`} />
+                            <p className={`text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                              No participant matches &ldquo;{mentionState.query}&rdquo;
+                            </p>
+                          </div>
+                        ) : (
+                          mentionCandidates.map((participant, index) => {
+                            const isActive = index === mentionActiveIndex;
+                            const displayName = participant.isAll ? "All" : getReadableName(participant);
+                            return (
+                              <button
+                                key={`mention-option-${participant.email || participant.id}`}
+                                id={`mention-option-${index}`}
+                                type="button"
+                                role="option"
+                                aria-selected={isActive}
+                                onPointerDown={(e) => e.preventDefault()}
+                                onClick={() => selectMention(participant)}
+                                onMouseEnter={() => setMentionActiveIndex(index)}
+                                className={`relative flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors ${isActive
+                                  ? isDark ? "bg-white/[0.07]" : "bg-zinc-100"
+                                  : "bg-transparent"
+                                  }`}
+                              >
+                                {isActive ? (
+                                  <span className={`absolute left-0 top-2 bottom-2 w-0.5 rounded-full ${isDark ? "bg-[#E8D1AB]" : "bg-black"}`} />
+                                ) : null}
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#edf6dc] to-[#bcd8f0] text-xs font-semibold text-[#222]">
+                                  {getInitials(displayName)}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className={`block truncate text-sm font-medium ${isDark ? "text-white" : "text-zinc-900"}`}>
+                                    {highlightMatch(displayName, mentionState.query)}
+                                  </span>
+                                  {!participant.isAll && participant.email && participant.email !== displayName ? (
+                                    <span className={`block truncate text-[11px] ${isDark ? "text-white/40" : "text-zinc-400"}`}>
+                                      {participant.email}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] ${isDark
+                                  ? "border-white/10 bg-[#3D3D3D] text-white/55"
+                                  : "border-zinc-200 bg-zinc-50 text-zinc-600"
+                                  }`}>
+                                  {participant.isAll ? "Everyone" : getRoleLabel(participant.role)}
+                                </span>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+
+
+                    </div>
+                  ) : null}
+
                   {showComposerEmojis ? (
                     <div
                       ref={composerEmojiRef}
@@ -3201,14 +3510,19 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                     <textarea
                       ref={composerInputRef}
                       value={draftMessage}
-                      onChange={(e) => setDraftMessage(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (sending) return;
-                        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                          e.preventDefault();
-                          sendMessage();
-                        }
+                      onChange={(e) => {
+                        setDraftMessage(e.target.value);
+                        updateMentionState(e.target.value, e.target.selectionStart ?? e.target.value.length);
                       }}
+                      onKeyDown={handleComposerKeyDown}
+                      onBlur={() => window.setTimeout(() => setMentionState(null), 150)}
+                      aria-autocomplete="list"
+                      aria-haspopup="listbox"
+                      aria-expanded={Boolean(mentionState)}
+                      aria-controls={mentionState ? "mention-listbox" : undefined}
+                      aria-activedescendant={
+                        mentionState && mentionCandidates.length ? `mention-option-${mentionActiveIndex}` : undefined
+                      }
                       disabled={!selectedRoom || sending}
                       placeholder={selectedRoom ? "Message" : "Select a room to start messaging"}
                       rows={1}
