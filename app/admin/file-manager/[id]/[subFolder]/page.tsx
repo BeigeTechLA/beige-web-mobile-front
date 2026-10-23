@@ -171,8 +171,17 @@ export default function AdminFileManagerPhasePage() {
   const { user } = useAuth();
   const isSuperAdmin = Number(user?.userTypeId) === 8 || ["super_admin", "superadmin"].includes(String(user?.userRole || user?.role || "").toLowerCase().replace(/\s+/g, "_"));
   const [moveSourcePaths, setMoveSourcePaths] = useState<string[]>([]);
+  const [moveSourceLabel, setMoveSourceLabel] = useState<string | undefined>();
+  const isWorkflowFileFolder = (folder?: UiFolderItem | null) => [
+    "postproduction_raw_footage", "postproduction_edited_footage", "postproduction_final_deliverables",
+  ].includes(folder?.category || "") || /\/Post-Production\/(Raw Footage|Edits|Edited Footage|Final Deliverables)\/?$/i.test(folder?.resourcePath || "");
   const canMoveFolder = (folder?: UiFolderItem | null) => isSuperAdmin && !isCommonEventWorkspace && Boolean(folder?.resourcePath) &&
-    !["root", "preproduction", "postproduction", "postproduction_raw_footage", "postproduction_edited_footage", "postproduction_final_deliverables"].includes(folder?.category || "");
+    !["root", "preproduction", "postproduction"].includes(folder?.category || "");
+  const startMoveFolder = (folder: UiFolderItem) => {
+    if (!canMoveFolder(folder) || !folder.resourcePath) return;
+    setMoveSourceLabel(isWorkflowFileFolder(folder) ? `files in ${folder.title}` : undefined);
+    setMoveSourcePaths([folder.resourcePath]);
+  };
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceStorageName, setWorkspaceStorageName] = useState("");
@@ -848,7 +857,8 @@ export default function AdminFileManagerPhasePage() {
                               setSelectedFolder(folder);
                               setIsDeleteModalOpen(true);
                             }}
-                            onMove={canMoveFolder(folder) ? () => setMoveSourcePaths([folder.resourcePath!]) : undefined}
+                            onMove={canMoveFolder(folder) ? () => startMoveFolder(folder) : undefined}
+                            moveLabel={isWorkflowFileFolder(folder) ? "Move files" : "Move folder"}
                             deleteDisabled={!canDelete}
                             onShare={() => {
                               setSelectedFolder(folder);
@@ -946,7 +956,8 @@ export default function AdminFileManagerPhasePage() {
                           setSelectedFile(null);
                           setIsDeleteModalOpen(true);
                         }}
-                        onMove={canMoveFolder(folder) ? () => setMoveSourcePaths([folder.resourcePath!]) : undefined}
+                        onMove={canMoveFolder(folder) ? () => startMoveFolder(folder) : undefined}
+                        moveLabel={isWorkflowFileFolder(folder) ? "Move files" : "Move folder"}
                         deleteDisabled={!canDelete}
                         onShare={() => {
                           setSelectedFolder(folder);
@@ -1562,14 +1573,15 @@ export default function AdminFileManagerPhasePage() {
               setIsShareModalOpen(true);
             }}
             onDelete={() => setIsDeleteModalOpen(true)}
-            onMove={canMoveFolder(selectedFolder) ? () => setMoveSourcePaths([selectedFolder!.resourcePath!]) : undefined}
+            onMove={canMoveFolder(selectedFolder) ? () => startMoveFolder(selectedFolder!) : undefined}
+            moveLabel={isWorkflowFileFolder(selectedFolder) ? "Move files" : "Move folder"}
             onRename={() => toast.info("Folder rename is the next safe step.")}
             isDark={isDark}
           />
         )}
         {moveSourcePaths.length > 0 && (
-          <MoveEntriesModal externalId={projectId} sourcePaths={moveSourcePaths}
-            onClose={() => setMoveSourcePaths([])} onMoved={() => { setMoveSourcePaths([]); setSelectedFilePaths([]); loadPhase(); }} />
+          <MoveEntriesModal externalId={projectId} sourcePaths={moveSourcePaths} sourceLabel={moveSourceLabel}
+            onClose={() => { setMoveSourcePaths([]); setMoveSourceLabel(undefined); }} onMoved={() => { setMoveSourcePaths([]); setMoveSourceLabel(undefined); setSelectedFilePaths([]); loadPhase(); }} />
         )}
 
         <LinkToShootModal

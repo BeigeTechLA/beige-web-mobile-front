@@ -40,22 +40,25 @@ export default function MoveEntriesModal({
     try {
       let failed = 0;
       let firstFailure = "";
-      // A phase folder is expanded by the server in batches; explicit file selections
+      // A protected workflow folder is expanded by the server in batches; explicit file selections
       // are divided here so they stay below the API's per-request limit.
       const batches = sourcePaths.length === 1
         ? [sourcePaths]
         : Array.from({ length: Math.ceil(sourcePaths.length / 50) }, (_, index) => sourcePaths.slice(index * 50, (index + 1) * 50));
       for (const batch of batches) {
+        let cursor: string | undefined;
         for (;;) {
-          const result = await fileManagerApi.moveExternalEntries({ externalId, phase, targetPath: path, sourcePaths: batch });
+          const result = await fileManagerApi.moveExternalEntries({ externalId, phase, targetPath: path, sourcePaths: batch, cursor });
           moved += result.successCount;
           failed += result.failureCount;
           setMovedCount(moved);
           firstFailure ||= result.items.find((item) => !item.success)?.error || "";
-          if (!result.hasMore || !result.successCount || result.failureCount) break;
+          if (!result.hasMore || !result.nextCursor || result.nextCursor === cursor) break;
+          cursor = result.nextCursor;
         }
       }
       if (failed) toast.error(`${failed} item(s) could not be moved: ${firstFailure || "Unknown error"}`);
+      if (!moved && !failed && sourceLabel) toast.info("There are no files directly in this folder to move.");
       if (moved) {
         toast.success(`Moved ${moved} item(s)`);
         onMoved();
@@ -78,7 +81,7 @@ export default function MoveEntriesModal({
           <button type="button" onClick={onClose} disabled={moving} aria-label="Close"><X size={20} /></button>
         </div>
         <p className="mt-2 text-sm text-white/60">Choose a destination in this project. Items with a matching name at the destination will not move.</p>
-        {sourceLabel && <p className="mt-2 rounded-lg border border-[#E8D1AB]/25 bg-[#E8D1AB]/10 p-3 text-sm text-[#E8D1AB]">The Pre Production folder stays in place. Its files and subfolders move to the selected destination.</p>}
+        {sourceLabel && <p className="mt-2 rounded-lg border border-[#E8D1AB]/25 bg-[#E8D1AB]/10 p-3 text-sm text-[#E8D1AB]">The folder stays in place. Files directly inside it move to the selected destination; its subfolders stay in place.</p>}
         <div className="mt-5 flex gap-2">
           {(["pre", "post"] as const).map((value) => (
             <button key={value} type="button" disabled={moving} onClick={() => { setPhase(value); setPath(""); }}
