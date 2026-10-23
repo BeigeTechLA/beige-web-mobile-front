@@ -20,9 +20,6 @@ import {
   FolderOpen,
   Presentation,
   CheckSquare,
-  X as CloseIcon,
-  Download as DownloadIcon,
-  Trash2 as TrashIcon,
   Share2
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,6 +36,9 @@ import { FileManagerBoard } from "@/components/admin/file-manager/FileManagerBoa
 import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
 import Topbar from "@/components/admin/Topbar";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useAuth } from "@/lib/hooks/useAuth";
+import MoveEntriesModal from "@/components/admin/file-manager/MoveEntriesModal";
+import FileSelectionToolbar from "@/components/admin/file-manager/FileSelectionToolbar";
 import {
   fileManagerApi,
   getExternalWorkspaceDisplayName,
@@ -154,6 +154,9 @@ export default function SubFolderDetailsPage() {
   const isCommonEventWorkspace = isCommonEventWorkspaceId(projectId);
   const currentPhase = isCommonEventWorkspace ? undefined : phaseSlug === "post-production" ? "post" : "pre";
   const { canCreate, canDelete } = usePermissions("file_manager");
+  const { user } = useAuth();
+  const isSuperAdmin = Number(user?.userTypeId) === 8 || ["super_admin", "superadmin"].includes(String(user?.userRole || user?.role || "").toLowerCase().replace(/\s+/g, "_"));
+  const [moveSourcePaths, setMoveSourcePaths] = useState<string[]>([]);
   const folderPath = useMemo(() => {
     const queryPath = searchParams.get("path");
     const rawPath = queryPath ? tryDecodeURIComponent(queryPath).trim() : slugToWorkspaceName(nestedSlug);
@@ -194,7 +197,13 @@ export default function SubFolderDetailsPage() {
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  useEffect(() => {
+    setSelectedFilePaths([]);
+    setIsSelectionMode(false);
+  }, [projectId, currentPhase, folderPath]);
   const selectionLockActive = isSelectionMode || selectedFilePaths.length > 0;
+  const canMoveFolder = (folder: UiFolderItem) => isSuperAdmin && !isCommonEventWorkspace && !selectionLockActive && Boolean(folder.resourcePath) &&
+    !["root", "preproduction", "postproduction", "postproduction_raw_footage", "postproduction_edited_footage", "postproduction_final_deliverables"].includes(folder.category || "");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCreatingRevisionVersion, setIsCreatingRevisionVersion] = useState(false);
   const [shareResource, setShareResource] = useState<{
@@ -488,9 +497,9 @@ export default function SubFolderDetailsPage() {
     );
   };
 
-  const selectAllVisibleFiles = () => {
-    const allVisible = visibleFiles.map((file) => file.filepath || "").filter(Boolean);
-    setSelectedFilePaths(Array.from(new Set(allVisible)));
+  const selectAllFolderFiles = () => {
+    const allFolderPaths = folderFiles.map((file) => file.filepath || "").filter(Boolean);
+    setSelectedFilePaths(Array.from(new Set(allFolderPaths)));
     setIsSelectionMode(true);
   };
 
@@ -543,7 +552,8 @@ export default function SubFolderDetailsPage() {
       lastOpened={folder.lastOpened}
       userInitials={folder.userInitials}
       href={folder.href}
-      showMenu={false}
+      showMenu={canMoveFolder(folder)}
+      onMove={folder.resourcePath ? () => setMoveSourcePaths([folder.resourcePath!]) : undefined}
       onOpen={selectionLockActive ? undefined : () => openFolder(folder)}
       onOpenLinkModal={() => undefined}
     />
@@ -818,7 +828,8 @@ export default function SubFolderDetailsPage() {
                             href={folder.href}
                             onOpen={selectionLockActive ? undefined : () => router.push(folder.href)}
                             onOpenLinkModal={() => {}}
-                            showMenu={false}
+                            showMenu={canMoveFolder(folder)}
+                            onMove={folder.resourcePath ? () => setMoveSourcePaths([folder.resourcePath!]) : undefined}
                           />
                         ))}
                         {showCreateRevisionVersionCard ? renderCreateRevisionVersionCard() : null}
@@ -894,7 +905,8 @@ export default function SubFolderDetailsPage() {
                             href={folder.href}
                             onOpen={selectionLockActive ? undefined : () => router.push(folder.href)}
                             onOpenLinkModal={() => {}}
-                            showMenu={false}
+                            showMenu={canMoveFolder(folder)}
+                            onMove={folder.resourcePath ? () => setMoveSourcePaths([folder.resourcePath!]) : undefined}
                           />
                         ))}
                         {showCreateRevisionVersionCard ? renderCreateRevisionVersionCard() : null}
@@ -1128,13 +1140,14 @@ export default function SubFolderDetailsPage() {
                                 <th className="rounded-l-xl py-5 px-6 font-medium w-10">
                                   <div onClick={(e) => e.stopPropagation()}>
                                     <Checkbox
-                                      checked={visibleFiles.length > 0 && visibleFiles.every(f => selectedFilePaths.includes(f.filepath || ""))}
+                                      aria-label="Select all files in this folder"
+                                      checked={folderFiles.length > 0 && folderFiles.every(f => selectedFilePaths.includes(f.filepath || ""))}
                                       onCheckedChange={(checked: boolean | "indeterminate") => {
                                         if (checked === true) {
-                                          const allVisible = visibleFiles.map(f => f.filepath || "").filter(Boolean);
+                                          const allVisible = folderFiles.map(f => f.filepath || "").filter(Boolean);
                                           setSelectedFilePaths(prev => Array.from(new Set([...prev, ...allVisible])));
                                         } else {
-                                          const allVisible = visibleFiles.map(f => f.filepath || "");
+                                          const allVisible = folderFiles.map(f => f.filepath || "");
                                           setSelectedFilePaths(prev => prev.filter(p => !allVisible.includes(p)));
                                         }
                                       }}
@@ -1360,70 +1373,22 @@ export default function SubFolderDetailsPage() {
           resource={shareResource}
         />
 
-        {/* Batch Action Toolbar */}
-        {selectedFilePaths.length > 0 && (
-          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-[min(94vw,760px)] px-2 lg:px-4">
-            <div className={`border rounded-xl lg:rounded-2xl shadow-2xl p-3 lg:p-4 flex flex-wrap items-center justify-between gap-3 transition-colors duration-200 ${isDark ? "bg-[#171717] border-[#E8D1AB]/50" : "bg-white border-black/10"}`}>
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="bg-[#E8D1AB] text-black h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ">
-                  {selectedFilePaths.length}
-                </div>
-                <span className={`text-sm lg:text-base font-medium leading-tight ${isDark ? "text-white" : "text-black"}`}>Files selected</span>
-              </div>
-
-              <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  className={`shrink-0 gap-2 transition-colors text-sm lg:text-base ${isDark ? "text-white/70 hover:text-white hover:bg-white/10" : "text-black/70 hover:text-black hover:bg-black/5"}`}
-                  onClick={() => setSelectedFilePaths([])}
-                >
-                  Clear
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  className={`shrink-0 gap-2 transition-colors text-sm lg:text-base ${isDark ? "text-white/70 hover:text-white hover:bg-white/10" : "text-black/70 hover:text-black hover:bg-black/5"}`}
-                  onClick={selectAllVisibleFiles}
-                >
-                  <CheckSquare size={18} />
-                  Select all
-                </Button>
-
-                <div className={`hidden sm:block h-6 w-[1px] mx-1 transition-colors ${isDark ? "bg-white/10" : "bg-black/10"}`} />
-
-                <Button
-                  className={`shrink-0 gap-2 border transition-colors ${isDark
-                    ? "bg-white/10 text-white hover:bg-white/20 border-white/10"
-                    : "bg-black/5 text-black hover:bg-black/10 border-black/5"
-                    }`}
-                  onClick={handleBatchDownload}
-                >
-                  <DownloadIcon size={18} />
-                  <span className="hidden lg:block">Download</span>
-                </Button>
-
-                <Button
-                  className="shrink-0 bg-[#F04438] text-white hover:bg-[#F04438]/90 gap-2 setup-beta-tag disabled:cursor-not-allowed disabled:opacity-40"
-                  onClick={() => {
-                    if (!canDelete) return;
-                    setIsDeleteModalOpen(true);
-                  }}
-                  disabled={!canDelete}
-                  title={canDelete ? "Delete selected" : "Delete permission not allowed"}
-                >
-                  <TrashIcon size={18} />
-                  <span className="hidden lg:block">Delete</span>
-                </Button>
-              </div>
-
-              <button
-                onClick={() => setSelectedFilePaths([])}
-                className={`shrink-0 transition-colors ${isDark ? "text-white/40 hover:text-white" : "text-black/40 hover:text-black"}`}
-              >
-                <CloseIcon size={20} />
-              </button>
-            </div>
-          </div>
+        {/* Folder selection actions */}
+        {moveSourcePaths.length > 0 && <MoveEntriesModal externalId={projectId} sourcePaths={moveSourcePaths}
+          onClose={() => setMoveSourcePaths([])} onMoved={() => { setMoveSourcePaths([]); setSelectedFilePaths([]); loadFiles(); }} />}
+        {(isSelectionMode || selectedFilePaths.length > 0) && folderFiles.length > 0 && (
+          <FileSelectionToolbar
+            selectedCount={selectedFilePaths.length}
+            folderCount={folderFiles.length}
+            isDark={isDark}
+            canDelete={Boolean(canDelete)}
+            canMove={isSuperAdmin && !isCommonEventWorkspace}
+            onSelectAll={selectAllFolderFiles}
+            onClear={() => { setSelectedFilePaths([]); setIsSelectionMode(false); }}
+            onMove={() => setMoveSourcePaths(selectedFilePaths)}
+            onDownload={handleBatchDownload}
+            onDelete={() => setIsDeleteModalOpen(true)}
+          />
         )}
 
         {/* --- FLOATING MOBILE BUTTON --- */}

@@ -20,6 +20,8 @@ import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManag
 import EmptyFolderState from "@/components/admin/file-manager/EmptyFolderState";
 import Topbar from "@/components/admin/Topbar";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useAuth } from "@/lib/hooks/useAuth";
+import MoveEntriesModal from "@/components/admin/file-manager/MoveEntriesModal";
 import {
   fileManagerApi,
   getExternalWorkspaceDisplayName,
@@ -59,6 +61,9 @@ export default function AdminFolderDetailsPage() {
   const { isDark } = useResolvedTheme();
   const routeStateKey = getFileManagerRouteStateKey(pathname);
   const { canDelete } = usePermissions("file_manager");
+  const { user } = useAuth();
+  const isSuperAdmin = Number(user?.userTypeId) === 8 || ["super_admin", "superadmin"].includes(String(user?.userRole || user?.role || "").toLowerCase().replace(/\s+/g, "_"));
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceCode, setWorkspaceCode] = useState("");
@@ -445,6 +450,8 @@ export default function AdminFolderDetailsPage() {
                           setSelectedFolder(folder);
                           setIsDeleteModalOpen(true);
                         }}
+                        onMove={isSuperAdmin && !isCommonEventWorkspace && folder.rawName?.toLowerCase().includes("pre-production") ? () => { setSelectedFolder(folder); setIsMoveModalOpen(true); } : undefined}
+                        moveLabel="Move contents"
                         deleteDisabled={!canDelete}
                         onShare={() => {
                           setSelectedFolder(folder);
@@ -494,6 +501,8 @@ export default function AdminFolderDetailsPage() {
                           setSelectedFolder(folder);
                           setIsDeleteModalOpen(true);
                         }}
+                        onMove={isSuperAdmin && !isCommonEventWorkspace && folder.rawName?.toLowerCase().includes("pre-production") ? () => { setSelectedFolder(folder); setIsMoveModalOpen(true); } : undefined}
+                        moveLabel="Move contents"
                         deleteDisabled={!canDelete}
                         onShare={() => {
                           setSelectedFolder(folder);
@@ -589,9 +598,15 @@ export default function AdminFolderDetailsPage() {
               setIsShareModalOpen(true);
             }}
             onDelete={() => setIsDeleteModalOpen(true)}
+            onMove={isSuperAdmin && !isCommonEventWorkspace && selectedFolder?.rawName?.toLowerCase().includes("pre-production") ? () => setIsMoveModalOpen(true) : undefined}
+            moveLabel="Move contents"
             onRename={() => toast.info("Folder rename is the next safe step.")}
             isDark={isDark}
           />
+        )}
+        {isMoveModalOpen && selectedFolder?.resourcePath && (
+          <MoveEntriesModal externalId={projectId} sourcePaths={[selectedFolder.resourcePath]} sourceLabel={`contents of ${selectedFolder.title}`}
+            onClose={() => setIsMoveModalOpen(false)} onMoved={() => { setIsMoveModalOpen(false); loadWorkspace(); }} />
         )}
 
         <LinkToShootModal
