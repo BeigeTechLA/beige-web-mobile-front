@@ -86,7 +86,7 @@ const buildPaginationItems = (currentPage: number, totalPages: number) => {
 
 function StatusPill({ status }: { status: PermissionStatus }) {
   const active = status === "Active";
-  const displayStatus = active ? "Active" : "Archived";
+  const displayStatus = active ? "Active" : "Inactive";
 
   return (
     <span
@@ -538,7 +538,7 @@ export function PermissionUsersTable({
                 <SelectContent className={selectContentClass}>
                   <SelectItem value="all">Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="in-active">Archived</SelectItem>
+                  <SelectItem value="in-active">Inactive</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -803,7 +803,7 @@ export function PermissionUsersTable({
                           <UserLoginHistoryAction user={{ id: user.id, name: user.name, email: user.subtitle }} />
                           <button
                             type="button"
-                            title="View archive history"
+                            title="View inactive history"
                             className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition ${isDark ? "bg-white/5 text-white/60 hover:bg-[#E8D1AB]/10 hover:text-[#E8D1AB]" : "bg-black/[0.04] text-[#32323299] hover:bg-[#E8D1AB]/10 hover:text-[#8E6A2A]"}`}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -815,7 +815,7 @@ export function PermissionUsersTable({
                           <button
                             type="button"
                             disabled={!onEdit || user.status !== "Active"}
-                            title={user.status === "Active" ? "Edit user" : "Archived users cannot be edited"}
+                            title={user.status === "Active" ? "Edit user" : "Inactive users cannot be edited"}
                             className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white" : "bg-black/[0.04] text-[#32323299] hover:bg-black/[0.08] hover:text-[#101010]"}`}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -855,7 +855,7 @@ export function PermissionUsersTable({
                           <button
                             type="button"
                             disabled={!canOpenUser || user.status !== "Active"}
-                            title={user.status === "Active" ? "Open details" : "Archived users do not open details"}
+                            title={user.status === "Active" ? "Open details" : "Inactive users do not open details"}
                             className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white" : "bg-black/[0.04] text-[#32323299] hover:bg-black/[0.08] hover:text-[#101010]"}`}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -966,7 +966,7 @@ export function PermissionUsersTable({
                               <UserLoginHistoryAction user={{ id: user.id, name: user.name, email: user.subtitle }} />
                               <button
                                 type="button"
-                                title="View archive history"
+                                title="View inactive history"
                                 className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
                                 onClick={(event) => {
                                   event.stopPropagation();
@@ -979,7 +979,7 @@ export function PermissionUsersTable({
                               <button
                                 type="button"
                                 disabled={!onEdit || user.status !== "Active"}
-                                title={user.status === "Active" ? "Edit user" : "Archived users cannot be edited"}
+                                title={user.status === "Active" ? "Edit user" : "Inactive users cannot be edited"}
                                 className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
                                 onClick={(event) => {
                                   event.stopPropagation();
@@ -1019,7 +1019,7 @@ export function PermissionUsersTable({
                               <button
                                 type="button"
                                 disabled={!canOpenUser || user.status !== "Active"}
-                                title={user.status === "Active" ? "Open details" : "Archived users do not open details"}
+                                title={user.status === "Active" ? "Open details" : "Inactive users do not open details"}
                                 className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
                                 onClick={(event) => {
                                   event.stopPropagation();
@@ -1128,7 +1128,7 @@ export function PermissionUsersTable({
         }}
         onConfirm={handleBulkDelete}
         title="Delete Selected Users"
-        description={`Are you sure you want to delete ${selectedRows.length} selected user${selectedRows.length === 1 ? "" : "s"}? This will move ${selectedRows.length === 1 ? "the user" : "them"} to the archived user list.`}
+        description={`Are you sure you want to delete ${selectedRows.length} selected user${selectedRows.length === 1 ? "" : "s"}? This will move ${selectedRows.length === 1 ? "the user" : "them"} to the inactive user list.`}
         tone="danger"
         confirmLabel="Delete"
         cancelLabel="Cancel"
@@ -1156,7 +1156,7 @@ export function PermissionUsersTable({
           >
             {/* Header */}
             <div className={`flex items-center justify-between px-[22px] pb-5 pt-[22px] border-b ${isDark ? "border-white/[0.08]" : "border-[#E3E3E3]"}`}>
-              <h2 className="text-[19px] font-bold tracking-[-0.3px]">Archive Users History</h2>
+              <h2 className="text-[19px] font-bold tracking-[-0.3px]">Inactive Users History</h2>
               <button
                 type="button"
                 onClick={() => setHistoryUser(null)}
@@ -1249,7 +1249,7 @@ export function PermissionUsersTable({
               ) : (
                 <div className={`flex h-full flex-col items-center justify-center rounded-lg border px-6 text-center ${isDark ? "border-[#333] bg-white/[0.02]" : "border-[#E3E3E3] bg-white"}`}>
                   <History size={28} className="text-[#C9A96E]" />
-                  <p className={`mt-3 text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>No archive history found</p>
+                  <p className={`mt-3 text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>No inactive history found</p>
                   <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-[#32323266]"}`}>This user has not been deleted or restored yet.</p>
                 </div>
               )}

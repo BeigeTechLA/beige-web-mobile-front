@@ -451,7 +451,7 @@ export default function AdminFolderDetailsPage() {
                           setIsDeleteModalOpen(true);
                         }}
                         onMove={isSuperAdmin && !isCommonEventWorkspace && folder.rawName?.toLowerCase().includes("pre-production") ? () => { setSelectedFolder(folder); setIsMoveModalOpen(true); } : undefined}
-                        moveLabel="Move contents"
+                        moveLabel="Move files"
                         deleteDisabled={!canDelete}
                         onShare={() => {
                           setSelectedFolder(folder);
@@ -502,7 +502,7 @@ export default function AdminFolderDetailsPage() {
                           setIsDeleteModalOpen(true);
                         }}
                         onMove={isSuperAdmin && !isCommonEventWorkspace && folder.rawName?.toLowerCase().includes("pre-production") ? () => { setSelectedFolder(folder); setIsMoveModalOpen(true); } : undefined}
-                        moveLabel="Move contents"
+                        moveLabel="Move files"
                         deleteDisabled={!canDelete}
                         onShare={() => {
                           setSelectedFolder(folder);
@@ -599,13 +599,13 @@ export default function AdminFolderDetailsPage() {
             }}
             onDelete={() => setIsDeleteModalOpen(true)}
             onMove={isSuperAdmin && !isCommonEventWorkspace && selectedFolder?.rawName?.toLowerCase().includes("pre-production") ? () => setIsMoveModalOpen(true) : undefined}
-            moveLabel="Move contents"
+            moveLabel="Move files"
             onRename={() => toast.info("Folder rename is the next safe step.")}
             isDark={isDark}
           />
         )}
         {isMoveModalOpen && selectedFolder?.resourcePath && (
-          <MoveEntriesModal externalId={projectId} sourcePaths={[selectedFolder.resourcePath]} sourceLabel={`contents of ${selectedFolder.title}`}
+          <MoveEntriesModal externalId={projectId} sourcePaths={[selectedFolder.resourcePath]} sourceLabel={`files in ${selectedFolder.title}`}
             onClose={() => setIsMoveModalOpen(false)} onMoved={() => { setIsMoveModalOpen(false); loadWorkspace(); }} />
         )}
 

@@ -1353,6 +1353,7 @@ export const fileManagerApi = {
     phase: "pre" | "post";
     targetPath: string;
     sourcePaths: string[];
+    cursor?: string;
   }) {
     const response = await apiClient.post<{
       success: boolean;
@@ -1361,6 +1362,7 @@ export const fileManagerApi = {
         successCount: number;
         failureCount: number;
         hasMore?: boolean;
+        nextCursor?: string | null;
         items: Array<{ sourcePath: string; destinationPath?: string; success: boolean; error?: string }>;
       };
     }>("external-file-manager/move-entries", payload);

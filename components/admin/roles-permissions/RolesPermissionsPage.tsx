@@ -436,7 +436,7 @@ useEffect(() => {
       setSuccessModal({
         isOpen: true,
         title: "Users Deleted Successfully",
-        subtext: `${affectedCount} user${affectedCount === 1 ? "" : "s"} ${affectedCount === 1 ? "has" : "have"} been moved to the archived user list.`,
+        subtext: `${affectedCount} user${affectedCount === 1 ? "" : "s"} ${affectedCount === 1 ? "has" : "have"} been moved to the inactive user list.`,
         buttonText: "Done",
       });
 
