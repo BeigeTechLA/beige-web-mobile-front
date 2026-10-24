@@ -1,6 +1,8 @@
 "use client";
 
-import React, { Fragment, useEffect, useMemo, useState } from "react";
+import React, { Fragment, useEffect, useState } from "react";
+import { format, parseISO } from "date-fns";
+import { adminApi } from "@/lib/api";
 import {
   ChevronDown,
   ChevronLeft,
@@ -22,13 +24,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-/* ---------- Static mock data (replace with API later) ---------- */
 type ShootStatus = "Paid" | "Pending" | "Failed";
 
 type InvoiceRow = {
   id: string;
   date: string;
-  method: "Credit Card" | "Bank Transfer";
+  method: string;
   status: ShootStatus;
   amount: number;
   note: string;
@@ -57,23 +58,7 @@ const makeInvoices = (code: string, total: number, status: ShootStatus): Invoice
   ];
 };
 
-const BASE: Omit<ShootRow, "id" | "invoices">[] = [
-  { shootId: "#1234", project: "Music Video", date: "Jan 13, 2026", tint: "#FED1EF", service: "Videography", amount: 12000, invoiceCount: 2, method: "Stripe", status: "Paid" },
-  { shootId: "#1234", project: "Baby Shower Shoot", date: "Jan 13, 2026", tint: "#FFF6DA", service: "Photography", amount: 8000, invoiceCount: 2, method: "Bank Transfer", status: "Failed" },
-  { shootId: "#1234", project: "Ring Ceremony Shoot", date: "Jan 13, 2026", tint: "#FFF6DA", service: "Photography", amount: 14000, invoiceCount: 2, method: "Stripe", status: "Paid" },
-  { shootId: "#1234", project: "Maya Product Shoot", date: "Jan 13, 2026", tint: "#D1FAD7", service: "Photo + Video", amount: 4000, invoiceCount: 2, method: "Stripe", status: "Pending" },
-  { shootId: "#1234", project: "Gym Opening Shoot", date: "Jan 13, 2026", tint: "#FFF6DA", service: "Videography", amount: 15000, invoiceCount: 2, method: "Stripe", status: "Pending" },
-  { shootId: "#1234", project: "Wedding Shoot", date: "Jan 13, 2026", tint: "#FFF6DA", service: "Photography", amount: 6000, invoiceCount: 2, method: "Bank Transfer", status: "Pending" },
-  { shootId: "#1234", project: "Podcast Shoot", date: "Jan 13, 2026", tint: "#FFF6DA", service: "Videography", amount: 8200, invoiceCount: 2, method: "Bank Transfer", status: "Pending" },
-  { shootId: "#1234", project: "Collab Shoot", date: "Jan 13, 2026", tint: "#E5E7EB", service: "Videography", amount: 4500, invoiceCount: 2, method: "Stripe", status: "Pending" },
-];
 
-// 2 pages of mock data
-const MOCK_ROWS: ShootRow[] = [...BASE, ...BASE].map((r, i) => ({
-  ...r,
-  id: String(i + 1),
-  invoices: makeInvoices(String(i + 1).padStart(3, "0"), r.amount, r.status),
-}));
 
 const STATUS_STYLES: Record<ShootStatus, string> = {
   Paid: "bg-[#D4FFE4] text-[#16A34A]",
@@ -81,8 +66,31 @@ const STATUS_STYLES: Record<ShootStatus, string> = {
   Failed: "bg-[#FEF3F2] text-[#B42318]",
 };
 
-const formatCurrency = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+const TINTS = ["#FED1EF", "#FFF6DA", "#FFFFFF", "#D1FAD7", "#E5E7EB"];
+const tintFor = (key: string) => {
+  let h = 0;
+  for (let i = 0; i < key.length; i += 1) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return TINTS[h % TINTS.length];
+};
+
+const formatRowDate = (d: string | null) => {
+  if (!d) return "—";
+  try { return format(parseISO(d), "MMM dd, yyyy"); } catch { return d; }
+};
+
+const PERIOD_PARAM: Record<string, "last_30_days" | "this_quarter" | "this_year" | undefined> = {
+  "Month": undefined,
+  "Last 30 Days": "last_30_days",
+  "This Quarter": "this_quarter",
+  "This Year": "this_year",
+};
+
+const formatCurrency = (n: number) => new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+}).format(n);
 
 const pageList = (current: number, total: number): Array<number | "…"> => {
   const items: Array<number | "…"> = [];
@@ -97,11 +105,25 @@ const pageList = (current: number, total: number): Array<number | "…"> => {
 interface PartnerShootHistoryPanelProps {
   open: boolean;
   cpName: string;
+  /** "cp" = Creative Partner (entityId = creator id), "client" = client (entityId = "user:<id>" | "guest:<email>") */
+  entityType: "cp" | "client";
+  entityId: string;
+  /** Page-level date range (yyyy-MM-dd), same as the analytics request */
+  startDate?: string | null;
+  endDate?: string | null;
   /** API loading state (pass from page when API is ready) */
   loading?: boolean;
 }
 
-export default function PartnerShootHistoryPanel({ open, cpName, loading = false }: PartnerShootHistoryPanelProps) {
+export default function PartnerShootHistoryPanel({
+  open,
+  cpName,
+  entityType,
+  entityId,
+  startDate = null,
+  endDate = null,
+  loading = false,
+}: PartnerShootHistoryPanelProps) {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [snapName, setSnapName] = useState(cpName); // keeps the title while collapsing
@@ -111,49 +133,101 @@ export default function PartnerShootHistoryPanel({ open, cpName, loading = false
   const [typeFilter, setTypeFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [rows, setRows] = useState<ShootRow[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [error, setError] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const itemsPerPage = 10;
-
   useEffect(() => setMounted(true), []);
 
-  // Reset + fake loading when a different CP is opened (TEMP: delete when API is wired)
+  // Reset when a different CP / client is opened
   useEffect(() => {
     if (!open) return;
     setSnapName(cpName);
     setSearch("");
+    setDebouncedSearch("");
     setStatusFilter("All");
     setMonthFilter("Month");
     setTypeFilter("All");
     setCurrentPage(1);
     setExpandedId(null);
-    setIsFetching(true);
-    const t = setTimeout(() => setIsFetching(false), 600);
-    return () => clearTimeout(t);
-  }, [open, cpName]);
+    setRows([]);
+    setError(null);
+  }, [open, entityType, entityId, cpName]);
 
-  useEffect(() => setCurrentPage(1), [search, statusFilter, typeFilter]);
-
-  // TEMP: pagination par pan fake loading (API aave tyare delete karo)
   useEffect(() => {
-    if (!open) return;
-    setIsFetching(true);
-    const t = setTimeout(() => setIsFetching(false), 600);
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 400);
     return () => clearTimeout(t);
-  }, [currentPage]);
+  }, [search]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return MOCK_ROWS.filter((r) => {
-      if (statusFilter !== "All" && r.status !== statusFilter) return false;
-      if (typeFilter !== "All" && r.service !== typeFilter) return false;
-      if (q && !`${r.shootId} ${r.project} ${r.invoices.map((i) => i.id).join(" ")}`.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [search, statusFilter, typeFilter]);
+  useEffect(() => {
+    setCurrentPage(1);
+    setExpandedId(null);
+  }, [debouncedSearch, statusFilter, monthFilter, typeFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  useEffect(() => {
+    if (!open || !entityId) return;
+    const controller = new AbortController();
+    setIsFetching(true);
+    setError(null);
+
+    adminApi
+      .getFinanceShootHistory(
+        {
+          entity_type: entityType,
+          entity_id: entityId,
+          search: debouncedSearch || undefined,
+          status: statusFilter === "All" ? undefined : (statusFilter as "Paid" | "Pending" | "Failed"),
+          period: PERIOD_PARAM[monthFilter],
+          service_type: typeFilter === "All" ? undefined : typeFilter,
+          page: currentPage,
+          limit: itemsPerPage,
+          ...(startDate && endDate ? { start_date: startDate, end_date: endDate } : {}),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata",
+        },
+        controller.signal,
+      )
+      .then((res) => {
+        if (res.canceled) return;
+        if (!res.success || !res.data) {
+          setRows([]);
+          setTotalPages(1);
+          setError(res.error || "Failed to load shoot history.");
+        } else {
+          setRows(
+            res.data.rows.map((r) => ({
+              id: r.id,
+              shootId: r.shoot_id,
+              project: r.project_name,
+              date: formatRowDate(r.date),
+              tint: tintFor(r.project_name),
+              service: r.service_type,
+              amount: r.total_amount,
+              invoiceCount: r.invoice_count,
+              method: r.payment_method,
+              status: r.status,
+              invoices: r.invoices.map((inv) => ({
+                id: inv.id,
+                date: formatRowDate(inv.date),
+                method: inv.method,
+                status: inv.status,
+                amount: inv.amount,
+                note: inv.note,
+              })),
+            })),
+          );
+          setTotalPages(Math.max(1, res.data.pagination.total_pages));
+          if (res.data.pagination.page !== currentPage) setCurrentPage(res.data.pagination.page);
+        }
+        setIsFetching(false);
+      });
+
+    return () => controller.abort();
+  }, [open, entityType, entityId, startDate, endDate, debouncedSearch, statusFilter, monthFilter, typeFilter, currentPage]);
+
   const safePage = Math.min(currentPage, totalPages);
-  const visibleRows = filtered.slice((safePage - 1) * itemsPerPage, safePage * itemsPerPage);
+  const visibleRows = rows;
   const showLoader = loading || isFetching;
 
   if (!mounted) return null;
@@ -252,7 +326,7 @@ export default function PartnerShootHistoryPanel({ open, cpName, loading = false
                 ) : visibleRows.length === 0 ? (
                   <tr>
                     <td colSpan={8} className={`py-10 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
-                      No shoots found.
+                      {error ?? "No shoots found."}
                     </td>
                   </tr>
                 ) : (
@@ -262,7 +336,7 @@ export default function PartnerShootHistoryPanel({ open, cpName, loading = false
                       <Fragment key={row.id}>
                         <tr
                           onClick={() => setExpandedId(isExpanded ? null : row.id)}
-                          className={`cursor-pointer transition-all duration-300 ${expandedId && !isExpanded ? 'opacity-40' : 'opacity-100'} ${isExpanded ? (isDark ? "bg-white/[0.04]" : "bg-black/[0.03]") : isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.03]"}`}
+                          className={`cursor-pointer transition-colors duration-300 ${isExpanded ? (isDark ? "bg-white/[0.04]" : "bg-black/[0.03]") : isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.03]"}`}
                         >
                           <td className={`px-5 py-[9px] text-sm ${isDark ? "text-white" : "text-[#171717]"}`}>
                             <div className="flex items-center gap-2">
@@ -316,9 +390,12 @@ export default function PartnerShootHistoryPanel({ open, cpName, loading = false
                                 <div className="flex items-center gap-2">
                                   <FileText size={16} className={isDark ? "text-[#D3B98A]" : "text-[#8B6B36]"} />
                                   <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
-                                    Invoices for SH-{String(row.id).padStart(3, "0")}
+                                    Invoices for {row.shootId}
                                   </p>
                                 </div>
+                                {row.invoices.length === 0 && (
+                                  <p className={`text-xs ${muted}`}>No payment records for this shoot yet.</p>
+                                )}
                                 {row.invoices.map((inv) => (
                                   <div
                                     key={inv.id}
@@ -330,7 +407,7 @@ export default function PartnerShootHistoryPanel({ open, cpName, loading = false
                                         <p className={`mt-1 text-xs ${isDark ? "text-[#A0A0A0]" : "text-[#777]"}`}>{inv.date}</p>
                                       </div>
                                       <div className="flex items-center gap-2">
-                                        {inv.method === "Credit Card" ? (
+                                        {/card|stripe/i.test(inv.method) ? (
                                           <CreditCard size={16} className={isDark ? "text-[#A0A0A0]" : "text-[#777]"} />
                                         ) : (
                                           <Landmark size={16} className={isDark ? "text-[#A0A0A0]" : "text-[#777]"} />

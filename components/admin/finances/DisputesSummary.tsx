@@ -1,10 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { format, subDays } from 'date-fns';
 import { Info, ArrowUpRight } from 'lucide-react';
 import DisputeHistoryPanel, { type DisputeHistoryItem } from '@/components/admin/finances/analytics/DisputeHistoryPanel';
 import { useTheme } from "next-themes";
 import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
+import { financeTransactionsApi, type AdminFinanceDisputeApiRow } from '@/lib/api/financeTransactions';
 
 /* ------------------------------------------------------------------ */
 /* Dummy data                                                          */
@@ -22,48 +25,55 @@ export interface DisputeMetric {
 
 type Disputes = FinanceAnalyticsData['disputes'];
 
-// TODO: replace with real API data later
-const STATIC_DISPUTES: DisputeHistoryItem[] = [
-  {
-    id: 'DIS-001',
-    shootId: 'SH-004',
-    invoiceId: 'INV-004-B',
-    category: 'Quality Issue',
-    description: 'The final photos did not meet the agreed quality standards.',
-    raisedBy: 'Emily Johnson',
-    raisedRole: 'Client',
-    raisedDate: '19-04-2026',
-    disputedAmount: '$5,000',
-    payoutHold: '$4,500',
-    status: 'Open',
-  },
-  {
-    id: 'DIS-002',
-    shootId: 'SH-005',
-    invoiceId: 'INV-005-A',
-    category: 'Payment Delay',
-    description: 'Payout has been delayed beyond the agreed timeline.',
-    raisedBy: 'Ryan Cooper',
-    raisedRole: 'Creator',
-    raisedDate: '17-04-2026',
-    disputedAmount: '$4,200',
-    payoutHold: '$3,696',
-    status: 'Open',
-  },
-  {
-    id: 'DIS-003',
-    shootId: 'SH-006',
-    invoiceId: 'INV-006-A',
-    category: 'Wrong Deliverable',
-    description: 'Received wrong edited files.',
-    raisedBy: 'Marcus Reid',
-    raisedRole: 'Client',
-    raisedDate: '22-03-2026',
-    disputedAmount: '$3,200',
-    payoutHold: '$1,200',
-    status: 'Open',
-  },
-];
+const DISPUTES_PER_PAGE = 10;
+const METRIC_STATUSES: Partial<Record<DisputeMetricId, string[]>> = {
+  resolved: ['resolved'],
+  pending: ['open'],
+  active: ['in_review', 'escalated'],
+};
+const formatMoney = (value: number | string | null | undefined) => {
+  const amount = Number(value || 0);
+  return `$${(Number.isFinite(amount) ? amount : 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+};
+const formatDisputeStatus = (value: string | null | undefined): DisputeHistoryItem['status'] => {
+  const status = String(value || '').toLowerCase();
+  if (status === 'in_review') return 'In Review';
+  if (status === 'resolved') return 'Resolved';
+  if (status === 'rejected') return 'Rejected';
+  if (status === 'escalated') return 'Escalated';
+  return 'Open';
+};
+const mapDispute = (row: AdminFinanceDisputeApiRow): DisputeHistoryItem => {
+  const createdAt = row.created_at ? new Date(row.created_at) : null;
+  const role = String(row.raised_by?.type || '').toLowerCase();
+  const bookingId = String(row.booking_id || row.shoot_id || '').replace(/^SH-/i, '');
+  return {
+    disputeId: row.dispute_id || row.dispute_code || '',
+    rawStatus: row.status || 'open',
+    id: row.dispute_code || (row.dispute_id ? `DIS-${row.dispute_id}` : '—'),
+    shootId: bookingId ? `SH-${bookingId.padStart(3, '0')}` : '—',
+    invoiceId: row.invoice_id || (row.invoice_send_history_id ? `INV-${row.invoice_send_history_id}` : '—'),
+    category: row.issue_type || row.category || 'Other',
+    description: row.description || row.subject || '—',
+    raisedBy: row.raised_by?.name || row.client?.name || row.creator?.name || '—',
+    raisedRole: role === 'creator' ? 'Creator' : role === 'admin' ? 'Admin' : 'Client',
+    raisedDate: createdAt && !Number.isNaN(createdAt.getTime()) ? format(createdAt, 'dd-MM-yyyy') : '—',
+    disputedAmount: formatMoney(row.disputed_amount),
+    payoutHold: formatMoney(row.impacted_payout_amount ?? row.payout_hold_amount),
+    status: formatDisputeStatus(row.status),
+  };
+};
+const getPeriodRange = (period: string) => {
+  if (period === 'Month') return {};
+  const end = new Date();
+  const start = new Date(end);
+  if (period === 'Last 30 Days') start.setTime(subDays(end, 30).getTime());
+  else if (period === 'This Quarter') start.setMonth(Math.floor(start.getMonth() / 3) * 3, 1);
+  else if (period === 'This Year') start.setMonth(0, 1);
+  const inclusiveEnd = new Date(end);
+  inclusiveEnd.setDate(inclusiveEnd.getDate() + 1);
+  return { date_from: format(start, 'yyyy-MM-dd'), date_to: format(inclusiveEnd, 'yyyy-MM-dd') };
+};
 
 const buildMetrics = (d: Disputes | null | undefined): DisputeMetric[] => [
   { id: 'raised', label: 'Disputes Raised', info: 'Total new Disputes raised.', value: d?.raised ?? 0, textColor: 'text-white' },
@@ -179,6 +189,7 @@ interface DisputesSummaryProps {
 }
 
 export default function DisputesSummary({ data = null, loading = false }: DisputesSummaryProps) {
+  const router = useRouter();
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const isLoading = loading;
@@ -192,19 +203,61 @@ export default function DisputesSummary({ data = null, loading = false }: Disput
   // Which metric row is expanded
   const [expandedId, setExpandedId] = useState<DisputeMetricId | null>(null);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [monthFilter, setMonthFilter] = useState('Month');
   const [typeFilter, setTypeFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [disputes, setDisputes] = useState<DisputeHistoryItem[]>([]);
+  const [totalDisputes, setTotalDisputes] = useState(0);
+  const [disputesLoading, setDisputesLoading] = useState(false);
+  const periodRange = useMemo(() => getPeriodRange(monthFilter), [monthFilter]);
+  const totalPages = Math.max(1, Math.ceil(totalDisputes / DISPUTES_PER_PAGE));
+  const metricStatuses = expandedId ? METRIC_STATUSES[expandedId] : undefined;
+  const selectedApiStatus = statusFilter === 'All' ? undefined : statusFilter.toLowerCase().replaceAll(' ', '_');
+  const matchingMetricStatuses = metricStatuses?.filter((value) => !selectedApiStatus || value === selectedApiStatus);
+  const statusParam = metricStatuses
+    ? matchingMetricStatuses?.length ? matchingMetricStatuses.join(',') : '__no_matching_status__'
+    : selectedApiStatus;
 
-  const filteredDisputes = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return STATIC_DISPUTES.filter(
-      (d) =>
-        (statusFilter === 'All' || d.status === statusFilter) &&
-        (typeFilter === 'All' || d.raisedRole === typeFilter) &&
-        (!q || d.id.toLowerCase().includes(q) || d.raisedBy.toLowerCase().includes(q))
-    );
-  }, [search, statusFilter, typeFilter]);
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  useEffect(() => setCurrentPage(1), [debouncedSearch, statusFilter, monthFilter, typeFilter]);
+
+  useEffect(() => {
+    if (!expandedId) return;
+    let cancelled = false;
+    setDisputesLoading(true);
+    void financeTransactionsApi.listAdminDisputes({
+      page: currentPage,
+      limit: DISPUTES_PER_PAGE,
+      search: debouncedSearch || undefined,
+      status: statusParam,
+      raised_by_type: typeFilter === 'All' ? undefined : typeFilter.toLowerCase(),
+      sort_by: 'created_at',
+      sort_dir: 'DESC',
+      ...periodRange,
+    }).then((response) => {
+      if (cancelled) return;
+      const result = response.data;
+      const nextRows = result?.rows || [];
+      setDisputes(nextRows.map(mapDispute));
+      setTotalDisputes(Number(result?.pagination?.total || 0));
+      const apiPage = Number(result?.pagination?.page || currentPage);
+      if (apiPage !== currentPage) setCurrentPage(apiPage);
+    }).catch((error) => {
+      if (cancelled) return;
+      console.error('Failed to load analytics dispute history:', error);
+      setDisputes([]);
+      setTotalDisputes(0);
+    }).finally(() => {
+      if (!cancelled) setDisputesLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [expandedId, currentPage, debouncedSearch, statusParam, typeFilter, periodRange]);
 
   return (
     <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full p-5 ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
@@ -253,7 +306,11 @@ export default function DisputesSummary({ data = null, loading = false }: Disput
                         type="button"
                         aria-label={`${expandedId === m.id ? 'Hide' : 'View'} ${m.label}`}
                         aria-expanded={expandedId === m.id}
-                        onClick={() => setExpandedId((prev) => (prev === m.id ? null : m.id))}
+                        onClick={() => setExpandedId((prev) => {
+                          if (prev === m.id) return null;
+                          setStatusFilter('All');
+                          return m.id;
+                        })}
                         className={`absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center rounded-full p-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#E8D1AB] ${isDark ? 'text-black' : 'text-[#171717]'}`}
                       >
                         <ArrowUpRight
@@ -276,7 +333,8 @@ export default function DisputesSummary({ data = null, loading = false }: Disput
               {expandedId === m.id && (
                 <div className="mt-4">
                   <DisputeHistoryPanel
-                    items={filteredDisputes}
+                    items={disputes}
+                    loading={disputesLoading}
                     searchValue={search}
                     onSearchChange={setSearch}
                     statusValue={statusFilter}
@@ -285,7 +343,14 @@ export default function DisputesSummary({ data = null, loading = false }: Disput
                     onMonthChange={setMonthFilter}
                     typeValue={typeFilter}
                     onTypeChange={setTypeFilter}
-                    onViewDetails={(item) => console.log('View details', item.id)}
+                    currentPage={currentPage}
+                    totalItems={totalDisputes}
+                    totalPages={totalPages}
+                    itemsPerPage={DISPUTES_PER_PAGE}
+                    onPageChange={setCurrentPage}
+                    onViewDetails={(item) => {
+                      if (item.disputeId) router.push(`/admin/finances/disputes?dispute_id=${encodeURIComponent(item.disputeId)}`);
+                    }}
                   />
                 </div>
               )}

@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, EllipsisVertical, Loader2, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import { getInitials } from "@/lib/utils";
+import { adminApi } from "@/lib/api";
+import type { FinancePayoutScheduleRow } from "@/lib/api";
 
-/* ---------- Static mock data (API aave tyare replace karvu) ---------- */
 type PayoutStatus = "Pending" | "Partially Paid" | "Finance Approval" | "Approved" | "Fully Paid";
 type DueTone = "amber" | "red" | "blue";
 
@@ -25,17 +26,23 @@ type PayoutRow = {
   status: PayoutStatus;
 };
 
-const BASE: Omit<PayoutRow, "id">[] = [
-  { name: "Raj Verma", roles: "Videographer", tint: "#FED1EF", shootId: "#12345", created: "01/06/2026", customer: "Alex Morgan", shootAmount: 50000, payout: 12500, due: "10/06/2026", dueTone: "amber", pending: 5000, status: "Pending" },
-  { name: "Daniel Foster", roles: "Videographer + Photographer", tint: "#FFF6DA", shootId: "#12345", created: "01/06/2026", customer: "Ethan Carter", shootAmount: 20000, payout: 10000, due: "Today", dueTone: "red", pending: 4000, status: "Partially Paid" },
-  { name: "Liam Parker", roles: "Videographer + Photographer", tint: "#D1FAD7", shootId: "#12345", created: "01/06/2026", customer: "Maya Ross", shootAmount: 45000, payout: 25000, due: "Today", dueTone: "red", pending: 10000, status: "Finance Approval" },
-  { name: "Noah Bennett", roles: "Photographer", tint: "#FFF6DA", shootId: "#12345", created: "01/06/2026", customer: "John Lee", shootAmount: 10000, payout: 5000, due: "15/06/2026", dueTone: "blue", pending: 2000, status: "Approved" },
-  { name: "James Carter", roles: "Videographer + Photographer", tint: "#E5E7EB", shootId: "#12345", created: "01/06/2026", customer: "Raj Yadhav", shootAmount: 100000, payout: 64000, due: "10/06/2026", dueTone: "amber", pending: 5000, status: "Fully Paid" },
-  { name: "Lucas Reed", roles: "Videographer + Photographer", tint: "#FFFFFF", shootId: "#12345", created: "01/06/2026", customer: "Daniel Roberts", shootAmount: 200000, payout: 110000, due: "10/06/2026", dueTone: "amber", pending: 5000, status: "Pending" },
-];
+const TINTS = ["#FED1EF", "#FFF6DA", "#D1FAD7", "#E5E7EB", "#FFFFFF", "#DCE7FF"];
+const tintFor = (value: string) => {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  return TINTS[hash % TINTS.length];
+};
 
-// 12 rows = 2 pages (10 + 2)
-const MOCK_ROWS: PayoutRow[] = [...BASE, ...BASE].map((r, i) => ({ ...r, id: String(i + 1) }));
+const formatDate = (value: string | null) => {
+  if (!value) return "—";
+  const [year, month, day] = value.slice(0, 10).split("-");
+  return year && month && day ? `${month}/${day}/${year}` : value;
+};
+
+const localToday = () => new Intl.DateTimeFormat("en-CA", {
+  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata",
+  year: "numeric", month: "2-digit", day: "2-digit",
+}).format(new Date());
 
 const STATUS_STYLES: Record<PayoutStatus, string> = {
   Pending: "bg-[#FFF4C9] text-[#BA6605]",
@@ -62,17 +69,22 @@ interface PayoutSchedulePanelProps {
   open: boolean;
   bucketId: string;
   bucketLabel: string;
-  /** API loading state (aave tyare page thi pass karvu) */
   loading?: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
-export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loading = false }: PayoutSchedulePanelProps) {
+export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loading = false, startDate = null, endDate = null }: PayoutSchedulePanelProps) {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [snapLabel, setSnapLabel] = useState(bucketLabel); // collapse vakhte title na jay
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isFetching, setIsFetching] = useState(false);
+  const [rows, setRows] = useState<PayoutRow[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [error, setError] = useState<string | null>(null);
   const itemsPerPage = 10;
 
   useEffect(() => setMounted(true), []);
@@ -82,28 +94,63 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
     if (!open) return;
     setSnapLabel(bucketLabel);
     setSearch("");
+    setDebouncedSearch("");
     setCurrentPage(1);
   }, [open, bucketId, bucketLabel]);
 
-  useEffect(() => setCurrentPage(1), [search]);
-
-  // TEMP: fake loading (open / bucket / page change). API aave tyare delete karo.
   useEffect(() => {
-    if (!open) return;
-    setIsFetching(true);
-    const t = setTimeout(() => setIsFetching(false), 1000);
-    return () => clearTimeout(t);
-  }, [open, bucketId, currentPage]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return MOCK_ROWS;
-    return MOCK_ROWS.filter((r) => `${r.name} ${r.customer} ${r.shootId}`.toLowerCase().includes(q));
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(timer);
   }, [search]);
+  useEffect(() => setCurrentPage(1), [debouncedSearch]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  useEffect(() => {
+    if (!open || !bucketId) return;
+    const controller = new AbortController();
+    setIsFetching(true);
+    setError(null);
+    adminApi.getFinancePayoutSchedule({
+      bucket_id: bucketId as "this_week" | "next_week" | "2_4_weeks" | "overdue",
+      search: debouncedSearch || undefined,
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
+      page: currentPage,
+      limit: itemsPerPage,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata",
+    }, controller.signal).then((response) => {
+      if (response.canceled) return;
+      if (!response.success || !response.data) {
+        setRows([]);
+        setTotalPages(1);
+        setError(response.error || "Failed to load payout schedule.");
+        return;
+      }
+      const today = localToday();
+      setRows(response.data.rows.map((row: FinancePayoutScheduleRow) => ({
+        id: row.id,
+        name: row.creator_name,
+        roles: row.creator_roles,
+        tint: tintFor(String(row.creator_id)),
+        shootId: row.shoot_id,
+        created: formatDate(row.created_date),
+        customer: row.customer_name,
+        shootAmount: row.shoot_amount,
+        payout: row.cp_payout,
+        due: row.due_date === today ? "Today" : formatDate(row.due_date),
+        dueTone: row.due_date === today ? "red" : row.due_date > today ? "blue" : "amber",
+        pending: row.pending_amount,
+        status: row.status,
+      })));
+      setTotalPages(Math.max(1, response.data.pagination.total_pages));
+      if (response.data.pagination.page !== currentPage) setCurrentPage(response.data.pagination.page);
+    }).finally(() => {
+      if (!controller.signal.aborted) setIsFetching(false);
+    });
+    return () => controller.abort();
+  }, [open, bucketId, startDate, endDate, debouncedSearch, currentPage]);
+
   const safePage = Math.min(currentPage, totalPages);
-  const visibleRows = filtered.slice((safePage - 1) * itemsPerPage, safePage * itemsPerPage);
+  const visibleRows = rows;
   const showLoader = loading || isFetching;
 
   if (!mounted) return null;
@@ -169,7 +216,7 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
                 ) : visibleRows.length === 0 ? (
                   <tr>
                     <td colSpan={7} className={`py-10 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
-                      No payouts found.
+                      {error || "No payouts found."}
                     </td>
                   </tr>
                 ) : (

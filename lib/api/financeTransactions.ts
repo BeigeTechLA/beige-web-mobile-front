@@ -344,6 +344,8 @@ export type AdminFinanceDisputeListParams = {
   status?: string;
   category?: string;
   raised_by_type?: string;
+  date_from?: string;
+  date_to?: string;
   sort_by?: string;
   sort_dir?: "ASC" | "DESC";
 };

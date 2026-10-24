@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { format, parseISO } from "date-fns";
+import { adminApi } from "@/lib/api";
 import { AlertCircle, ChevronLeft, ChevronRight, Loader2, Search, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { getInitials } from "@/lib/utils";
@@ -12,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-/* ---------- Static mock data (API aave tyare replace karvu) ---------- */
 type HistoryRow = {
   id: string;
   shootId: string;
@@ -36,16 +37,39 @@ const BASE: Omit<HistoryRow, "id">[] = [
   { shootId: "#1234", project: "Collab Shoot", date: "Jan 13, 2026", tint: "#E5E7EB", service: "Videography", payout: 4500, method: "Stripe", status: "Completed" },
 ];
 
-// 16 rows = 2 pages (10 + 6)
-const MOCK_ROWS: HistoryRow[] = [...BASE, ...BASE].map((r, i) => ({ ...r, id: String(i + 1) }));
+
 
 const STATUS_STYLES: Record<HistoryRow["status"], string> = {
-  Completed: "bg-[#D4FFE4] text-[#16A34A]",
   Pending: "bg-[#FFF4C9] text-[#BA6605]",
+  Completed: "bg-[#D4FFE4] text-[#16A34A]",
+};
+
+const TINTS = ["#FED1EF", "#FFF6DA", "#FFFFFF", "#D1FAD7", "#E5E7EB"];
+const tintFor = (key: string) => {
+  let h = 0;
+  for (let i = 0; i < key.length; i += 1) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return TINTS[h % TINTS.length];
+};
+
+const formatRowDate = (d: string | null) => {
+  if (!d) return "—";
+  try { return format(parseISO(d), "MMM dd, yyyy"); } catch { return d; }
+};
+
+const PERIOD_PARAM: Record<string, "last_30_days" | "this_quarter" | "this_year" | undefined> = {
+  "Month": undefined,
+  "Last 30 Days": "last_30_days",
+  "This Quarter": "this_quarter",
+  "This Year": "this_year",
 };
 
 const formatCurrency = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
 
 const formatCompactUSD = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(n);
@@ -66,6 +90,9 @@ interface PartnerPayoutHistoryPanelProps {
   cpId: string;
   cpName: string;
   totalPayout: number;
+  /** Page-level date range (yyyy-MM-dd), same as the analytics request */
+  startDate?: string | null;
+  endDate?: string | null;
   /** API loading state (aave tyare page thi pass karvu) */
   loading?: boolean;
 }
@@ -76,6 +103,8 @@ export default function PartnerPayoutHistoryPanel({
   cpId,
   cpName,
   totalPayout,
+  startDate = null,
+  endDate = null,
   loading = false,
 }: PartnerPayoutHistoryPanelProps) {
   const { theme, resolvedTheme } = useTheme();
@@ -86,6 +115,10 @@ export default function PartnerPayoutHistoryPanel({
   const [monthFilter, setMonthFilter] = useState("Month");
   const [typeFilter, setTypeFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [rows, setRows] = useState<HistoryRow[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [error, setError] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const itemsPerPage = 10;
 
@@ -96,35 +129,73 @@ export default function PartnerPayoutHistoryPanel({
     if (!open) return;
     setSnap({ cpName, totalPayout });
     setSearch("");
+    setDebouncedSearch("");
     setStatusFilter("All");
     setMonthFilter("Month");
     setTypeFilter("All");
     setCurrentPage(1);
+    setRows([]);
+    setError(null);
   }, [open, cpId, cpName, totalPayout]);
 
-  useEffect(() => setCurrentPage(1), [search, statusFilter, typeFilter]);
-
-  // TEMP: fake loading (open / CP / page change). API aave tyare delete karo.
   useEffect(() => {
-    if (!open) return;
-    setIsFetching(true);
-    const t = setTimeout(() => setIsFetching(false), 1000);
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 400);
     return () => clearTimeout(t);
-  }, [open, cpId, currentPage]);
+  }, [search]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return MOCK_ROWS.filter((r) => {
-      if (statusFilter !== "All" && r.status !== statusFilter) return false;
-      if (typeFilter !== "All" && r.service !== typeFilter) return false;
-      if (q && !`${r.shootId} ${r.project}`.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [search, statusFilter, typeFilter]);
+  useEffect(() => setCurrentPage(1), [debouncedSearch, statusFilter, monthFilter, typeFilter]);
+  useEffect(() => {
+    if (!open || !cpId) return;
+    const controller = new AbortController();
+    setIsFetching(true);
+    setError(null);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+    adminApi
+      .getFinanceCpPayoutHistory(
+        {
+          creator_id: cpId,
+          search: debouncedSearch || undefined,
+          status: statusFilter === "All" ? undefined : (statusFilter as "Completed" | "Pending"),
+          period: PERIOD_PARAM[monthFilter],
+          service_type: typeFilter === "All" ? undefined : typeFilter,
+          page: currentPage,
+          limit: itemsPerPage,
+          ...(startDate && endDate ? { start_date: startDate, end_date: endDate } : {}),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata",
+        },
+        controller.signal,
+      )
+      .then((res) => {
+        if (res.canceled) return;
+        if (!res.success || !res.data) {
+          setRows([]);
+          setTotalPages(1);
+          setError(res.error || "Failed to load payout history.");
+        } else {
+          setRows(
+            res.data.rows.map((r) => ({
+              id: r.id,
+              shootId: r.shoot_id,
+              project: r.project_name,
+              date: formatRowDate(r.date),
+              tint: tintFor(r.project_name),
+              service: r.service_type,
+              payout: r.payout,
+              method: r.payment_method,
+              status: r.status,
+            })),
+          );
+          setTotalPages(Math.max(1, res.data.pagination.total_pages));
+          if (res.data.pagination.page !== currentPage) setCurrentPage(res.data.pagination.page);
+        }
+        setIsFetching(false);
+      });
+
+    return () => controller.abort();
+  }, [open, cpId, startDate, endDate, debouncedSearch, statusFilter, monthFilter, typeFilter, currentPage]);
+
   const safePage = Math.min(currentPage, totalPages);
-  const visibleRows = filtered.slice((safePage - 1) * itemsPerPage, safePage * itemsPerPage);
+  const visibleRows = rows;
   const showLoader = loading || isFetching;
 
   if (!mounted) return null;
@@ -245,8 +316,7 @@ export default function PartnerPayoutHistoryPanel({
                 ) : visibleRows.length === 0 ? (
                   <tr>
                     <td colSpan={7} className={`py-10 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
-                      No payouts found.
-                    </td>
+                      {error ?? "No payouts found."}                    </td>
                   </tr>
                 ) : (
                   visibleRows.map((row) => (

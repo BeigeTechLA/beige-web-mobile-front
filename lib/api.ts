@@ -2173,6 +2173,162 @@ export type FinanceAnalyticsResponse = {
   error?: string;
 };
 
+export type FinanceShootHistoryParams = {
+  entity_type: 'cp' | 'client';
+  entity_id: string | number; // cp: creator id, client: "user:<id>" | "guest:<email>"
+  search?: string;
+  status?: 'Paid' | 'Pending' | 'Failed';
+  period?: 'last_30_days' | 'this_quarter' | 'this_year';
+  service_type?: string; // Videography | Photography | Photo + Video
+  start_date?: string;   // YYYY-MM-DD, send with end_date
+  end_date?: string;
+  page?: number;
+  limit?: number;
+  timezone?: string;
+};
+
+export type FinanceShootHistoryInvoice = {
+  id: string;            // transaction_code
+  date: string | null;   // YYYY-MM-DD
+  method: string;
+  status: 'Paid' | 'Pending' | 'Failed';
+  amount: number;
+  note: string;          // "Refund" / "Ref: <external_reference>" or ""
+};
+
+export type FinanceShootHistoryRow = {
+  id: string;
+  booking_id: number;
+  shoot_id: string;      // "#1234"
+  project_name: string;
+  client_name: string;
+  date: string | null;
+  service_type: string;
+  total_amount: number;
+  invoice_count: number;
+  payment_method: string;
+  status: 'Paid' | 'Pending' | 'Failed';
+  invoices: FinanceShootHistoryInvoice[];
+};
+
+export type FinanceShootHistoryData = {
+  rows: FinanceShootHistoryRow[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+};
+
+export type FinanceShootHistoryResponse = {
+  success: boolean;
+  data: FinanceShootHistoryData | null;
+  error?: string;
+};
+
+export type FinanceCpPayoutHistoryParams = {
+  creator_id: string | number;
+  search?: string;
+  status?: 'Completed' | 'Pending';
+  period?: 'last_30_days' | 'this_quarter' | 'this_year';
+  service_type?: string; // Videography | Photography | Photo + Video
+  start_date?: string;   // YYYY-MM-DD, send with end_date (page-level range)
+  end_date?: string;
+  page?: number;
+  limit?: number;
+  timezone?: string;
+};
+
+export type FinanceCpPayoutHistoryRow = {
+  id: string;
+  booking_id: number;
+  shoot_id: string;        // "#1234"
+  project_name: string;
+  date: string | null;     // YYYY-MM-DD (paid date, or due date if pending)
+  service_type: string;
+  payout: number;
+  payment_method: string;
+  status: 'Completed' | 'Pending';
+};
+
+export type FinanceCpPayoutHistoryData = {
+  summary: { total_paid: number; total_payable: number };
+  rows: FinanceCpPayoutHistoryRow[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+};
+
+export type FinanceCpPayoutHistoryResponse = {
+  success: boolean;
+  data: FinanceCpPayoutHistoryData | null;
+  error?: string;
+};
+
+export type FinanceCpOverdueHistoryParams = {
+  creator_id: string | number;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  limit?: number;
+  timezone?: string;
+};
+
+export type FinanceCpOverdueHistoryRow = {
+  id: string;
+  earning_id: number;
+  booking_id: number;
+  shoot_name: string;
+  category: string;
+  customer_name: string;
+  amount: number;
+  due_date: string;
+  days_overdue: number;
+};
+
+export type FinanceCpOverdueHistoryData = {
+  summary: { total_overdue: number; total_shoots: number };
+  rows: FinanceCpOverdueHistoryRow[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+};
+
+export type FinanceCpOverdueHistoryResponse = {
+  success: boolean;
+  data: FinanceCpOverdueHistoryData | null;
+  error?: string;
+};
+
+export type FinancePayoutScheduleParams = {
+  bucket_id: 'this_week' | 'next_week' | '2_4_weeks' | 'overdue';
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  limit?: number;
+  timezone?: string;
+};
+
+export type FinancePayoutScheduleRow = {
+  id: string;
+  creator_name: string;
+  creator_roles: string;
+  creator_id: number;
+  shoot_id: string;
+  created_date: string | null;
+  customer_name: string;
+  shoot_amount: number;
+  cp_payout: number;
+  pending_amount: number;
+  due_date: string;
+  status: 'Pending' | 'Partially Paid' | 'Finance Approval' | 'Approved' | 'Fully Paid';
+};
+
+export type FinancePayoutScheduleData = {
+  summary: { total_pending: number; total_rows: number };
+  rows: FinancePayoutScheduleRow[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+};
+
+export type FinancePayoutScheduleResponse = {
+  success: boolean;
+  data: FinancePayoutScheduleData | null;
+  error?: string;
+};
+
 export const adminApi = {
   getUserLoginHistory: async (
     params: { user_id: number; page?: number; limit?: number; status?: 'active' | 'all' },
@@ -2364,6 +2520,101 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch finance analytics',
+      };
+    }
+  },
+  getFinanceShootHistory: async (
+    params: FinanceShootHistoryParams,
+    signal?: AbortSignal,
+  ): Promise<FinanceShootHistoryResponse & { canceled?: boolean }> => {
+    try {
+      const response = await api.get<FinanceShootHistoryResponse>('finance/admin/analytics/shoot-history', { params, signal });
+      return response.data;
+    } catch (error: any) {
+      if (error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
+        return { success: false, data: null, canceled: true };
+      }
+      console.error('Get Shoot History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch shoot history',
+      };
+    }
+  },
+  getFinanceCpPayoutHistory: async (
+    params: FinanceCpPayoutHistoryParams,
+    signal?: AbortSignal,
+  ): Promise<FinanceCpPayoutHistoryResponse & { canceled?: boolean }> => {
+    try {
+      const response = await api.get<FinanceCpPayoutHistoryResponse>('finance/admin/analytics/cp-payout-history', { params, signal });
+      return response.data;
+    } catch (error: any) {
+      if (error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
+        return { success: false, data: null, canceled: true };
+      }
+      console.error('Get CP Payout History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch payout history',
+      };
+    }
+  },
+  getFinanceCpOverdueHistory: async (
+    params: FinanceCpOverdueHistoryParams,
+    signal?: AbortSignal,
+  ): Promise<FinanceCpOverdueHistoryResponse & { canceled?: boolean }> => {
+    try {
+      const response = await api.get<FinanceCpOverdueHistoryResponse>('finance/admin/analytics/cp-overdue-history', { params, signal });
+      return response.data;
+    } catch (error: any) {
+      if (error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
+        return { success: false, data: null, canceled: true };
+      }
+      console.error('Get CP Overdue History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch overdue CP shoots',
+      };
+    }
+  },
+  getFinancePayoutSchedule: async (
+    params: FinancePayoutScheduleParams,
+    signal?: AbortSignal,
+  ): Promise<FinancePayoutScheduleResponse & { canceled?: boolean }> => {
+    try {
+      const response = await api.get<FinancePayoutScheduleResponse>('finance/admin/analytics/payout-schedule-history', { params, signal });
+      return response.data;
+    } catch (error: any) {
+      if (error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
+        return { success: false, data: null, canceled: true };
+      }
+      console.error('Get Finance Payout Schedule Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch payout schedule',
+      };
+    }
+  },
+  getFinancePayoutSchedule: async (
+    params: FinancePayoutScheduleParams,
+    signal?: AbortSignal,
+  ): Promise<FinancePayoutScheduleResponse & { canceled?: boolean }> => {
+    try {
+      const response = await api.get<FinancePayoutScheduleResponse>('finance/admin/analytics/payout-schedule-history', { params, signal });
+      return response.data;
+    } catch (error: any) {
+      if (error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
+        return { success: false, data: null, canceled: true };
+      }
+      console.error('Get Finance Payout Schedule Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch payout schedule',
       };
     }
   },

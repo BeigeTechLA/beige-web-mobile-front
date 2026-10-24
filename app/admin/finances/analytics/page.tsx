@@ -173,6 +173,8 @@ export default function FinanceAnalyticsPage() {
               cpId={selectedPayoutCP?.id ?? ""}
               cpName={selectedPayoutCP?.name ?? ""}
               totalPayout={selectedPayoutCP?.payout ?? 0}
+              startDate={startDate ? format(startDate, "yyyy-MM-dd") : null}
+              endDate={endDate ? format(endDate, "yyyy-MM-dd") : null}
             />
 
             <div className="min-w-0">
@@ -182,7 +184,14 @@ export default function FinanceAnalyticsPage() {
                 selectedId={selectedShootCP?.id ?? null}
                 onSelectCP={setSelectedShootCP}
               />
-              <PartnerShootHistoryPanel open={!!selectedShootCP} cpName={selectedShootCP?.name ?? ""} />
+              <PartnerShootHistoryPanel
+                open={!!selectedShootCP}
+                cpName={selectedShootCP?.name ?? ""}
+                entityType="cp"
+                entityId={selectedShootCP?.id ?? ""}
+                startDate={startDate ? format(startDate, "yyyy-MM-dd") : null}
+                endDate={endDate ? format(endDate, "yyyy-MM-dd") : null}
+              />
             </div>
 
             <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] gap-3 lg:gap-6">
@@ -214,13 +223,20 @@ export default function FinanceAnalyticsPage() {
               open={!!selectedBucket}
               bucketId={selectedBucket?.id ?? ""}
               bucketLabel={selectedBucket?.label ?? ""}
+              loading={loading}
+              startDate={startDate ? format(startDate, "yyyy-MM-dd") : null}
+              endDate={endDate ? format(endDate, "yyyy-MM-dd") : null}
             />
             <OverdueShootBreakdownPanel
               open={!!selectedOverdueCP}
               onClose={() => setSelectedOverdueCP(null)}
+              cpId={selectedOverdueCP?.id ?? ""}
               cpName={selectedOverdueCP?.name ?? ""}
               totalOverdue={selectedOverdueCP?.amount ?? 0}
               avatarUrl={selectedOverdueCP?.avatarUrl}
+              loading={loading}
+              startDate={startDate ? format(startDate, "yyyy-MM-dd") : null}
+              endDate={endDate ? format(endDate, "yyyy-MM-dd") : null}
             />
 
           </div>
@@ -255,6 +271,10 @@ export default function FinanceAnalyticsPage() {
             <PartnerShootHistoryPanel
               open={!!selectedClient}
               cpName={selectedClient?.name ?? ""}
+              entityType="client"
+              entityId={selectedClient?.id ?? ""}
+              startDate={startDate ? format(startDate, "yyyy-MM-dd") : null}
+              endDate={endDate ? format(endDate, "yyyy-MM-dd") : null}
             />
 
             <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] gap-3 lg:gap-6">

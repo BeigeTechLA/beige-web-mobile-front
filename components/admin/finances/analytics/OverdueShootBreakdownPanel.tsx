@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, EllipsisVertical, Eye, Loader2, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { getInitials } from "@/lib/utils";
+import { adminApi } from "@/lib/api";
+import type { FinanceCpOverdueHistoryRow } from "@/lib/api";
 import {
   Tooltip,
   TooltipContent,
@@ -11,7 +13,6 @@ import {
   TooltipTrigger,
 } from "@/src/components/landing/ui/tooltip";
 
-/* ---------- Static mock data (API aave tyare replace karvu) ---------- */
 type OverdueShootRow = {
   id: string;
   shootName: string;
@@ -22,21 +23,12 @@ type OverdueShootRow = {
   daysAgo: number;
 };
 
-const BASE_ROWS: Omit<OverdueShootRow, "id">[] = [
-  { shootName: "Corporate Shoot", category: "Videography", customerName: "Alex Morgan", customerTint: "#FED1EF", amount: 2000, daysAgo: 5 },
-  { shootName: "Podcast Shoot", category: "Videography + Photography", customerName: "Ethan Carter", customerTint: "#FFF6DA", amount: 1000, daysAgo: 2 },
-  { shootName: "Music Video Shoot", category: "Videography", customerName: "Maya Ross", customerTint: "#D1FAD7", amount: 2000, daysAgo: 1 },
-  { shootName: "Product Shoot", category: "Photography", customerName: "John Lee", customerTint: "#FFF6DA", amount: 1000, daysAgo: 4 },
-  { shootName: "Corporate Shoot", category: "Videography", customerName: "Alex Morgan", customerTint: "#FED1EF", amount: 500, daysAgo: 5 },
-  { shootName: "Podcast Shoot", category: "Videography + Photography", customerName: "Ethan Carter", customerTint: "#FFF6DA", amount: 500, daysAgo: 2 },
-  { shootName: "Music Video Shoot", category: "Videography", customerName: "Maya Ross", customerTint: "#D1FAD7", amount: 2000, daysAgo: 1 },
-  { shootName: "Product Shoot", category: "Photography", customerName: "John Lee", customerTint: "#FFF6DA", amount: 1000, daysAgo: 4 },
-];
-
-const MOCK_ROWS: OverdueShootRow[] = [...BASE_ROWS, ...BASE_ROWS].map((r, i) => ({
-  ...r,
-  id: String(i + 1),
-}));
+const CUSTOMER_TINTS = ["#FED1EF", "#FFF6DA", "#D1FAD7", "#E5E7EB", "#DCE7FF"];
+const tintFor = (value: string) => {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  return CUSTOMER_TINTS[hash % CUSTOMER_TINTS.length];
+};
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("en-US", {
@@ -103,22 +95,27 @@ const TruncatedTableText = ({
 interface OverdueShootBreakdownPanelProps {
   open: boolean;
   onClose: () => void;
+  cpId: string;
   cpName: string;
   totalOverdue: number;
   shootCount?: number;
   avatarUrl?: string;
-  /** API loading state (aave tyare page thi pass karvu) */
   loading?: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 export default function OverdueShootBreakdownPanel({
   open,
   onClose,
+  cpId,
   cpName,
   totalOverdue,
-  shootCount = 10,
+  shootCount = 0,
   avatarUrl,
   loading = false,
+  startDate = null,
+  endDate = null,
 }: OverdueShootBreakdownPanelProps) {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -127,14 +124,48 @@ export default function OverdueShootBreakdownPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const itemsPerPage = 10;
   const [isFetching, setIsFetching] = useState(false);
+  const [rows, setRows] = useState<OverdueShootRow[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [summary, setSummary] = useState<{ total_overdue: number; total_shoots: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // TEMP: fake loading (static data). API aave tyare aa effect delete karo.
   useEffect(() => {
-    if (!open) return;
+    if (!open || !cpId) return;
+    const controller = new AbortController();
     setIsFetching(true);
-    const t = setTimeout(() => setIsFetching(false), 600);
-    return () => clearTimeout(t);
-  }, [open, cpName, currentPage]);
+    setError(null);
+    adminApi.getFinanceCpOverdueHistory({
+      creator_id: cpId,
+      page: currentPage,
+      limit: itemsPerPage,
+      ...(startDate && endDate ? { start_date: startDate, end_date: endDate } : {}),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata",
+    }, controller.signal).then((response) => {
+      if (response.canceled) return;
+      if (!response.success || !response.data) {
+        setRows([]);
+        setSummary(null);
+        setTotalPages(1);
+        setError(response.error || "Failed to load overdue shoots.");
+        return;
+      }
+      setRows(response.data.rows.map((row: FinanceCpOverdueHistoryRow) => ({
+        id: row.id,
+        shootName: row.shoot_name,
+        category: row.category,
+        customerName: row.customer_name,
+        customerTint: tintFor(row.customer_name),
+        amount: row.amount,
+        daysAgo: row.days_overdue,
+      })));
+      setSummary(response.data.summary);
+      setTotalPages(Math.max(1, response.data.pagination.total_pages));
+      if (response.data.pagination.page !== currentPage) setCurrentPage(response.data.pagination.page);
+    }).finally(() => {
+      if (!controller.signal.aborted) setIsFetching(false);
+    });
+    return () => controller.abort();
+  }, [open, cpId, startDate, endDate, currentPage]);
 
   // Collapse animation vakhte header ma name gayab na thay etle last values yaad rakho
   const [snap, setSnap] = useState({ cpName, totalOverdue, shootCount, avatarUrl });
@@ -148,13 +179,16 @@ export default function OverdueShootBreakdownPanel({
     }
     setSnap({ cpName, totalOverdue, shootCount, avatarUrl });
     setCurrentPage(1);
+    setRows([]);
+    setSummary(null);
+    setError(null);
     // expand thay pachi panel screen ma scroll thai ne dekhay
     const t = setTimeout(
       () => panelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
       520,
     );
     return () => clearTimeout(t);
-  }, [open, cpName, totalOverdue, shootCount, avatarUrl]);
+  }, [open, cpId, cpName, totalOverdue, shootCount, avatarUrl]);
 
   // Row menu bahar click thi band
   useEffect(() => {
@@ -164,14 +198,12 @@ export default function OverdueShootBreakdownPanel({
     return () => document.removeEventListener("click", close);
   }, [menu]);
 
-  const totalPages = Math.max(1, Math.ceil(MOCK_ROWS.length / itemsPerPage));
   const safePage = Math.min(currentPage, totalPages);
-  const visibleRows = useMemo(
-    () => MOCK_ROWS.slice((safePage - 1) * itemsPerPage, safePage * itemsPerPage),
-    [safePage],
-  );
+  const visibleRows = rows;
   const paginationItems = pageList(safePage, totalPages);
   const showLoader = loading || isFetching;
+  const displayTotal = summary?.total_overdue ?? snap.totalOverdue;
+  const displayShootCount = summary?.total_shoots ?? snap.shootCount;
 
   if (!mounted) return null;
 
@@ -224,13 +256,13 @@ export default function OverdueShootBreakdownPanel({
                 <div className="flex items-center gap-2">
                   <div className="h-5 w-[3px] shrink-0 rounded-full bg-[#E5D5B8]" />
                   <TruncatedTableText
-                    text={`${snap.cpName} (${snap.shootCount} Shoots)`}
+                    text={`${snap.cpName} (${displayShootCount} Shoots)`}
                     isDark={isDark}
                     className="block text-sm font-medium lg:text-lg"
                   />
                 </div>
                 <p className={`mt-0.5 text-xs lg:text-sm ${isDark ? "text-[#E8D1AB]" : "text-[#9C7B45]"}`}>
-                  Total Overdue Amount : {formatCurrency(snap.totalOverdue)}
+                  Total Overdue Amount : {formatCurrency(displayTotal)}
                 </p>
               </div>
             </div>
@@ -246,16 +278,16 @@ export default function OverdueShootBreakdownPanel({
 
           {/* Table (narrow screen par horizontal scroll) */}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] table-fixed text-left [&_td]:align-middle">
+            <table className="w-full min-w-[760px] table-fixed text-left [&_td]:align-middle">
               <thead
                 className={`border-b ${isDark ? "border-[#3D3D3D] bg-[#3D3D3D]/40" : "border-[#E3E3E3] bg-[#FFFCF6]"}`}
               >
                 <tr className={`text-sm font-medium capitalize ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}>
-                  <th className="w-[24%] px-5 py-3">Shoot Name</th>
-                  <th className="w-[24%] px-5 py-3">Customer</th>
-                  <th className="w-[18%] px-5 py-3">Overdue Amount</th>
-                  <th className="w-[26%] px-5 py-3">Status</th>
-                  <th className="w-[8%] px-5 py-3 text-right">Action</th>
+                  <th className="w-[26%] px-4 py-3">Shoot Name</th>
+                  <th className="w-[27%] px-4 py-3">Customer</th>
+                  <th className="w-[15%] px-4 py-3">Overdue Amount</th>
+                  <th className="w-[24%] px-4 py-3">Status</th>
+                  <th className="w-[8%] px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-transparent">
@@ -271,31 +303,32 @@ export default function OverdueShootBreakdownPanel({
                   )
                   : visibleRows.map((row) => (
                   <tr key={row.id} className={isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.03]"}>
-                    <td className={`px-5 py-[9px] font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
+                    <td className={`min-w-0 px-4 py-[9px] font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
                       <TruncatedTableText text={row.shootName} isDark={isDark} className="block" />
                       <p className={`text-xs font-normal capitalize ${muted}`}>{row.category}</p>
                     </td>
-                    <td className="px-5 py-[9px]">
-                      <div className="flex items-center gap-3">
+                    <td className="min-w-0 px-4 py-[9px]">
+                      <div className="flex min-w-0 items-center gap-3">
                         <div
                           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-medium text-[#171717]"
                           style={{ backgroundColor: row.customerTint }}
                         >
                           {getInitials(row.customerName)}
                         </div>
-                        <span className={`font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
+                        <span title={row.customerName} className={`min-w-0 flex-1 truncate font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>
                           {row.customerName}
                         </span>
                       </div>
                     </td>
-                    <td className={`px-5 py-[9px] font-medium ${isDark ? "text-white/90" : "text-[#171717]"}`}>
+                    <td className={`whitespace-nowrap px-4 py-[9px] font-medium ${isDark ? "text-white/90" : "text-[#171717]"}`}>
                       {formatCurrency(row.amount)}
                     </td>
-                    <td className="px-5 py-[9px]">
-                      <span className="inline-flex w-full max-w-[170px] items-center justify-center rounded-full bg-[#FFD6D9] px-4 py-2 text-xs font-semibold text-[#E5484D]">                        Overdue {row.daysAgo} day{row.daysAgo === 1 ? "" : "s"} ago
+                    <td className="px-4 py-[9px]">
+                      <span className="inline-flex max-w-full items-center justify-center whitespace-nowrap rounded-full bg-[#FFD6D9] px-3 py-2 text-xs font-semibold text-[#E5484D]">
+                        Overdue {row.daysAgo} day{row.daysAgo === 1 ? "" : "s"} ago
                       </span>
                     </td>
-                    <td className="px-5 py-[9px] text-right">
+                    <td className="px-4 py-[9px] text-right">
                       <button
                         type="button"
                         aria-label="Open row actions"
@@ -310,6 +343,13 @@ export default function OverdueShootBreakdownPanel({
                     </td>
                   </tr>
                 ))}
+                {!showLoader && visibleRows.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className={`h-32 text-center text-sm ${muted}`}>
+                      {error || "No overdue shoots found."}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
