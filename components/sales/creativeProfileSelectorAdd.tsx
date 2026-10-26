@@ -9,6 +9,7 @@ import { Separator } from '@/src/components/landing/Separator';
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 const DEFAULT_RADIUS = 50;
 const OVER_200_BUCKET = 250;
+const AVG_CP_PAYOUT = 400; // static for now
 
 type CreativeWithDistance = {
   id: number;
@@ -19,6 +20,7 @@ type CreativeWithDistance = {
   status?: string;
   shoots?: number;
   assigned_shoots?: number;
+  total_shoots?: number;
   specialities?: string;
   role?: string;
   availability?: string;
@@ -474,7 +476,7 @@ export const CreativeProfileSelectorAdd = ({
     }
   };
   const shootAmount = 50000;
-  const compensationPercent = 25;     
+  const compensationPercent = 25;
   const compensationBudget = (shootAmount * compensationPercent) / 100;
 
   const formatUSD = (n: number) =>
@@ -539,7 +541,7 @@ export const CreativeProfileSelectorAdd = ({
           >
             <LayoutGrid size={20} />
           </button>
-        </div>  
+        </div>
           {/* FILTER TRIGGER */}
           <button
             onClick={() => setIsFilterOpen(true)}
@@ -571,11 +573,10 @@ export const CreativeProfileSelectorAdd = ({
       </div> */}
 
       <div
-          className={`mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border px-5 py-3 transition-colors ${
-            isDark
-              ? "border-[#E8D1AB]/10 bg-[#2D2A24] text-white"
-              : "border-[#D9C19A] bg-[#FFF8EC] text-black"
-          }`}
+          className={`mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border px-5 py-3 transition-colors ${isDark
+            ? "border-[#E8D1AB]/10 bg-[#2D2A24] text-white"
+            : "border-[#D9C19A] bg-[#FFF8EC] text-black"
+            }`}
         >
           <div className="flex flex-wrap items-center gap-x-28 gap-y-4">
             <div>
@@ -640,7 +641,7 @@ export const CreativeProfileSelectorAdd = ({
                     </button>
 
                     {(isExpanded || isEmptyBucket) && (
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 px-4 pb-4 md:px-6 md:pb-6">
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] items-stretch gap-6 px-4 pb-4 md:px-6 md:pb-6">
                         {bucket.items.length > 0 ? (
                           bucket.items.map((creative, index) => (
                             <CreativeCard
@@ -708,12 +709,17 @@ export const CreativeProfileSelectorAdd = ({
 const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, onViewBriefProfile, isDark, viewMode }: CreativeCardProps) => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const isGrid = viewMode === 'grid';
+  const muted = isDark ? "text-white/65" : "text-zinc-500";
+  const strong = isDark ? "text-white" : "text-black";
+  const accent = isDark ? "text-[#E8D1AB]" : "text-[#8A6A2F]";
   const imageSrc = creative.profile_photo
     ? (creative.profile_photo.startsWith('http') ? creative.profile_photo : `${S3_PREFIX}${creative.profile_photo}`)
     : null;
   const experienceLabel = `${String(creative.shoots || 0).padStart(2, '0')} Years`;
   const assignedShoots = Number(creative.assigned_shoots ?? 0);
   const assignedShootsLabel = String(assignedShoots).padStart(2, '0');
+  const totalShoots = Number(creative.total_shoots ?? 0);
+  const totalShootsLabel = String(Number.isFinite(totalShoots) ? totalShoots : 0).padStart(2, '0');
   const locationLabel = formatLocation(creative.location);
   const hourlyRate = Number(creative.hourly_rate);
   const hourlyRateLabel = Number.isFinite(hourlyRate) && hourlyRate > 0
@@ -723,11 +729,13 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, onViewBri
   return (
     <div
       onClick={onToggle}
-      className={`relative group flex transition-all border rounded-lg lg:rounded-2xl cursor-pointer overflow-visible ${isGrid ? "flex-col h-full min-h-[430px] p-0" : "p-4 flex-col md:flex-row items-center md:items-start gap-6"
+      className={`relative group flex transition-all border rounded-lg lg:rounded-2xl cursor-pointer overflow-visible ${isGrid ? "flex-col h-full min-h-[360px] p-0" : "p-4 flex-col md:flex-row items-center md:items-start gap-6"
         } ${isGrid
           ? (isSelected
-            ? (isDark ? 'bg-white/[0.08] border-[#E8D1AB]/50' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
-            : (isDark ? 'bg-white/[0.08] border-white/10 hover:bg-white/[0.06]' : 'bg-transparent border-transparent hover:bg-gray-50'))
+            ? (isDark
+              ? 'bg-[#0F0F0F] border-[#E8D1AB]/70 shadow-[0_0_12px_0_rgba(232,209,171,0.18)]'
+              : 'bg-white border-[#E8D1AB] shadow-[0_0_12px_0_rgba(232,209,171,0.35)]')
+            : (isDark ? 'bg-[#0F0F0F] border-white/10 hover:border-white/25' : 'bg-white border-[#D8D8D8] hover:border-[#E8D1AB]'))
           : (isSelected
             ? (isDark ? 'bg-white/[0.04] border-[#E8D1AB]/50' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
             : (isDark ? 'bg-transparent border-transparent hover:bg-white/[0.02]' : 'bg-transparent border-transparent hover:bg-gray-50'))
@@ -735,104 +743,91 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, onViewBri
     >
       {isGrid ? (
         <>
-            <div className="relative w-full overflow-hidden rounded-t-xl lg:rounded-t-[22px]">
+          {/* ── Image block ── */}
+          <div className="relative w-full shrink-0 overflow-hidden rounded-t-lg lg:rounded-t-2xl">
               <div className="relative aspect-square w-full overflow-hidden">
                 {imageSrc ? (
                   <img
                     src={imageSrc}
                     alt={creative.name}
-                    className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] ${!isSelected ? 'grayscale-[0.15]' : ''}`}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                   />
                 ) : (
-                  <div className={`h-full w-full flex items-center justify-center bg-gradient-to-br from-[#2A241A] to-[#0F0F0F] text-white text-xl lg:text-3xl font-semibold ${!isSelected ? 'grayscale-[0.15]' : ''}`}>
+                  <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-[#2A241A] to-[#0F0F0F] text-white text-3xl font-semibold">
                     {creative.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
                   </div>
                 )}
 
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 lg:h-20 bg-gradient-to-t from-[#0F0F0F] via-[#0F0F0F]/85 to-transparent backdrop-blur-[1.5px]" />
+                  {/* Bottom gradient fade */}
+                  <div className="pointer-events-none absolute inset-x-0 -bottom-px h-32 bg-gradient-to-t from-[#0F0F0F] via-[#0F0F0F]/80 to-transparent" />
 
-                <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 px-4 pb-4 lg:px-5 lg:pb-5">
-                <div className="min-w-0">
-                  <div className="min-w-0">
+                  {/* Name + Rate overlay */}
+                  <div className="absolute inset-x-0 bottom-0 z-10 px-5 pb-3">
                     <div className="flex min-w-0 items-center gap-2">
-                      <h3 className={`truncate text-lg lg:text-2xl leading-none font-medium transition-colors ${isDark ? "text-white" : "text-black"
-                      }`}>
+                      <h3 className="truncate text-xl lg:text-2xl font-medium leading-tight text-white">
                         {creative.name}
                       </h3>
+                    {creative.status && (
                       <span className="inline-flex shrink-0 items-center rounded-full bg-[#16A34A] px-2.5 py-1 text-xs font-semibold leading-none text-white">
                         {creative.status}
                       </span>
-                      <button
+                    )}
+                    <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         window.open(`/creatives/${creative.id}`, "_blank", "noopener,noreferrer");
                       }}
-                      className="-ml-1.5 flex h-8 w-8 shrink-0 items-center justify-center
-                        rounded-full text-white hover:bg-white/10"
-                      aria-label="Share creative profile"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10"
+                      aria-label="Open brief profile"
                     >
                       <ExternalLink size={20} strokeWidth={2} />
                     </button>
+
+                    {/* Checkbox */}
+                    <div
+                      className={`ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : 'bg-black/30 border-white/30'
+                        }`}
+                    >
+                      {isSelected && <Check size={16} className="text-black stroke-[3px]" />}
                   </div>
-                    {hourlyRateLabel && (
-                      <p className={`mt-1 text-lg font-semibold leading-none ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A2F]"}`}>
-                        {hourlyRateLabel}
-                      </p>
-                    )}
                   </div>
+
+                  {hourlyRateLabel && (
+                    <p className="mt-1 flex flex-wrap items-baseline gap-x-3 leading-none">
+                      <span className="text-xl font-semibold text-[#E8D1AB]">{hourlyRateLabel}</span>
+                      <span className="text-sm font-normal text-white/55">Avg CP Payout - ${AVG_CP_PAYOUT}</span>
+                    </p>
+                  )}
                 </div>
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20')}`}
-                >
-                  {isSelected && <Check size={18} className="text-black stroke-[3px]" />}
-                </div>
               </div>
-            </div>
-          </div>
+              </div>
 
-          <div className={`flex w-full flex-1 flex-col px-4 pb-4 pt-4 lg:px-5 lg:pb-5 lg:pt-4 ${isDark ? "bg-[#0F0F0F]" : "bg-white"}`}>
-            {/* Experience and Specialities Row */}
-            <div className={`grid grid-cols-[1fr_auto_1fr] items-start gap-2 lg:gap-4 border-t pt-4 transition-colors ${isDark ? "border-white/15 text-white/90" : "border-[#e3e3e3] text-black/80"}`}>
-              {/* <div>
-                <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
-                  Experience:
-                </p>
-                <p className={`text-sm lg:text-base font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                  {experienceLabel}
-                </p>
-              </div> */}
+              <div className={`flex w-full flex-1 flex-col rounded-b-lg lg:rounded-b-2xl px-5 pb-5 pt-2 ${isDark ? "bg-[#0F0F0F]" : "bg-white"}`}>
+                {/* Stats */}
+                <div className={`grid grid-cols-[1fr_1px_1fr] items-center gap-x-5 gap-y-4 border-t pt-4 ${isDark ? "border-white/10" : "border-[#e3e3e3]"}`}>
+                  {/* Row 1 */}
+                  <div>
+                    <p className={`mb-1 text-xs leading-none ${muted}`}>Ongoing Shoot:</p>
+                    <p className={`text-sm font-normal leading-snug ${strong}`}>{assignedShootsLabel} Shoots</p>
+                  </div>
+                  <div className={`h-5 w-px ${isDark ? "bg-white/80" : "bg-black/30"}`} />
+                  <div>
+                    <p className={`mb-1 text-xs leading-none ${muted}`}>Roles:</p>
+                    <p className={`text-sm font-normal leading-snug ${strong}`}>{creative.specialities}</p>
+                  </div>
+
+                  {/* Row 2 */}
               <div>
-                <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
-                  Assigned Shoots:
-                </p>
-                <p className={`text-sm lg:text-base font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                  {assignedShootsLabel}
-                </p>
+                <p className={`mb-1 text-xs leading-none ${muted}`}>Total Shoots:</p>
+                <p className={`text-sm font-normal leading-snug underline underline-offset-2 ${accent}`}>{totalShootsLabel}</p>
               </div>
-
-              <div className={`mt-1 h-8 w-px transition-colors ${isDark ? "bg-white/20" : "bg-[#e3e3e3]"}`} />
-
+             <div className={`h-5 w-px ${isDark ? "bg-white/80" : "bg-black/30"}`} />
               <div>
-                <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
-                  Roles:
-                </p>
-                <p className={`text-sm lg:text-base font-medium leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                  {creative.specialities}
-                </p>
+                <p className={`mb-1 text-xs leading-none ${muted}`}>Location:</p>
+                <p className={`text-sm font-normal leading-snug underline underline-offset-2 ${accent}`}>{locationLabel}</p>
               </div>
             </div>
-
-            {/* Location Row */}
-            <div className={`mt-4 border-t pt-4 transition-colors ${isDark ? "border-white/15" : "border-[#e3e3e3]"}`}>
-              <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
-                Location:
-              </p>
-              <p className={`text-sm lg:text-base leading-tight underline underline-offset-2 ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A2F]"}`}>
-                {locationLabel}
-              </p>
-            </div>
-
             <div className="relative mt-auto w-full pt-4">
               {isProfileMenuOpen && (
                 <div
@@ -879,13 +874,14 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, onViewBri
                   event.stopPropagation();
                   setIsProfileMenuOpen((open) => !open);
                 }}
-                className="flex h-[41px] w-full items-center justify-between rounded-lg bg-[#E8D1AB] px-[10px] text-left text-xs font-medium text-black transition-colors hover:bg-[#D9C19A]"
+                className="flex h-[30px] w-full items-center justify-between rounded-md bg-[#E8D1AB] px-2 text-left text-[9px] font-medium leading-none text-black transition-colors hover:bg-[#D9C19A] lg:h-[52px] lg:rounded-xl lg:px-4 lg:text-base"
               >
                 <span>View CP Profile</span>
-                <span className="ml-[14px] flex h-5 items-center border-l border-black/30 pl-[10px]">
+                <span className="ml-2 flex h-4 items-center border-l border-black/30 pl-2 lg:ml-3 lg:h-6 lg:pl-3">
                   <ChevronDown
-                    size={16}
-                    className={`transition-transform duration-200 ${isProfileMenuOpen ? "rotate-180" : ""}`}
+                    size={18}
+                    className={`h-3.5 w-3.5 transition-transform duration-200 lg:h-[18px] lg:w-[18px] ${isProfileMenuOpen ? "rotate-180" : ""}`}
+                    aria-hidden="true"
                   />
                 </span>
               </button>
@@ -919,23 +915,26 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, onViewBri
                   </h3>
                   <span className="bg-[#16A34A] text-[#fff] text-[10px] font-semibold px-2 py-0.5 rounded-lg capitalize">
                   {creative.status}
-                  </span>
-                  <button
+                </span>
+                <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onViewBriefProfile();
                   }}
                   className="-ml-1.5 flex h-8 w-8 shrink-0 items-center justify-center
-                    rounded-full text-white hover:bg-white/10"
+                  rounded-full text-white hover:bg-white/10"
                   aria-label="Share creative profile"
                 >
                   <ExternalLink size={20} strokeWidth={2} />
-                  </button>
-                </div>
+                </button>
+              </div>
                 {hourlyRateLabel && (
                   <p className={`mt-1 text-lg font-semibold leading-none ${isDark ? "text-[#E8D1AB]" : "text-[#8A6A2F]"}`}>
                     {hourlyRateLabel}
+                    <span className={`ml-3 text-sm font-normal ${isDark ? "text-[#AAA7A7]" : "text-black/45"}`}>
+                      Avg CP Payout - ${AVG_CP_PAYOUT}
+                    </span>
                   </p>
                 )}
               </div>
@@ -951,12 +950,16 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, onViewBri
                 <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{(creative.shoots || 0)} Yrs</p>
               </div> */}
               <div>
-                <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Assigned Shoots:</p>
+                <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Ongoing Shoots:</p>
                 <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{assignedShootsLabel}</p>
               </div>
               <div className={`md:border-x md:px-6 transition-colors ${isDark ? "border-white/10" : "border-gray-200"}`}>
                 <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Roles:</p>
                 <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{creative.specialities}</p>
+              </div>
+              <div className={`md:border-r md:px-6 transition-colors ${isDark ? "border-white/10" : "border-gray-200"}`}>
+                <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Total Shoots:</p>
+                <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{totalShootsLabel}</p>
               </div>
               <div className="md:pl-6">
                 <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Location:</p>
