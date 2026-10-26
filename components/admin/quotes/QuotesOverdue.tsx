@@ -287,11 +287,18 @@ export default function QuotesOverdueWidget({
                   <span className="w-1.5 h-1.5 rounded-full bg-[#B2E1F5]" />
                   <span>SENT - {sentCount} QUOTES</span>
                 </div>
-                <div
-                  className="h-14 rounded-lg bg-[linear-gradient(189deg,#B2E1F5_8.02%,#137FAD_83.16%)] flex items-center justify-center text-black font-semibold text-base"
-                  style={{ width: `${sentPercentage}%` }}
-                >
-                  {sentPercentage > 0 && formatQuoteAnalyticsNumber(sentValue)}
+                <div className="flex items-center gap-3">
+                  <div
+                    className="h-14 rounded-lg bg-[linear-gradient(189deg,#B2E1F5_8.02%,#137FAD_83.16%)] flex items-center justify-center text-black font-semibold text-base transition-all duration-300"
+                    style={{ width: `${Math.max(sentPercentage, 1)}%`, minWidth: '5px' }}
+                  >
+                    {sentPercentage >= 15 && sentPercentage > 0 && formatQuoteAnalyticsNumber(sentValue)}
+                  </div>
+                  {sentPercentage < 15 && sentPercentage > 0 && (
+                    <span className="text-white font-semibold text-base whitespace-nowrap">
+                      {formatQuoteAnalyticsNumber(sentValue)}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -301,11 +308,18 @@ export default function QuotesOverdueWidget({
                   <span className="w-1.5 h-1.5 rounded-full bg-[#51DB6B]" />
                   <span>ACCEPTED - {acceptedCount} QUOTES</span>
                 </div>
-                <div
-                  className="h-14 w-[80%] rounded-lg bg-[linear-gradient(189deg,#D9FFDC_8.02%,#63B868_83.16%)] flex items-center justify-center text-black font-semibold text-base"
-                  style={{ width: `${acceptedPercentage}%` }}
-                >
-                  {acceptedPercentage > 0 && formatQuoteAnalyticsNumber(acceptedValue)}
+                <div className="flex items-center gap-3">
+                  <div
+                    className="h-14 rounded-lg bg-[linear-gradient(189deg,#D9FFDC_8.02%,#63B868_83.16%)] flex items-center justify-center text-black font-semibold text-base transition-all duration-300"
+                    style={{ width: `${Math.max(acceptedPercentage, 1)}%`, minWidth: '5px' }}
+                  >
+                    {acceptedPercentage >= 15 && acceptedPercentage > 0 && formatQuoteAnalyticsNumber(acceptedValue)}
+                  </div>
+                  {acceptedPercentage < 15 && acceptedPercentage > 0 && (
+                    <span className="text-white font-semibold text-base whitespace-nowrap">
+                      {formatQuoteAnalyticsNumber(acceptedValue)}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -315,12 +329,18 @@ export default function QuotesOverdueWidget({
                   <span className="w-1.5 h-1.5 rounded-full bg-[#D9C555]" />
                   <span>PARTIALLY PAID - {partiallyPaidCount} QUOTES</span>
                 </div>
-                <div
-                  className="h-14 w-[60%] rounded-lg bg-[linear-gradient(189deg,#FFF7D9_8.02%,#D0BB6B_83.16%)] flex items-center justify-center text-black font-semibold text-base"
-                  style={{ width: `${partiallyPaidPercentage}%` }}
-                >
-                  {partiallyPaidPercentage > 0 &&
-                    formatQuoteAnalyticsNumber(partiallyPaidValue)}
+                <div className="flex items-center gap-3">
+                  <div
+                    className="h-14 rounded-lg bg-[linear-gradient(189deg,#FFF7D9_8.02%,#D0BB6B_83.16%)] flex items-center justify-center text-black font-semibold text-base transition-all duration-300"
+                    style={{ width: `${Math.max(partiallyPaidPercentage, 1)}%`, minWidth: '5px' }}
+                  >
+                    {partiallyPaidPercentage >= 15 && partiallyPaidPercentage > 0 && formatQuoteAnalyticsNumber(partiallyPaidValue)}
+                  </div>
+                  {partiallyPaidPercentage < 15 && partiallyPaidPercentage > 0 && (
+                    <span className="text-white font-semibold text-base whitespace-nowrap">
+                      {formatQuoteAnalyticsNumber(partiallyPaidValue)}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -468,349 +488,349 @@ export default function QuotesOverdueWidget({
       {/* Collapsible Expandable Table Section */}
       <div className={`grid transition-all duration-500 ease-in-out ${showTable ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
         <div className="overflow-hidden">
-        <div className={`border-t rounded-b-2xl ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}>
-          {/*  MOBILE VIEW (Card Accordion)  */}
-          <div className="md:hidden">
-            <div
-              className={`flex justify-between text-sm font-medium px-4 py-3 border-b ${isDark
-                ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
-                : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
-                }`}
-            >
-              <span>Client Name</span>
-              <span>Quote Status</span>
+          <div className={`border-t rounded-b-2xl ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}>
+            {/*  MOBILE VIEW (Card Accordion)  */}
+            <div className="md:hidden">
+              <div
+                className={`flex justify-between text-sm font-medium px-4 py-3 border-b ${isDark
+                  ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                  : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+                  }`}
+              >
+                <span>Client Name</span>
+                <span>Quote Status</span>
+              </div>
+
+              {loading ? (
+                <div className="flex items-center justify-center px-6 py-20">
+                  <Loader2
+                    size={28}
+                    strokeWidth={2.5}
+                    className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-black/60"}`}
+                  />
+                </div>
+              ) : rows.length === 0 ? (
+                <div className={`px-6 py-20 text-center text-sm ${isDark ? "text-white" : "text-black"}`}>
+                  No overdue quotes found
+                </div>
+              ) : (
+                <div className="text-sm">
+                  {rows.map((item) => {
+                    const isExpanded = expandedRowId === String(item.sales_quote_id);
+                    const labelCls = `text-[10px] uppercase tracking-wider mb-1 ${isDark ? "text-white/50" : "text-black/50"}`;
+                    return (
+                      <div
+                        key={item.sales_quote_id}
+                        className={`transition-colors ${isExpanded
+                          ? isDark ? "bg-[#202020]" : "bg-[#F9F9F9]"
+                          : isDark ? "bg-[#171717]" : "bg-white"
+                          }`}
+                      >
+                        {/* Summary row */}
+                        <button
+                          type="button"
+                          onClick={() => setExpandedRowId(isExpanded ? null : String(item.sales_quote_id))}
+                          aria-expanded={isExpanded}
+                          className="w-full flex items-center justify-between gap-3 px-4 py-4 text-left"
+                        >
+                          <div className="min-w-0 flex items-center gap-3">
+                            {/* Chevron */}
+                            <span
+                              className={`shrink-0 border rounded-full w-6 h-6 flex items-center justify-center transition-colors ${isExpanded
+                                ? isDark ? "border-[#E8D1AB] text-[#E8D1AB]" : "border-black text-black"
+                                : isDark ? "border-white/20 text-white/60" : "border-black/20 text-black/60"
+                                }`}
+                            >
+                              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </span>
+
+                            {/* Avatar */}
+                            <span className="w-10 h-10 rounded-lg flex items-center justify-center font-medium text-sm shrink-0 bg-[#E8D1AB] text-black">
+                              {getInitials(item.client?.name || "Client")}
+                            </span>
+
+                            {/* Client info */}
+                            <span className="min-w-0">
+                              <span className={`block truncate font-medium ${isDark ? "text-white" : "text-black"}`}>
+                                {item.client?.name || "-"}
+                              </span>
+                              <span className={`block truncate text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                {item.client?.email || "-"}
+                              </span>
+                            </span>
+                          </div>
+
+                          {/* Quote status */}
+                          <span className={`shrink-0 inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium ${getQuoteStatusPillClasses(item.quote_status)}`}>
+                            {formatQuoteStatusText(item.quote_status)}
+                          </span>
+                        </button>
+
+                        {/* Expanded details (same fields as the desktop columns) */}
+                        {isExpanded && (
+                          <div className={`grid grid-cols-2 gap-x-4 gap-y-4 px-4 pb-4 pt-1 ${isDark ? "text-white" : "text-black"}`}>
+                            <div className="min-w-0">
+                              <p className={labelCls}>Quote No</p>
+                              <Link
+                                href={`/admin/quotes/${item.sales_quote_id}`}
+                                className={`font-medium text-sm hover:underline ${isDark ? "text-[#E8D1AB]" : "text-black/70"}`}
+                              >
+                                {item.quote_number || "-"}
+                              </Link>
+                            </div>
+                            <div className="min-w-0 text-right">
+                              <p className={labelCls}>Amount</p>
+                              <p className="font-semibold text-sm">${Number(item.quote_value || 0).toLocaleString()}</p>
+                              {item.collected_amount > 0 && (
+                                <p className="text-[10px] text-[#14BC52]">
+                                  PAID - ${Number(item.collected_amount).toLocaleString()}
+                                </p>
+                              )}
+                              {item.outstanding_amount > 0 && (
+                                <p className="text-[10px] text-[#F29831]">
+                                  PENDING - ${Number(item.outstanding_amount).toLocaleString()}
+                                </p>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className={labelCls}>Booking Status</p>
+                              {item.lead_source ? (
+                                <span className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium capitalize bg-[#D4FFE4] text-[#16A34A]">
+                                  {item.lead_source}
+                                </span>
+                              ) : (
+                                <span className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-[#FFF0CF] text-[#C06D24]">
+                                  Pending
+                                </span>
+                              )}
+                            </div>
+                            <div className="min-w-0 text-right">
+                              <p className={labelCls}>Validity</p>
+                              <p className="font-medium text-sm">{formatQuoteAnalyticsDate(item.validity?.valid_until)}</p>
+                            </div>
+                            <div className="min-w-0">
+                              <p className={labelCls}>Sales Rep</p>
+                              <p className="font-medium text-sm truncate">{item.sales_rep?.name || "-"}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {loading ? (
-              <div className="flex items-center justify-center px-6 py-20">
-                <Loader2
-                  size={28}
-                  strokeWidth={2.5}
-                  className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-black/60"}`}
-                />
-              </div>
-            ) : rows.length === 0 ? (
-              <div className={`px-6 py-20 text-center text-sm ${isDark ? "text-white" : "text-black"}`}>
-                No overdue quotes found
-              </div>
-            ) : (
-              <div className="text-sm">
-                {rows.map((item) => {
-                  const isExpanded = expandedRowId === String(item.sales_quote_id);
-                  const labelCls = `text-[10px] uppercase tracking-wider mb-1 ${isDark ? "text-white/50" : "text-black/50"}`;
-                  return (
-                    <div
-                      key={item.sales_quote_id}
-                      className={`transition-colors ${isExpanded
-                        ? isDark ? "bg-[#202020]" : "bg-[#F9F9F9]"
-                        : isDark ? "bg-[#171717]" : "bg-white"
-                        }`}
-                    >
-                      {/* Summary row */}
-                      <button
-                        type="button"
-                        onClick={() => setExpandedRowId(isExpanded ? null : String(item.sales_quote_id))}
-                        aria-expanded={isExpanded}
-                        className="w-full flex items-center justify-between gap-3 px-4 py-4 text-left"
+            {/*  DESKTOP VIEW (Standard Table)  */}
+            <div className="hidden md:block overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch] no-scrollbar">
+              <table className="w-full md:min-w-[1280px] text-left border-collapse table-fixed">
+                <thead>
+                  <tr
+                    className={`rounded-b-lg border-b text-sm font-medium capitalize ${isDark
+                      ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                      : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+                      }`}
+                  >
+                    <th className="w-[22%] whitespace-nowrap px-5 py-4">Client Name & Quote No</th>
+                    {/* <th className="w-[12%] whitespace-nowrap p-4">Project</th> */}
+                    <th className="w-[17%] whitespace-nowrap p-4">Booking Status</th>
+                    <th className="w-[12%] whitespace-nowrap p-4">Amount</th>
+                    <th className="w-[11%] whitespace-nowrap p-4">Quote Status</th>
+                    <th className="w-[11%] whitespace-nowrap p-4">Validity</th>
+                    <th className="w-[10%] whitespace-nowrap p-4">Sales Rep</th>
+                  </tr>
+                </thead>
+
+                <tbody className="text-sm lg:text-base">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="p-0">
+                        <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
+                          <Loader2
+                            size={28}
+                            strokeWidth={2.5}
+                            className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-black/60"}`}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ) : rows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className={`px-6 py-20 text-center ${isDark ? "text-white" : "text-black"}`}
                       >
-                        <div className="min-w-0 flex items-center gap-3">
-                          {/* Chevron */}
-                          <span
-                            className={`shrink-0 border rounded-full w-6 h-6 flex items-center justify-center transition-colors ${isExpanded
-                              ? isDark ? "border-[#E8D1AB] text-[#E8D1AB]" : "border-black text-black"
-                              : isDark ? "border-white/20 text-white/60" : "border-black/20 text-black/60"
-                              }`}
-                          >
-                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                          </span>
+                        No overdue quotes found
+                      </td>
+                    </tr>
+                  ) : (
+                    rows.map((item) => (
+                      <tr
+                        key={item.sales_quote_id}
+                        className={`transition-colors ${isDark
+                          ? "bg-[#171717] hover:bg-white/[0.02] text-white border-white/10"
+                          : "bg-white hover:bg-black/[0.025] text-black border-black/10"
+                          }`}
+                      >
+                        {/* Client Name & Avatar */}
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 lg:h-12 lg:w-12 rounded-lg flex items-center justify-center font-medium text-xs lg:text-xl shrink-0 bg-[#E8D1AB] text-black">
+                              {getInitials(item.client?.name || "Client")}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate">
+                                <span className={`font-medium mr-1 ${isDark ? "text-white" : "text-black"}`}>
+                                  {item.client?.name || "-"}
+                                </span>
+                                <Link
+                                  href={`/admin/quotes/${item.sales_quote_id}`}
+                                  className={`text-[10px] lg:text-xs hover:underline ${isDark ? "text-[#E8D1AB]" : "text-black/40"}`}
+                                >
+                                  ({item.quote_number})
+                                </Link>
+                              </div>
+                              <div className={`text-xs lg:text-sm truncate ${isDark ? "text-white/40" : "text-black/40"}`}>
+                                {item.client?.email || "-"}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
 
-                          {/* Avatar */}
-                          <span className="w-10 h-10 rounded-lg flex items-center justify-center font-medium text-sm shrink-0 bg-[#E8D1AB] text-black">
-                            {getInitials(item.client?.name || "Client")}
-                          </span>
+                        {/* <td className="p-4 truncate max-w-[150px]">{item.project}</td> */}
 
-                          {/* Client info */}
-                          <span className="min-w-0">
-                            <span className={`block truncate font-medium ${isDark ? "text-white" : "text-black"}`}>
-                              {item.client?.name || "-"}
+                        {/* Booking Status Badge */}
+                        <td className="p-4">
+                          {item.lead_source ? (
+                            <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#D4FFE4] px-3 py-1.5 text-center text-xs font-medium capitalize text-[#16A34A] lg:text-sm">
+                              {item.lead_source}
                             </span>
-                            <span className={`block truncate text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>
-                              {item.client?.email || "-"}
+                          ) : (
+                            <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#FFF0CF] px-3 py-1.5 text-center text-xs font-medium text-[#C06D24] lg:text-sm">
+                              Pending
                             </span>
-                          </span>
-                        </div>
+                          )}
+                        </td>
 
-                        {/* Quote status */}
-                        <span className={`shrink-0 inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium ${getQuoteStatusPillClasses(item.quote_status)}`}>
-                          {formatQuoteStatusText(item.quote_status)}
-                        </span>
+                        {/* Amount */}
+                        <td className="p-4">
+                          <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                            ${Number(item.quote_value || 0).toLocaleString()}
+                          </div>
+                          {item.collected_amount > 0 && (
+                            <div className="whitespace-nowrap text-[10px] text-[#14BC52] lg:text-xs">
+                              PAID - ${Number(item.collected_amount).toLocaleString()}
+                            </div>
+                          )}
+                          {item.outstanding_amount > 0 && (
+                            <div className="whitespace-nowrap text-[10px] text-[#F29831] lg:text-xs">
+                              PENDING - ${Number(item.outstanding_amount).toLocaleString()}
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Quote Status Badge */}
+                        <td className="p-4">
+                          <span className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium lg:text-sm ${getQuoteStatusPillClasses(item.quote_status)}`}>
+                            {formatQuoteStatusText(item.quote_status)}
+                          </span>
+                        </td>
+
+                        {/* Validity */}
+                        <td className="p-4 whitespace-nowrap">
+                          {formatQuoteAnalyticsDate(item.validity?.valid_until)}
+                        </td>
+
+                        {/* Sales Rep */}
+                        <td className={`p-4 whitespace-nowrap ${isDark ? "text-white/90" : "text-black/90"}`}>
+                          {item.sales_rep?.name || "-"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Integrated Pagination Footer */}
+            {!loading && (
+              <div
+                className={`p-5 border-t rounded-b-2xl flex flex-col sm:flex-row items-center justify-between gap-4 ${isDark
+                  ? "border-white/10 bg-[#101010]"
+                  : "border-black/10 bg-zinc-50"
+                  }`}
+              >
+                <div
+                  className={`hidden lg:block text-sm lg:text-base ${isDark ? "text-white" : "text-black"
+                    }`}
+                >
+                  Page {page} to {totalPages}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextPage = Math.max(1, page - 1);
+                      setPage(nextPage);
+                      onPageChange?.(nextPage);
+                    }}
+                    disabled={page === 1}
+                    className={`p-2 rounded-lg border transition-all disabled:opacity-30 ${isDark
+                      ? "bg-[#111] text-white/60 border-white/10 hover:bg-white/10 hover:text-white"
+                      : "bg-white text-black/60 border-black/10 hover:bg-black/5"
+                      }`}
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+
+                  {paginationItems.map((item, index) =>
+                    item === "..." ? (
+                      <span
+                        key={`ellipsis-${index}`}
+                        className={`px-2 text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/40"}`}
+                      >
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => {
+                          setPage(item);
+                          onPageChange?.(item);
+                        }}
+                        className={`w-8 h-8 flex items-center justify-center text-xs lg:text-sm font-medium rounded-lg transition-all ${page === item
+                          ? "bg-[#E5D5B8] text-black font-bold"
+                          : isDark
+                            ? "text-white/60 hover:bg-white/5"
+                            : "text-black/60 hover:bg-black/5"
+                          }`}
+                      >
+                        {item}
                       </button>
+                    )
+                  )}
 
-                      {/* Expanded details (same fields as the desktop columns) */}
-                      {isExpanded && (
-                        <div className={`grid grid-cols-2 gap-x-4 gap-y-4 px-4 pb-4 pt-1 ${isDark ? "text-white" : "text-black"}`}>
-                          <div className="min-w-0">
-                            <p className={labelCls}>Quote No</p>
-                            <Link
-                              href={`/admin/quotes/${item.sales_quote_id}`}
-                              className={`font-medium text-sm hover:underline ${isDark ? "text-[#E8D1AB]" : "text-black/70"}`}
-                            >
-                              {item.quote_number || "-"}
-                            </Link>
-                          </div>
-                          <div className="min-w-0 text-right">
-                            <p className={labelCls}>Amount</p>
-                            <p className="font-semibold text-sm">${Number(item.quote_value || 0).toLocaleString()}</p>
-                            {item.collected_amount > 0 && (
-                              <p className="text-[10px] text-[#14BC52]">
-                                PAID - ${Number(item.collected_amount).toLocaleString()}
-                              </p>
-                            )}
-                            {item.outstanding_amount > 0 && (
-                              <p className="text-[10px] text-[#F29831]">
-                                PENDING - ${Number(item.outstanding_amount).toLocaleString()}
-                              </p>
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <p className={labelCls}>Booking Status</p>
-                            {item.lead_source ? (
-                              <span className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium capitalize bg-[#D4FFE4] text-[#16A34A]">
-                                {item.lead_source}
-                              </span>
-                            ) : (
-                              <span className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-[#FFF0CF] text-[#C06D24]">
-                                Pending
-                              </span>
-                            )}
-                          </div>
-                          <div className="min-w-0 text-right">
-                            <p className={labelCls}>Validity</p>
-                            <p className="font-medium text-sm">{formatQuoteAnalyticsDate(item.validity?.valid_until)}</p>
-                          </div>
-                          <div className="min-w-0">
-                            <p className={labelCls}>Sales Rep</p>
-                            <p className="font-medium text-sm truncate">{item.sales_rep?.name || "-"}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextPage = Math.min(totalPages, page + 1);
+                      setPage(nextPage);
+                      onPageChange?.(nextPage);
+                    }}
+                    disabled={page === totalPages}
+                    className={`p-2 rounded-lg border transition-all disabled:opacity-30 ${isDark
+                      ? "bg-[#111] text-white/60 border-white/10 hover:bg-white/10 hover:text-white"
+                      : "bg-white text-black/60 border-black/10 hover:bg-black/5"
+                      }`}
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
               </div>
             )}
           </div>
-
-          {/*  DESKTOP VIEW (Standard Table)  */}
-          <div className="hidden md:block overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch] no-scrollbar">
-            <table className="w-full md:min-w-[1280px] text-left border-collapse table-fixed">
-              <thead>
-                <tr
-                  className={`rounded-b-lg border-b text-sm font-medium capitalize ${isDark
-                    ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
-                    : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
-                    }`}
-                >
-                  <th className="w-[22%] whitespace-nowrap px-5 py-4">Client Name & Quote No</th>
-                  {/* <th className="w-[12%] whitespace-nowrap p-4">Project</th> */}
-                  <th className="w-[17%] whitespace-nowrap p-4">Booking Status</th>
-                  <th className="w-[12%] whitespace-nowrap p-4">Amount</th>
-                  <th className="w-[11%] whitespace-nowrap p-4">Quote Status</th>
-                  <th className="w-[11%] whitespace-nowrap p-4">Validity</th>
-                  <th className="w-[10%] whitespace-nowrap p-4">Sales Rep</th>
-                </tr>
-              </thead>
-
-              <tbody className="text-sm lg:text-base">
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="p-0">
-                      <div className="flex flex-col items-center justify-center gap-3 px-6 py-20">
-                        <Loader2
-                          size={28}
-                          strokeWidth={2.5}
-                          className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-black/60"}`}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ) : rows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className={`px-6 py-20 text-center ${isDark ? "text-white" : "text-black"}`}
-                    >
-                      No overdue quotes found
-                    </td>
-                  </tr>
-                ) : (
-                  rows.map((item) => (
-                    <tr
-                      key={item.sales_quote_id}
-                      className={`transition-colors ${isDark
-                            ? "bg-[#171717] hover:bg-white/[0.02] text-white border-white/10"
-                            : "bg-white hover:bg-black/[0.025] text-black border-black/10"
-                            }`}
-                        >
-                      {/* Client Name & Avatar */}
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 lg:h-12 lg:w-12 rounded-lg flex items-center justify-center font-medium text-xs lg:text-xl shrink-0 bg-[#E8D1AB] text-black">
-                            {getInitials(item.client?.name || "Client")}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate">
-                                  <span className={`font-medium mr-1 ${isDark ? "text-white" : "text-black"}`}>
-                                {item.client?.name || "-"}
-                                  </span>
-                                  <Link
-                                    href={`/admin/quotes/${item.sales_quote_id}`}
-                                    className={`text-[10px] lg:text-xs hover:underline ${isDark ? "text-[#E8D1AB]" : "text-black/40"}`}
-                                  >
-                                    ({item.quote_number})
-                                  </Link>
-                                </div>
-                                <div className={`text-xs lg:text-sm truncate ${isDark ? "text-white/40" : "text-black/40"}`}>
-                              {item.client?.email || "-"}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-
-                      {/* <td className="p-4 truncate max-w-[150px]">{item.project}</td> */}
-
-                          {/* Booking Status Badge */}
-                      <td className="p-4">
-                            {item.lead_source ? (
-                              <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#D4FFE4] px-3 py-1.5 text-center text-xs font-medium capitalize text-[#16A34A] lg:text-sm">
-                                {item.lead_source}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#FFF0CF] px-3 py-1.5 text-center text-xs font-medium text-[#C06D24] lg:text-sm">
-                                Pending
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Amount */}
-                      <td className="p-4">
-                        <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
-                          ${Number(item.quote_value || 0).toLocaleString()}
-                            </div>
-                            {item.collected_amount > 0 && (
-                              <div className="whitespace-nowrap text-[10px] text-[#14BC52] lg:text-xs">
-                            PAID - ${Number(item.collected_amount).toLocaleString()}
-                              </div>
-                            )}
-                            {item.outstanding_amount > 0 && (
-                              <div className="whitespace-nowrap text-[10px] text-[#F29831] lg:text-xs">
-                            PENDING - ${Number(item.outstanding_amount).toLocaleString()}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Quote Status Badge */}
-                      <td className="p-4">
-                            <span className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium lg:text-sm ${getQuoteStatusPillClasses(item.quote_status)}`}>
-                              {formatQuoteStatusText(item.quote_status)}
-                            </span>
-                          </td>
-
-                          {/* Validity */}
-                      <td className="p-4 whitespace-nowrap">
-                        {formatQuoteAnalyticsDate(item.validity?.valid_until)}
-                          </td>
-
-                          {/* Sales Rep */}
-                      <td className={`p-4 whitespace-nowrap ${isDark ? "text-white/90" : "text-black/90"}`}>
-                        {item.sales_rep?.name || "-"}
-                          </td>
-                        </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Integrated Pagination Footer */}
-          {!loading && (
-            <div
-              className={`p-5 border-t rounded-b-2xl flex flex-col sm:flex-row items-center justify-between gap-4 ${isDark
-                ? "border-white/10 bg-[#101010]"
-                : "border-black/10 bg-zinc-50"
-                }`}
-            >
-              <div
-                className={`hidden lg:block text-sm lg:text-base ${isDark ? "text-white" : "text-black"
-                  }`}
-              >
-                Page {page} to {totalPages}
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nextPage = Math.max(1, page - 1);
-                    setPage(nextPage);
-                    onPageChange?.(nextPage);
-                  }}
-                  disabled={page === 1}
-                  className={`p-2 rounded-lg border transition-all disabled:opacity-30 ${isDark
-                    ? "bg-[#111] text-white/60 border-white/10 hover:bg-white/10 hover:text-white"
-                    : "bg-white text-black/60 border-black/10 hover:bg-black/5"
-                    }`}
-                >
-                  <ChevronLeft size={20} />
-                </button>
-
-                {paginationItems.map((item, index) =>
-                  item === "..." ? (
-                    <span
-                      key={`ellipsis-${index}`}
-                      className={`px-2 text-xs lg:text-sm ${isDark ? "text-white/40" : "text-black/40"}`}
-                    >
-                      ...
-                    </span>
-                  ) : (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => {
-                        setPage(item);
-                        onPageChange?.(item);
-                      }}
-                      className={`w-8 h-8 flex items-center justify-center text-xs lg:text-sm font-medium rounded-lg transition-all ${page === item
-                        ? "bg-[#E5D5B8] text-black font-bold"
-                        : isDark
-                          ? "text-white/60 hover:bg-white/5"
-                          : "text-black/60 hover:bg-black/5"
-                        }`}
-                    >
-                      {item}
-                    </button>
-                  )
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nextPage = Math.min(totalPages, page + 1);
-                    setPage(nextPage);
-                    onPageChange?.(nextPage);
-                  }}
-                  disabled={page === totalPages}
-                  className={`p-2 rounded-lg border transition-all disabled:opacity-30 ${isDark
-                    ? "bg-[#111] text-white/60 border-white/10 hover:bg-white/10 hover:text-white"
-                    : "bg-white text-black/60 border-black/10 hover:bg-black/5"
-                    }`}
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
         </div>
       </div>
     </div>
