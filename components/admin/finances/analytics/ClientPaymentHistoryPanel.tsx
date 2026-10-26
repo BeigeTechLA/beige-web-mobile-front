@@ -9,11 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const PAGE_SIZE = 10;
 type PaymentHistoryRow = FinanceTransactionApiRow & { rowKey: string };
 
-const getPeriodRange = (period: string) => {
+const getPeriodRange = (period: string): { date_from?: string; date_to?: string } => {
   if (period === 'Month') return {};
   const end = new Date();
   const start = new Date(end);
-  if (period === 'Last 30 Days') start.setTime(subDays(end, 30).getTime());
+  if (period === 'Last 30 Days') start.setTime(subDays(end, 29).getTime());
   else if (period === 'This Quarter') start.setMonth(Math.floor(start.getMonth() / 3) * 3, 1);
   else if (period === 'This Year') start.setMonth(0, 1);
   return { date_from: format(start, 'yyyy-MM-dd'), date_to: format(end, 'yyyy-MM-dd') };
@@ -31,7 +31,7 @@ const formatDateTime = (value: string | null | undefined) => {
   return { date: format(date, 'MMMM d, yyyy'), time: format(date, 'h:mm a') };
 };
 
-export default function ClientPaymentHistoryPanel({ open, isDark }: { open: boolean; isDark: boolean }) {
+export default function ClientPaymentHistoryPanel({ open, isDark, startDate = null, endDate = null }: { open: boolean; isDark: boolean; startDate?: string | null; endDate?: string | null }) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [status, setStatus] = useState('All');
@@ -43,6 +43,8 @@ export default function ClientPaymentHistoryPanel({ open, isDark }: { open: bool
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const periodRange = useMemo(() => getPeriodRange(month), [month]);
+  const dateFrom = startDate && periodRange.date_from ? (startDate > periodRange.date_from ? startDate : periodRange.date_from) : startDate || periodRange.date_from;
+  const dateTo = endDate && periodRange.date_to ? (endDate < periodRange.date_to ? endDate : periodRange.date_to) : endDate || periodRange.date_to;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   useEffect(() => {
@@ -50,20 +52,28 @@ export default function ClientPaymentHistoryPanel({ open, isDark }: { open: bool
     return () => clearTimeout(timeout);
   }, [search]);
 
-  useEffect(() => setPage(1), [debouncedSearch, status, month, method]);
+  useEffect(() => setPage(1), [debouncedSearch, status, month, method, startDate, endDate]);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
     setError('');
+    setRows([]);
+    setTotal(0);
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      setLoading(false);
+      return () => { cancelled = true; };
+    }
     void financeTransactionsApi.listTransactions({
       page,
       limit: PAGE_SIZE,
       search: debouncedSearch || undefined,
       status: status === 'All' ? undefined : status.toLowerCase(),
       payment_method: method === 'All' ? undefined : method,
-      ...periodRange,
+      date_from: dateFrom || undefined,
+      date_to: dateTo || undefined,
+      time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata',
     }).then((response) => {
       if (cancelled) return;
       const nextRows = response.data?.rows ?? [];
@@ -84,7 +94,7 @@ export default function ClientPaymentHistoryPanel({ open, isDark }: { open: bool
       if (!cancelled) setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [open, page, debouncedSearch, status, method, periodRange]);
+  }, [open, page, debouncedSearch, status, method, dateFrom, dateTo]);
 
   const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1)
     .filter((number) => number === 1 || number === totalPages || Math.abs(number - page) <= 1);

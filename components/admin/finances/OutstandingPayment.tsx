@@ -138,6 +138,8 @@ interface OutstandingPaymentProps {
   /** analytics.clients.outstanding */
   data?: FinanceAnalyticsData['clients']['outstanding'] | null;
   loading?: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
   title?: string;
   infoText?: string;
 }
@@ -145,6 +147,8 @@ interface OutstandingPaymentProps {
 export default function OutstandingPayment({
   data = null,
   loading = false,
+  startDate = null,
+  endDate = null,
   title = 'Outstanding Payment',
   infoText = 'Total payment pending from clients against gross revenue.',
 }: OutstandingPaymentProps) {
@@ -203,7 +207,7 @@ export default function OutstandingPayment({
           <div className="flex items-center gap-2">
             {isLoading
               ? <div className={`h-12 w-36 rounded animate-pulse ${isDark ? 'bg-white/10' : 'bg-zinc-200'}`} />
-              : <p className={`text-xl lg:text-4xl font-semibold leading-none ${isDark ? 'text-[#EAD6B5]' : 'text-[#9C7B45]'}`}>{formatCompactUSD(total)}</p>}
+              : <p className={`text-xl lg:text-4xl font-semibold leading-none ${isDark ? 'text-[#EAD6B5]' : 'text-[#9C7B45]'}`}>{formatCompactUSD(d.remaining)}</p>}
             <button
               type="button"
               aria-label={historyOpen ? 'Close payment history' : 'Open payment history'}
@@ -295,7 +299,7 @@ export default function OutstandingPayment({
       </div>
     </div>
 
-    <ClientPaymentHistoryPanel open={historyOpen} isDark={isDark} />
+    <ClientPaymentHistoryPanel open={historyOpen} isDark={isDark} startDate={startDate} endDate={endDate} />
     </div>
   );
 }

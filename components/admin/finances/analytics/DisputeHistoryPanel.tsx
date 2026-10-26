@@ -25,6 +25,7 @@ export type DisputeHistoryItem = {
   raisedBy: string;
   raisedRole: string;
   raisedDate: string;
+  resolvedDate?: string;
   disputedAmount: string;
   payoutHold: string;
   status: DisputeStatus;
@@ -32,6 +33,7 @@ export type DisputeHistoryItem = {
 
 interface DisputeHistoryPanelProps {
   items: DisputeHistoryItem[];
+  showResolvedDate?: boolean;
   loading?: boolean;
   searchValue: string;
   onSearchChange: (value: string) => void;
@@ -124,6 +126,7 @@ const TruncatedDescription = ({ text, isDark }: { text: string; isDark: boolean 
 
 export default function DisputeHistoryPanel({
   items,
+  showResolvedDate = false,
   loading = false,
   searchValue,
   onSearchChange,
@@ -314,7 +317,7 @@ export default function DisputeHistoryPanel({
                   <div className={`flex gap-2 text-xs lg:text-sm ${isDark ? "text-[#A0A0A0]" : "text-[#676767]"}`}>
                     <p>Raised by: <span className={isDark ? "text-white" : "text-[#171717]"}>{item.raisedBy}</span> ({item.raisedRole})</p>
                     <span className={isDark ? "text-white/20" : "text-[#999]"}>&bull;</span>
-                    <span>{item.raisedDate}</span>
+                    <span>{showResolvedDate ? `Resolved: ${item.resolvedDate || '—'}` : item.raisedDate}</span>
                   </div>
                   <button
                     type="button"

@@ -209,6 +209,7 @@ export type AdminFinanceDisputeApiRow = {
     extra_amount?: number | string | null;
   } | null;
   created_at?: string | null;
+  resolved_at?: string | null;
   updated_at?: string | null;
   actions?: {
     can_update?: boolean;
@@ -318,6 +319,7 @@ export type FinanceTransactionListParams = {
   booking_id?: number | string;
   date_from?: string;
   date_to?: string;
+  time_zone?: string;
 };
 
 export type FinanceTransactionExportParams = {
@@ -346,6 +348,8 @@ export type AdminFinanceDisputeListParams = {
   raised_by_type?: string;
   date_from?: string;
   date_to?: string;
+  date_field?: "created_at" | "resolved_at";
+  timezone?: string;
   sort_by?: string;
   sort_dir?: "ASC" | "DESC";
 };

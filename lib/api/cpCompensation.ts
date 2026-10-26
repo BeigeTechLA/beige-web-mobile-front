@@ -363,12 +363,21 @@ export const cpCompensationApi = {
   },
 
   async list(view: "shoots" | "creators") {
-    const response = await apiClient.get<ApiEnvelope<{ rows: RawCpRow[] }>>("finance/cp-compensation", {
-      page: 1,
-      limit: 100,
-      view,
-    });
-    return (response.data.rows || []).map(view === "shoots" ? mapShootRow : mapCreatorRow);
+    type ListData = { rows: RawCpRow[]; pagination?: { total_pages?: number } };
+    const rows: RawCpRow[] = [];
+    let page = 1;
+    let totalPages = 1;
+    do {
+      const response = await apiClient.get<ApiEnvelope<ListData>>("finance/cp-compensation", {
+        page,
+        limit: 100,
+        view,
+      });
+      rows.push(...(response.data.rows || []));
+      totalPages = Math.max(1, Number(response.data.pagination?.total_pages || 1));
+      page += 1;
+    } while (page <= totalPages);
+    return rows.map(view === "shoots" ? mapShootRow : mapCreatorRow);
   },
 
   async calendarItems(range: { start: string; end: string; status?: string }) {

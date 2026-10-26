@@ -55,6 +55,7 @@ type PersistedClientsFilters = {
 
 interface Client {
   id: string;
+  userId: string | null;
   name: string;
   email: string;
   status: UserStatus;
@@ -326,6 +327,7 @@ export const ClientsTable = () => {
 
           const mappedClients = data.map((client: any) => {
             const fullName = client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim() || "Unknown";
+            const clientRecordId = client.client_id ?? client.id;
             const archivedIndicator = client.is_archived ?? client.archived ?? client.is_deleted ?? client.deleted_at ?? client.client_status ?? client.status;
             const statusMapping = (val: any) => {
               if (val === 1 || val === "Active" || val === "approved") return "Active";
@@ -335,7 +337,8 @@ export const ClientsTable = () => {
             };
 
             return {
-              id: `#${client.client_id || client.id || client.user_id}`,
+              id: clientRecordId != null ? `#${clientRecordId}` : "",
+              userId: client.user_id != null ? `#${client.user_id}` : null,
               name: fullName,
               email: client.email || "No Email",
               status: statusMapping(client.status || client.is_active),
@@ -949,7 +952,7 @@ export const ClientsTable = () => {
             <table className="w-full table-fixed border-collapse">
               <thead>
                 <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
-                  <th className="w-[10%] p-5 font-medium cursor-pointer rounded-bl-xl" onClick={() => requestSort("id")}><div className="flex items-center gap-1">User ID {getSortIcon("id")}</div></th>
+                  <th className="w-[12%] p-5 font-medium cursor-pointer rounded-bl-xl" onClick={() => requestSort("id")}><div className="flex items-center gap-1">Client / User ID {getSortIcon("id")}</div></th>
                   <th className="w-[20%] p-5 font-medium cursor-pointer" onClick={() => requestSort("name")}><div className="flex items-center gap-1">User Name {getSortIcon("name")}</div></th>
                   <th className="w-[18%] p-5 font-medium">Email ID</th>
                   <th className="w-[14%] p-5 font-medium">Mobile Number</th>
@@ -982,7 +985,10 @@ export const ClientsTable = () => {
                     >
                       <td className="relative py-3 px-6">
                         <Link href={clientDetailHref} className="absolute inset-0 z-20" aria-label={`Open client ${client.name}`} prefetch={false} />
-                        <span className="relative z-10 pointer-events-none">{client.id}</span>
+                        <div className="relative z-10 pointer-events-none space-y-1 whitespace-nowrap">
+                          <p>Client {client.id}</p>
+                          <p className={`text-xs ${isDark ? "text-white/50" : "text-[#32323280]"}`}>User {client.userId ?? "—"}</p>
+                        </div>
                       </td>
                         <td className="relative py-3 px-6">
                         <Link href={clientDetailHref} className="absolute inset-0 z-20" aria-label={`Open client ${client.name}`} prefetch={false} />
@@ -1153,7 +1159,7 @@ export const ClientsTable = () => {
                     <div className="pt-4 space-y-4 min-w-0">
                       <div className="grid grid-cols-2 gap-y-4 text-xs">
                         <div className="space-y-1">
-                          <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>User ID</p>
+                          <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Client ID</p>
                           <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>{client.id}</p>
                         </div>
                         <div className="space-y-1 text-right">
@@ -1169,6 +1175,10 @@ export const ClientsTable = () => {
                         <div className="space-y-1 text-right">
                           <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>Join Date</p>
                           <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>{client.joinDate}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className={`text-xs font-medium ${isDark ? "text-white" : "text-black"}`}>User ID</p>
+                          <p className={`text-sm ${isDark ? "text-[#A1A1A1]" : "text-[#323232]"}`}>{client.userId ?? "—"}</p>
                         </div>
                       </div>
 

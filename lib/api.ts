@@ -2523,6 +2523,25 @@ export const adminApi = {
       };
     }
   },
+  exportFinanceAnalyticsAudit: async (params: FinanceAnalyticsParams = {}): Promise<Blob> => {
+    try {
+      const response = await api.get<Blob>('finance/admin/analytics/reconciliation/export', {
+        params,
+        responseType: 'blob',
+      });
+      return response.data;
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
+        let message: string | undefined;
+        try {
+          const body = JSON.parse(await error.response.data.text());
+          message = body.message;
+        } catch { /* Use the fallback message below. */ }
+        if (message) throw new Error(message);
+      }
+      throw new Error('Failed to export finance analytics reconciliation');
+    }
+  },
   getFinanceShootHistory: async (
     params: FinanceShootHistoryParams,
     signal?: AbortSignal,
@@ -2577,25 +2596,6 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch overdue CP shoots',
-      };
-    }
-  },
-  getFinancePayoutSchedule: async (
-    params: FinancePayoutScheduleParams,
-    signal?: AbortSignal,
-  ): Promise<FinancePayoutScheduleResponse & { canceled?: boolean }> => {
-    try {
-      const response = await api.get<FinancePayoutScheduleResponse>('finance/admin/analytics/payout-schedule-history', { params, signal });
-      return response.data;
-    } catch (error: any) {
-      if (error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
-        return { success: false, data: null, canceled: true };
-      }
-      console.error('Get Finance Payout Schedule Error:', error.response?.data || error.message);
-      return {
-        success: false,
-        data: null,
-        error: error.response?.data?.message || 'Failed to fetch payout schedule',
       };
     }
   },

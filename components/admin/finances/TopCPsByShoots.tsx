@@ -2,12 +2,9 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ComposedChart, Bar, Cell, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { ArrowUpRight, Info } from 'lucide-react';import { useTheme } from "next-themes";
+import { Info } from 'lucide-react';
+import { useTheme } from "next-themes";
 import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
-
-/* ------------------------------------------------------------------ */
-/* Dummy data                                                          */
-/* ------------------------------------------------------------------ */
 
 export interface CPShoots {
   id: string;
@@ -15,23 +12,6 @@ export interface CPShoots {
   shoots: number;   // bar: shoots completed by this CP
   trend: number;    // dashed line value at this CP
 }
-
-const DUMMY_CPS: CPShoots[] = [
-  { id: 'cp_1', name: 'Priya Nair', shoots: 82, trend: 31 },
-  { id: 'cp_2', name: 'Marcus Reid', shoots: 36, trend: 44 },
-  { id: 'cp_3', name: 'Leon Vo', shoots: 58, trend: 58 },
-  { id: 'cp_4', name: 'Cleo Dasha', shoots: 93, trend: 95 },
-  { id: 'cp_5', name: 'Amara Sow', shoots: 18, trend: 55 },
-  { id: 'cp_6', name: 'Raj Verma', shoots: 47, trend: 53 },
-  { id: 'cp_7', name: 'John Doe', shoots: 27, trend: 65 },
-  { id: 'cp_8', name: 'Ethan Cater', shoots: 66, trend: 70 },
-  { id: 'cp_9', name: 'Sakuna Patel', shoots: 41, trend: 85 },
-  { id: 'cp_10', name: 'Amy Jason', shoots: 76, trend: 55 },
-];
-
-// Trend values for the points BETWEEN bars (before the 1st CP, between each pair, after the last).
-// Length must be CPs + 1. Gives the line its own shape like the design.
-const DUMMY_BETWEEN: number[] = [0, 42, 42, 67, 38, 72, 51, 77, 77, 40, 35];
 
 /* ------------------------------------------------------------------ */
 /* Chart rows                                                          */
@@ -58,13 +38,29 @@ const buildRows = (cps: CPShoots[], between: number[]): Row[] => {
   return rows;
 };
 
+// Keep roughly five readable tick intervals while scaling to the live shoot counts.
+const getYAxisScale = (values: number[]) => {
+  const max = Math.max(0, ...values.filter(Number.isFinite));
+  const roughStep = max / 5;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep || 1));
+  const step = [1, 2, 5, 10].map((factor) => factor * magnitude)
+    .find((candidate) => candidate >= roughStep && candidate >= 1) ?? 1;
+  const upper = Math.max(step, Math.ceil(max / step) * step);
+  return { upper, ticks: Array.from({ length: upper / step + 1 }, (_, index) => index * step) };
+};
+
 /* ------------------------------------------------------------------ */
 /* Chart pieces                                                        */
 /* ------------------------------------------------------------------ */
 
 // Active point on the dashed line: ring dot + "N Shoots" bubble above it.
 // Only shown on CP rows (not on the in-between points).
-const ActiveDotWithBubble = ({ cx, cy, payload, isDark }: any) => {
+const ActiveDotWithBubble = ({ cx, cy, payload, isDark }: {
+  cx?: number;
+  cy?: number;
+  payload?: Row;
+  isDark: boolean;
+}) => {
   if (cx == null || cy == null || !payload?.isCP) return null;
   const text = `${payload.shoots} Shoots`;
   const w = text.length * 7.6 + 24;
@@ -86,9 +82,15 @@ const ActiveDotWithBubble = ({ cx, cy, payload, isDark }: any) => {
 };
 
 // Vertical dashed guide from the active point down to the axis (CP rows only)
-const DashedCursor = ({ points, payload, height, top, isDark }: any) => {
+const DashedCursor = ({ points, payload, height, top, isDark }: {
+  points?: Array<{ x: number }>;
+  payload?: Array<{ payload: Row }>;
+  height?: number;
+  top?: number;
+  isDark: boolean;
+}) => {
   const row = payload?.[0]?.payload;
-  if (!row?.isCP || !points?.length) return null;
+  if (!row?.isCP || !points?.length || top == null || height == null) return null;
   const x = points[0].x;
   return (
     <line x1={x} x2={x} y1={top} y2={top + height}
@@ -228,10 +230,10 @@ export default function TopCPsByShoots({
   );
   const rows: Row[] = useMemo(() => buildRows(cps, between ?? []), [cps, between]);
 
-  // Y axis: 0–100 like the design, growing in steps of 20 if data goes higher
-  const maxVal = Math.max(100, ...rows.map((r: Row) => Math.max(r.shoots ?? 0, r.trend)));
-  const yMax = Math.ceil(maxVal / 20) * 20;
-  const yTicks = Array.from({ length: yMax / 20 + 1 }, (_, i) => i * 20);
+  const { upper: yMax, ticks: yTicks } = useMemo(
+    () => getYAxisScale(rows.flatMap((row) => [row.shoots ?? 0, row.trend])),
+    [rows]
+  );
 
   // Pre-select the busiest CP so the bubble shows on load (Cleo Dasha in the design)
   const defaultIndex = useMemo(() => {
@@ -263,7 +265,7 @@ export default function TopCPsByShoots({
 
       {/* Chart — scrolls sideways on small screens so the 10 names don't overlap */}
       <div className="px-3 pt-6 pb-4 overflow-x-auto">
-        <div className="h-[340px] lg:h-[420px] min-w-[720px] relative">
+        <div className="h-[340px] lg:h-[420px] relative" style={{ minWidth: Math.max(720, cps.length * 105) }}>
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-transparent z-10">
               <div className="h-8 w-8 border-2 border-[#E5D5B8] border-t-transparent rounded-full animate-spin" />
@@ -280,8 +282,9 @@ export default function TopCPsByShoots({
               margin={{ top: 44, right: 10, left: -10, bottom: 0 }}
               barCategoryGap="6%"
               style={{ cursor: onSelectCP ? 'pointer' : 'default' }}
-              onClick={(state: any) => {
-                const row = rows[state?.activeTooltipIndex];
+              onClick={(state: { activeTooltipIndex?: number | string | null }) => {
+                const index = state?.activeTooltipIndex;
+                const row = index == null ? undefined : rows[Number(index)];
                 if (!row?.isCP) return;
                 onSelectCP?.(selectedId === row.key ? null : { id: row.key, name: row.label, shoots: row.shoots ?? 0 });
               }}
@@ -340,7 +343,7 @@ export default function TopCPsByShoots({
                 fill="url(#cpShootsAreaGradient)"
                 fillOpacity={1}
                 dot={false}
-                activeDot={(props: any) => <ActiveDotWithBubble {...props} isDark={isDark} />}
+                activeDot={(props) => <ActiveDotWithBubble {...props} isDark={isDark} />}
                 isAnimationActive
               />
               <Bar
