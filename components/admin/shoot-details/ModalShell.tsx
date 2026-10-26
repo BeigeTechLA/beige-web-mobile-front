@@ -63,7 +63,7 @@ export default function ModalShell({
         aria-modal="true"
         aria-labelledby={labelledBy}
         aria-describedby={describedBy}
-        className={`relative w-full ${maxWidth} max-h-[90vh] overflow-y-auto rounded-2xl border shadow-[0_20px_60px_rgba(0,0,0,0.55)] ${isDark ? 'bg-black border-white/40 text-white' : 'bg-white border-[#E5E5E5] text-[#202020]'} ${className}`}
+        className={`relative w-full ${maxWidth} max-h-[90vh] overflow-y-auto rounded-2xl border shadow-[0_20px_60px_rgba(0,0,0,0.55)] ${isDark ? 'bg-black border-[#2E2E2E] text-white' : 'bg-white border-[#E5E5E5] text-[#202020]'} ${className}`}
       >
         {children}
       </div>

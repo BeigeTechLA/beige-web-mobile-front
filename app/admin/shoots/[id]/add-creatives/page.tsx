@@ -13,6 +13,7 @@ import AddCompensationModal from "@/components/admin/finances/AddCompensationMod
 import { type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 import { shootAgreementPlanKey, type ShootAgreementPlan } from "@/lib/shootAgreementPlan";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { formatCurrency } from "@/lib/utils";
 
 type FulfillmentStats = {
   fulfillment_stats?: {
@@ -188,7 +189,16 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           // Parse fulfillment stats like "0/2" => videographer needed = 2
           const vReq = parseInt(mergedStats.fulfillment_stats?.videographer?.split('/')[1] || "0");
           const pReq = parseInt(mergedStats.fulfillment_stats?.photographer?.split('/')[1] || "0");
-          setReqCounts({ videographer: vReq, photographer: pReq });
+          const requested = new URLSearchParams(window.location.search);
+          const requestedCount = (role: "photographer" | "videographer", fallback: number) => {
+            const value = Number(requested.get(role));
+            return Number.isInteger(value) && value > 0 && value <= 10 ? value : fallback;
+          };
+          setReqCounts({
+            videographer: requestedCount("videographer", vReq),
+            photographer: requestedCount("photographer", pReq),
+          });
+          if (requested.has("photographer") && !requested.has("videographer")) setRoleType("photographer");
 
           // Also grab location for the crew search
           if (mergedStats.location) setProjectLocation(mergedStats.location);
@@ -304,6 +314,23 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     router.push(`/admin/shoots/${projectId}/shoot-agreement`);
   };
 
+  const statsRecord = (stats || {}) as Record<string, unknown>;
+  const shootAmount = selectedCompensationShoot?.shoot_amount || toNumber(
+    statsRecord.shoot_amount ?? statsRecord.total_amount ?? statsRecord.total_value_amount ??
+    statsRecord.budget ?? statsRecord.project_budget ?? statsRecord.converted_quote_amount,
+    0
+  );
+  const assignments = Array.isArray(stats?.assignedCrew) ? stats.assignedCrew :
+    Array.isArray(stats?.assigned_crews) ? stats.assigned_crews : [];
+  const compensationAmounts = assignments
+    .map(asRecord)
+    .filter((assignment): assignment is Record<string, unknown> => Boolean(assignment))
+    .map((assignment) => assignment.total_compensation ?? assignment.compensation_amount)
+    .filter((amount) => amount != null && Number.isFinite(Number(amount)));
+  const allocatedCompensation = compensationAmounts.reduce<number>((total, amount) => total + Number(amount), 0);
+  const compensationBudget = statsRecord.cp_compensation_budget;
+  const hasCompensationBudget = compensationBudget != null && Number.isFinite(Number(compensationBudget));
+
   if (!mounted || isPermissionsLoading || !canEdit) {
     return (
       <div className={`flex h-screen items-center justify-center ${isDark ? "bg-[#101010] text-white" : "bg-[#F4F5F7] text-black"}`}>
@@ -402,6 +429,26 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           <ArrowLeft size={24} />
           <span className="text-sm font-medium">Back to Shoot Details</span>
         </Button>
+
+        <div className={`w-full rounded-2xl mb-5 lg:mb-9 p-5 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between ${isDark ? "bg-[#E8D1AB]/20" : "bg-[#F6EDDD] border border-[#EADBC0]"}`}>
+          {/* Left: two stats */}
+          <div className="grid grid-cols-2 gap-4 lg:flex lg:gap-18">
+            <div className="min-w-0">
+              <p className={`text-xs lg:text-sm font-semibold leading-tight text-[#E8D1AB]`}>Total Shoot Amount</p>
+              <p className="mt-1.5 text-xs lg:text-sm font-medium leading-tight">{shootAmount > 0 ? formatCurrency(shootAmount) : "—"}</p>
+            </div>
+            <div className="min-w-0">
+              <p className={`text-xs lg:text-sm font-semibold leading-tight text-[#E8D1AB]`}>CP Compensation Budget</p>
+              <p className="mt-1.5 text-xs lg:text-sm font-medium leading-tight">{hasCompensationBudget ? formatCurrency(Number(compensationBudget)) : "Set during compensation"}</p>
+            </div>
+          </div>
+
+          {/* Right: allocated pill */}
+          <div className="w-full lg:w-auto shrink-0 rounded-xl bg-white px-5 h-10 whitespace-nowrap text-black italic flex items-center gap-1">
+            <span className="text-xs lg:text-sm font-bold">{compensationAmounts.length ? formatCurrency(allocatedCompensation) : "—"}</span>{" "}
+            <span className={`text-[10px] lg:text-xs text-black/70`}>Compensation Allocated</span>
+          </div>
+        </div>
 
         <CreativeProfileSelectorAdd
           projectId={projectId}
