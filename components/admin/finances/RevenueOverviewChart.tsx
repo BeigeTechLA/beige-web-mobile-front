@@ -134,10 +134,6 @@ const METRIC_META: Record<MetricId, Omit<Metric, 'value' | 'note' | 'growth'>> =
   },
 };
 
-// The API doc says the Gross Revenue card shows net_revenue (gross - refunds).
-// Set to false to show gross_revenue instead. Confirm with the backend.
-const GROSS_CARD_USES_NET = true;
-
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
@@ -303,9 +299,7 @@ export default function RevenueOverviewChart({
   const isDark = !mounted || theme === "dark";
 
   const metrics: Metric[] = useMemo(() => {
-    const grossValue = GROSS_CARD_USES_NET
-      ? data?.net_revenue?.amount
-      : data?.gross_revenue?.amount;
+    const grossValue = data?.gross_revenue?.amount;
     return [
       {
         ...METRIC_META.gross,
@@ -332,7 +326,7 @@ export default function RevenueOverviewChart({
     () =>
       (data?.series ?? []).map((p) => ({
         name: format(parseISO(p.date), 'MMM dd'),
-        gross: GROSS_CARD_USES_NET ? p.net_revenue : p.gross,
+        gross: p.gross,
         pending: p.pending,
         payout: p.cp_payout,
       })),

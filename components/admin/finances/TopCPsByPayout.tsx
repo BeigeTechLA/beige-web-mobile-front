@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { FinanceAnalyticsData } from '@/lib/api';
-import { Info } from 'lucide-react';
+import { ArrowUpRight, Info } from 'lucide-react';
 import { useTheme } from "next-themes";
 
 /* ------------------------------------------------------------------ */
@@ -34,12 +34,20 @@ const formatCompactUSD = (n: number) =>
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
+export interface SelectedPayoutCP {
+  id: string;
+  name: string;
+  payout: number;
+}
+
 interface TopCPsByPayoutProps {
   data?: FinanceAnalyticsData['creative_partners']['top_by_payout'] | null;
   loading?: boolean;
   limit?: number; /** How many CPs to show */
   title?: string;
   infoText?: string;
+  selectedId?: string | null;
+  onSelectCP?: (cp: SelectedPayoutCP | null) => void;
 }
 
 export default function TopCPsByPayout({
@@ -48,6 +56,8 @@ export default function TopCPsByPayout({
   limit = 5,
   title = 'Top CPs By Payout',
   infoText = 'Top 5 CPs based on total payout',
+  selectedId = null,
+  onSelectCP,
 }: TopCPsByPayoutProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -155,7 +165,12 @@ export default function TopCPsByPayout({
             </li>
           ))
           : rows.map((cp) => (
-            <li key={cp.id} className="flex items-center gap-3 sm:gap-4">
+            <li
+              key={cp.id}
+              className={`flex items-center gap-3 sm:gap-4 transition-opacity duration-300 ${
+                selectedId && selectedId !== cp.id ? 'opacity-40' : 'opacity-100'
+              }`}
+            >
               {/* Rank */}
               <span className={`w-6 shrink-0 text-xs  ${mutedText}`}>{cp.rank}</span>
 
@@ -189,6 +204,22 @@ export default function TopCPsByPayout({
               >
                 {cp.margin.toFixed(1)}% mg
               </span>
+
+              {/* Open / close arrow: ↗ closed, ↘ open */}
+              <button
+                type="button"
+                aria-label={selectedId === cp.id ? `Close ${cp.name} payout history` : `Open ${cp.name} payout history`}
+                aria-expanded={selectedId === cp.id}
+                onClick={() => onSelectCP?.(selectedId === cp.id ? null : { id: cp.id, name: cp.name, payout: cp.payout })}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
+                  isDark ? 'bg-[#2C2C2B] text-white hover:bg-[#3A3A39]' : 'bg-[#E8E8E8] text-[#171717] hover:bg-[#DADADA]'
+                }`}
+              >
+                <ArrowUpRight
+                  size={16}
+                  className={`transition-transform duration-300 ${selectedId === cp.id ? 'rotate-90' : 'rotate-0'}`}
+                />
+              </button>
             </li>
           ))}
 
