@@ -1234,6 +1234,7 @@ export default function CreatorFileManagerPhasePage() {
                                   });
                                   setIsShareModalOpen(true);
                                 }}
+                                isDark={isDark}
                               />
                             ))}
                           </div>
@@ -1293,6 +1294,7 @@ export default function CreatorFileManagerPhasePage() {
                             });
                             setIsShareModalOpen(true);
                           }}
+                          isDark={isDark}
                         />
                       ))}
                     </div>
