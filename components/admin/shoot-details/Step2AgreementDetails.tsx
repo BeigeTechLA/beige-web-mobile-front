@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { DatePickerFloating } from "@/components/admin/DatePickerFloating";
 import {
   GripVertical,
-  MoreHorizontal,
+  Plus,
+  Trash2,
   ChevronDown,
   ChevronUp,
   Bold,
@@ -13,7 +14,6 @@ import {
   List,
   ListOrdered,
   Link,
-  ArrowLeft,
 } from "lucide-react";
 import { CPDetail, AgreementCreationMode } from "./Step1AgreementTypeSelection";
 
@@ -40,12 +40,16 @@ interface Step2AgreementDetailsProps {
   endTime: string;
   setEndTime: (val: string) => void;
   sections: ClauseSection[];
+  agreementVersion?: string;
   toggleSection: (id: string) => void;
   updateSectionTitle: (id: string, title: string) => void;
   updateSectionContent: (id: string, content: string) => void;
+  addSection: () => void;
+  removeSection: (id: string) => void;
   onNext: () => void;
   onPrevious: () => void;
   receiverType?: "cp" | "editor";
+  onSaveDraft?: () => void;
 }
 
 export function Step2AgreementDetails({
@@ -62,43 +66,20 @@ export function Step2AgreementDetails({
   endTime,
   setEndTime,
   sections,
+  agreementVersion = "v1",
   toggleSection,
   updateSectionTitle,
   updateSectionContent,
+  addSection,
+  removeSection,
   onNext,
   onPrevious,
   receiverType = "cp",
+  onSaveDraft,
 }: Step2AgreementDetailsProps) {
   const isCommon = selectedMode === "common";
 
-  // Fallback recipient list for common mode if allCPs is empty
-  const cpList =
-    allCPs.length > 0
-      ? allCPs
-      : [
-        {
-          id: "1",
-          name: "Ethan Cole",
-          role: "Lead Photographer",
-          initials: "EC",
-          compensation: "$6,250",
-          projectName: "Wedding Videography",
-          projectId: "PRJ-1024",
-          assignmentId: "ASN-2012",
-          assignCode: "ASN-2012",
-        },
-        {
-          id: "2",
-          name: "Michael Chen",
-          role: "Videographer",
-          initials: "MC",
-          compensation: "$6,250",
-          projectName: "Wedding Videography",
-          projectId: "PRJ-1024",
-          assignmentId: "ASN-2012",
-          assignCode: "ASN-2012",
-        },
-      ];
+  const cpList = allCPs;
 
   return (
     <div className="space-y-5">
@@ -126,15 +107,15 @@ export function Step2AgreementDetails({
 
         <Button
           type="button"
-          onClick={() => console.log("Auto Generated Version")}
           className="flex-0 w-full lg:w-auto bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] h-10 px-5 rounded-lg font-semibold text-xs transition-all shrink-0"
         >
-          Version v1.0 (auto-generated)
+          Version {agreementVersion}
         </Button>
       </div>
 
-      <div className="flex gap-4 lg:hidden">
+      {onSaveDraft && <div className="flex gap-4 lg:hidden">
         <Button
+          onClick={onSaveDraft}
           variant="outline"
           className={`w-full rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
             ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
@@ -151,7 +132,7 @@ export function Step2AgreementDetails({
         >
           Preview
         </Button>
-      </div>
+      </div>}
 
       {/* Common Mode Specific Cards */}
       {isCommon ? (
@@ -653,15 +634,7 @@ export function Step2AgreementDetails({
                 className="flex items-center gap-2"
                 onClick={(e) => e.stopPropagation()}
               >
-                <button
-                  type="button"
-                  className={`transition-colors ${isDark
-                    ? "text-white hover:text-white/60"
-                    : "text-black/60"
-                    }`}
-                >
-                  <MoreHorizontal size={18} />
-                </button>
+                <button type="button" onClick={() => removeSection(section.id)} aria-label={`Remove ${section.title || "section"}`} className="text-red-400 hover:text-red-300"><Trash2 size={18} /></button>
                 <button
                   type="button"
                   onClick={() => toggleSection(section.id)}
@@ -777,6 +750,7 @@ export function Step2AgreementDetails({
             )}
           </div>
         ))}
+        <Button type="button" onClick={addSection} variant="outline" className="w-full border-dashed"><Plus size={16} className="mr-2" /> Add Section</Button>
       </div>
 
       {/* Information Notice Bar */}
@@ -810,7 +784,7 @@ export function Step2AgreementDetails({
         </svg>
         <span>
           The system automatically generates:{" "}
-          <span>Beige Sheet Version: v1.0</span>
+          <span>Beige Sheet Version: {agreementVersion}</span>
         </span>
       </div>
 
@@ -835,6 +809,6 @@ export function Step2AgreementDetails({
           Continue
         </Button>
       </div>
-    </div >
+    </div>
   );
 }

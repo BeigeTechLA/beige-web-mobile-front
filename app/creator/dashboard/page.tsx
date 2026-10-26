@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Camera,
@@ -25,6 +25,7 @@ import { toast } from "sonner"; // Using sonner for the high-end look of the fir
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useGetCurrentUserQuery, useGetOnboardingStatusQuery } from "@/lib/redux/features/auth/authApi";
 import Topbar from "@/components/admin/Topbar";
+import NotificationHeaderActions from "@/components/admin/notifications/NotificationHeaderActions";
 
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -37,7 +38,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
-import Map, { Marker, NavigationControl, GeolocateControl } from "react-map-gl/mapbox";
+import Map, { Marker, NavigationControl, GeolocateControl, type MapRef } from "react-map-gl/mapbox";
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 import {
@@ -59,21 +60,30 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 // ----------------------------
 // CONSTANTS & HELPERS
 // ----------------------------
-const NEXT_PUBLIC_MAPBOX_TOKEN = "pk.eyJ1IjoiYW1yaWtzaW5naDc4NiIsImEiOiJja29wZ2RicXQwa3ZpMnJudXE4OHJmd2NoIn0.NHIyPWX9FfNSCFRUwpvGfw";
+const NEXT_PUBLIC_MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || "pk.eyJ1IjoiYW1yaWtzaW5naDc4NiIsImEiOiJja29wZ2RicXQwa3ZpMnJudXE4OHJmd2NoIn0.NHIyPWX9FfNSCFRUwpvGfw";
 
 /**
  * Format location string for clean display
  */
-const formatDisplayLocation = (location?: string) => {
+const formatDisplayLocation = (location?: unknown): string => {
   if (!location || location === "Location TBD") return "Location TBD";
-  let addressStr = location;
-  try {
-    const parsed = typeof location === 'string' ? JSON.parse(location) : location;
-    if (parsed && parsed.address) addressStr = parsed.address;
-  } catch (e) { }
+
+  let addressStr = "Location TBD";
+  if (typeof location === "string") {
+    addressStr = location;
+    try {
+      const parsed = JSON.parse(location);
+      if (parsed && typeof parsed === "object") {
+        addressStr = String(parsed.address || parsed.formatted_address || "Location TBD");
+      }
+    } catch { }
+  } else if (typeof location === "object") {
+    const data = location as Record<string, unknown>;
+    addressStr = String(data.address || data.formatted_address || data.placeName || "Location TBD");
+  }
 
   if (addressStr.includes(",")) {
-    const parts = addressStr.split(",").map((p) => p.trim());
+    const parts = addressStr.split(",").map((part) => part.trim());
     if (parts.length >= 3) {
       const city = parts[parts.length - 3];
       const state = parts[parts.length - 2].replace(/[0-9]/g, "").trim();
@@ -131,6 +141,25 @@ const isCompletedFlag = (item: any) => {
 
 type MapMarkerType = "accepted" | "upcoming" | "past" | "pending" | "rejected";
 
+type ShootCoordinates = { lat: number; lng: number };
+
+type ShootMapMarker = ShootCoordinates & {
+  id: string;
+  type: MapMarkerType;
+  originalData: any;
+  searchText: string;
+};
+
+const isValidShootCoordinates = (coordinates: ShootCoordinates | null): coordinates is ShootCoordinates =>
+  coordinates !== null &&
+  Number.isFinite(coordinates.lat) &&
+  Number.isFinite(coordinates.lng) &&
+  coordinates.lat >= -85.051129 &&
+  coordinates.lat <= 85.051129 &&
+  coordinates.lng >= -180 &&
+  coordinates.lng <= 180;
+
+
 const isAcceptedAssignment = (item: unknown) =>
   Boolean(
     item &&
@@ -147,20 +176,26 @@ const asNumber = (...values: unknown[]) => {
   return null;
 };
 
-const getShootCoordinates = (item: any) => {
+const parseLocationData = (value: unknown): Record<string, any> | null => {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, any>;
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+const getShootCoordinates = (item: any): ShootCoordinates | null => {
   const project = item?.project || item;
-  const eventLocation =
-    project?.event_location && typeof project.event_location === "object"
-      ? project.event_location
-      : null;
-  const location =
-    project?.location && typeof project.location === "object"
-      ? project.location
-      : null;
-  const locationData =
-    project?.location_data && typeof project.location_data === "object"
-      ? project.location_data
-      : null;
+  const eventLocation = parseLocationData(project?.event_location);
+  const location = parseLocationData(project?.location);
+  const locationData = parseLocationData(project?.location_data);
 
   const lat = asNumber(
     project?.event_latitude,
@@ -206,8 +241,8 @@ const getShootCoordinates = (item: any) => {
   if (
     lat === null ||
     lng === null ||
-    lat < -90 ||
-    lat > 90 ||
+    lat < -85.051129 ||
+    lat > 85.051129 ||
     lng < -180 ||
     lng > 180
   ) {
@@ -236,13 +271,17 @@ const getShootLocation = (item: any) => {
     return project.location.trim();
   }
 
+  const eventLocation = parseLocationData(project?.event_location);
+  const location = parseLocationData(project?.location);
+  const locationData = parseLocationData(project?.location_data);
+
   return String(
-    project?.event_location?.address ||
-      project?.event_location?.formatted_address ||
-      project?.location?.address ||
-      project?.location?.formatted_address ||
-      project?.location_data?.address ||
-      project?.location_data?.placeName ||
+    eventLocation?.address ||
+      eventLocation?.formatted_address ||
+      location?.address ||
+      location?.formatted_address ||
+      locationData?.address ||
+      locationData?.placeName ||
       project?.display_location ||
       "Location TBD",
   );
@@ -278,6 +317,223 @@ const getIcon = (iconType: string) => {
     default: return <Activity className="text-white/70" />;
   }
 };
+
+const geocodeCache = new globalThis.Map<string, Promise<ShootCoordinates | null>>();
+
+const geocodeAddress = (address: string): Promise<ShootCoordinates | null> => {
+  const normalizedAddress = address.trim();
+  if (!normalizedAddress || normalizedAddress === "Location TBD") {
+    return Promise.resolve(null);
+  }
+
+  const cacheKey = normalizedAddress.toLowerCase();
+  const cached = geocodeCache.get(cacheKey);
+  if (cached) return cached;
+
+  const request = (async (): Promise<ShootCoordinates | null> => {
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(normalizedAddress)}.json?access_token=${NEXT_PUBLIC_MAPBOX_TOKEN}&limit=1`,
+      );
+      if (!response.ok) {
+        geocodeCache.delete(cacheKey);
+        return null;
+      }
+
+      const data = await response.json();
+      const coordinates = data?.features?.[0]?.center;
+      if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
+
+      const result = { lng: Number(coordinates[0]), lat: Number(coordinates[1]) };
+      return isValidShootCoordinates(result) ? result : null;
+    } catch (error) {
+      geocodeCache.delete(cacheKey);
+      console.error("Geocoding failed for:", normalizedAddress, error);
+      return null;
+    }
+  })();
+
+  geocodeCache.set(cacheKey, request);
+  return request;
+};
+
+const ShootMap = React.memo(function ShootMap({
+  markers,
+  isDark,
+  mapSearch,
+  setMapSearch,
+  mapStatusFilter,
+  setMapStatusFilter,
+  onMarkerClick,
+}: {
+  markers: ShootMapMarker[];
+  isDark: boolean;
+  mapSearch: string;
+  setMapSearch: React.Dispatch<React.SetStateAction<string>>;
+  mapStatusFilter: string;
+  setMapStatusFilter: React.Dispatch<React.SetStateAction<string>>;
+  onMarkerClick: (project: any) => void;
+}) {
+  const mapRef = useRef<MapRef | null>(null);
+  const initialFocusDone = useRef(false);
+  const userMovedMap = useRef(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  const filteredMarkers = useMemo(() => {
+    const search = mapSearch.trim().toLowerCase();
+    return markers.filter((marker) => {
+      const matchesStatus = mapStatusFilter === "all" || marker.type === mapStatusFilter;
+      return matchesStatus && (!search || marker.searchText.includes(search));
+    });
+  }, [markers, mapSearch, mapStatusFilter]);
+
+  useEffect(() => {
+    if (!mapLoaded || !markers.length || initialFocusDone.current || userMovedMap.current) return;
+    const map = mapRef.current;
+    if (!map) return;
+
+    initialFocusDone.current = true;
+    if (markers.length === 1) {
+      map.flyTo({ center: [markers[0].lng, markers[0].lat], zoom: 6, duration: 700, essential: true });
+      return;
+    }
+
+    let minLat = 90;
+    let maxLat = -90;
+    let minLng = 180;
+    let maxLng = -180;
+    for (const marker of markers) {
+      minLat = Math.min(minLat, marker.lat);
+      maxLat = Math.max(maxLat, marker.lat);
+      minLng = Math.min(minLng, marker.lng);
+      maxLng = Math.max(maxLng, marker.lng);
+    }
+    const bounds: [[number, number], [number, number]] = [
+      [minLng, minLat],
+      [maxLng, maxLat],
+    ];
+
+    map.fitBounds(bounds, {
+      padding: { top: 110, right: 45, bottom: 50, left: 45 },
+      maxZoom: 8,
+      duration: 700,
+      essential: true,
+    });
+  }, [mapLoaded, markers]);
+
+  return (
+    <div className={`lg:col-span-2 rounded-2xl border overflow-hidden flex flex-col min-h-[560px] transition-colors duration-300 ${isDark
+      ? "bg-[#171717] border-[#3D3D3D] text-white"
+      : "bg-white border-[#E5E5E5] text-black shadow-sm"
+    }`}>
+      <div className={`rounded-t-2xl flex items-center justify-between border-b p-5 shrink-0 transition-colors duration-300 ${isDark
+        ? "bg-[#101010] border-b-[#3D3D3D]"
+        : "bg-[#FFFCF6] border-b-[#E5E5E5]"
+      }`}>
+        <div className="flex items-center gap-2">
+          <div className="w-[3px] h-6 bg-[#E5D5B8]" />
+          <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-[#000000]"}`}>Shoot Map</h3>
+        </div>
+        <div className={`text-xs ${isDark ? "text-white/40" : "text-[#32323299]"}`}>
+          {filteredMarkers.length} events
+        </div>
+      </div>
+
+      <div className="relative flex-1 min-h-[500px]">
+        <div className="absolute top-4 left-3 lg:left-4 z-10 flex flex-col lg:flex-row gap-2">
+          <div className="relative">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
+            <input
+              type="text"
+              placeholder="Search events..."
+              value={mapSearch}
+              onChange={(event) => setMapSearch(event.target.value)}
+              className={`pl-10 h-10 border rounded-lg text-sm w-48 focus:outline-none focus:border-[#E8D1AB]/50 transition-all ${isDark
+                ? "bg-[#0B0F14]/90 border-white/10 text-white placeholder:text-white/30"
+                : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black placeholder:text-black/40 shadow-sm"
+              }`}
+            />
+          </div>
+
+          <Select value={mapStatusFilter} onValueChange={setMapStatusFilter}>
+            <SelectTrigger className={`h-10 w-36 border transition-colors ${isDark
+              ? "bg-[#0B0F14]/90 border-white/10 text-white"
+              : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black shadow-sm"
+            }`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className={`border transition-colors ${isDark
+              ? "bg-[#0B0F14] border-white/10 text-white"
+              : "bg-[#FFFDF9] border-[#E5E5E5] text-black"
+            }`}>
+              <SelectItem value="all">All accepted shoots</SelectItem>
+              <SelectItem value="accepted">Accepted today</SelectItem>
+              <SelectItem value="upcoming">Upcoming</SelectItem>
+              <SelectItem value="past">Past</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Map
+          ref={mapRef}
+          initialViewState={{ latitude: 39.8283, longitude: -98.5795, zoom: 3 }}
+          onLoad={() => setMapLoaded(true)}
+          onDragStart={() => { userMovedMap.current = true; }}
+          style={{ width: "100%", height: "100%" }}
+          mapStyle={isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"}
+          mapboxAccessToken={NEXT_PUBLIC_MAPBOX_TOKEN}
+          cooperativeGestures={true}
+          dragPan={true}
+          dragRotate={false}
+          touchPitch={false}
+          maxPitch={0}
+          minZoom={1.5}
+          maxZoom={17}
+          reuseMaps={true}
+          onError={(event) => console.error("Shoot Map error:", event.error)}
+        >
+          <NavigationControl position="top-right" showCompass={false} />
+          <GeolocateControl
+            position="top-right"
+            trackUserLocation={true}
+            showUserLocation={true}
+          />
+          {filteredMarkers.map((marker) => (
+            <Marker key={marker.id} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
+              <button
+                type="button"
+                aria-label={`View ${marker.originalData?.project?.project_name || marker.originalData?.project_name || "shoot"} details`}
+                onClick={() => onMarkerClick(marker.originalData)}
+                className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === "accepted"
+                  ? "bg-[#E8D1AB] border-black text-black"
+                  : marker.type === "upcoming"
+                    ? "bg-blue-400 border-black text-black"
+                    : marker.type === "past"
+                      ? "bg-emerald-500 border-black text-black"
+                      : marker.type === "rejected"
+                        ? "bg-red-500 border-black text-white"
+                        : "bg-yellow-500 border-black text-black"
+                }`}
+              >
+                {marker.type === "accepted" ? (
+                  <Camera size={14} />
+                ) : marker.type === "upcoming" ? (
+                  <CalendarIcon size={14} />
+                ) : marker.type === "past" ? (
+                  <Check size={14} />
+                ) : marker.type === "rejected" ? (
+                  <XCircle size={14} />
+                ) : (
+                  <Clock size={14} />
+                )}
+              </button>
+            </Marker>
+          ))}
+        </Map>
+      </div>
+    </div>
+  );
+});
 
 // ----------------------
 // DONUT CHART HELPERS
@@ -529,19 +785,17 @@ export default function CreatorDashboardPage() {
 
   const [projectDetailsOpen, setProjectDetailsOpen] = useState(false);
   const [projectDetailsData, setProjectDetailsData] = useState<any>(null);
-  const [mapMarkers, setMapMarkers] = useState<any[]>([]);
+  const [mapMarkers, setMapMarkers] = useState<ShootMapMarker[]>([]);
+  const handleMarkerClick = useCallback((project: any) => {
+    setProjectDetailsData(project);
+    setProjectDetailsOpen(true);
+  }, []);
 
   const [availability, setAvailability] = useState({});
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [verificationStatus, setVerificationStatus] = useState<number | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
-
-  const [viewState, setViewState] = useState({
-    latitude: 39.8283,
-    longitude: -98.5795,
-    zoom: 3,
-  });
 
   // --- MONTH HANDLERS ---
   const handlePreviousMonth = () => {
@@ -671,10 +925,12 @@ export default function CreatorDashboardPage() {
       }
     };
     fetchStatsData();
-  }, [user]);
+  }, [user?.crew_member_id]);
 
-  // 2. Fetch Dashboard Details (Logic from your code)
+  // 2. Fetch Dashboard Details
   useEffect(() => {
+    let cancelled = false;
+
     const fetchDashboardDetails = async () => {
       const userStr = localStorage.getItem("revure_user");
       const localUser = userStr ? JSON.parse(userStr) : null;
@@ -684,61 +940,62 @@ export default function CreatorDashboardPage() {
 
       try {
         const response = await GetCreatorDashboardDetails({ crew_member_id: crewMemberId });
-        if (response && !response.error) {
-          const fetchedAllShoots = response.data.data.allShoots || [];
-          const fetchedPending = response.data.data.pendingRequests || [];
-          const fetchedMapShoots = (
-            response.data.data.mapShoots || fetchedAllShoots
-          ).filter(isAcceptedAssignment);
-          const acceptedToday = fetchedAllShoots.filter((item: any) => isTodayDate(getItemDate(item)) && !isCompletedFlag(item));
-          const acceptedUpcoming = fetchedAllShoots.filter((item: any) => isFutureDate(getItemDate(item)) && !isCompletedFlag(item));
-          const upcomingPending = fetchedPending.filter((item: any) => isUpcomingDate(getItemDate(item)) && !isCompletedFlag(item));
+        if (!response || response.error || cancelled) return;
 
-          setAllShoots(acceptedToday);
-          setPendingRequests(upcomingPending);
-          setDashboardStats((prev) => ({
-            ...prev,
-            upcomingShoots: acceptedUpcoming.length,
-          }));
+        const dashboardData = response.data?.data || {};
+        const fetchedAllShoots = Array.isArray(dashboardData.allShoots) ? dashboardData.allShoots : [];
+        const fetchedPending = Array.isArray(dashboardData.pendingRequests) ? dashboardData.pendingRequests : [];
+        const fetchedMapShoots = (
+          Array.isArray(dashboardData.mapShoots) ? dashboardData.mapShoots : fetchedAllShoots
+        ).filter(isAcceptedAssignment);
+        const acceptedToday = fetchedAllShoots.filter((item: any) => isTodayDate(getItemDate(item)) && !isCompletedFlag(item));
+        const acceptedUpcoming = fetchedAllShoots.filter((item: any) => isFutureDate(getItemDate(item)) && !isCompletedFlag(item));
+        const upcomingPending = fetchedPending.filter((item: any) => isUpcomingDate(getItemDate(item)) && !isCompletedFlag(item));
 
-          const markerResults = await Promise.all(
-            fetchedMapShoots.map(async (item: any) => {
-              const existingCoordinates = getShootCoordinates(item);
-              const location = getShootLocation(item);
-              const coordinates =
-                existingCoordinates ||
-                (location !== "Location TBD" ? await geocodeAddress(location) : null);
+        setAllShoots(acceptedToday);
+        setPendingRequests(upcomingPending);
+        setDashboardStats((prev) => ({ ...prev, upcomingShoots: acceptedUpcoming.length }));
 
-              return coordinates
-                ? {
-                    ...coordinates,
-                    type: getMapMarkerType(item),
-                    originalData: item,
-                  }
-                : null;
-            }),
+        const newMarkers: ShootMapMarker[] = [];
+        const createMarker = async (item: any, index: number): Promise<ShootMapMarker | null> => {
+          const location = getShootLocation(item);
+          const existingCoordinates = getShootCoordinates(item);
+          const coordinates = existingCoordinates || (location !== "Location TBD" ? await geocodeAddress(location) : null);
+          if (!isValidShootCoordinates(coordinates)) return null;
+
+          const projectName = String(item?.project?.project_name || item?.project_name || "");
+          const projectId = item?.project?.project_id || item?.project_id || item?.id || index;
+          return {
+            ...coordinates,
+            id: `${projectId}-${index}`,
+            type: getMapMarkerType(item),
+            originalData: item,
+            searchText: `${projectName} ${location}`.toLowerCase(),
+          };
+        };
+
+        // Avoid firing one geocoding request for every shoot at the same time.
+        for (let index = 0; index < fetchedMapShoots.length; index += 4) {
+          if (cancelled) return;
+          const batch = await Promise.all(
+            fetchedMapShoots.slice(index, index + 4).map((item: any, offset: number) =>
+              createMarker(item, index + offset),
+            ),
           );
-          const newMarkers = markerResults.filter(
-            (marker): marker is NonNullable<typeof marker> => Boolean(marker),
-          );
-
-          setMapMarkers(newMarkers);
-
-          if (newMarkers.length > 0) {
-            setViewState(prev => ({
-              ...prev,
-              latitude: newMarkers[0].lat,
-              longitude: newMarkers[0].lng,
-              zoom: 6
-            }));
+          for (const marker of batch) {
+            if (marker) newMarkers.push(marker);
           }
         }
+
+        if (!cancelled) setMapMarkers(newMarkers);
       } catch (error) {
-        console.error("Error fetching dashboard details:", error);
+        if (!cancelled) console.error("Error fetching dashboard details:", error);
       }
     };
+
     fetchDashboardDetails();
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [user?.crew_member_id]);
 
   // useEffect(() => {
   //   const userStr = localStorage.getItem("revure_user");
@@ -762,23 +1019,6 @@ export default function CreatorDashboardPage() {
   }, [user]);
 
   // if (verificationStatus === null) return null;
-
-  // Geocoding Logic
-  const geocodeAddress = async (address: string) => {
-    try {
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${NEXT_PUBLIC_MAPBOX_TOKEN}&limit=1`
-      );
-      const data = await response.json();
-      if (data.features && data.features.length > 0) {
-        const [lng, lat] = data.features[0].center;
-        return { lng, lat };
-      }
-    } catch (error) {
-      console.error("Geocoding failed for:", address, error);
-    }
-    return null;
-  };
 
   // Availability Logic
   useEffect(() => {
@@ -869,18 +1109,6 @@ export default function CreatorDashboardPage() {
       </div>
     );
   }
-
-  // Map Filter Logic
-  const filteredMarkers = useMemo(() => {
-    return mapMarkers.filter((marker) => {
-      const matchesStatus = mapStatusFilter === "all" || marker.type === mapStatusFilter;
-      const projectName = (marker.originalData?.project?.project_name || marker.originalData?.project_name || "").toLowerCase();
-      const location = (marker.originalData?.project?.event_location || marker.originalData?.display_location || "").toLowerCase();
-      const matchesSearch = projectName.includes(mapSearch.toLowerCase()) || location.includes(mapSearch.toLowerCase());
-
-      return matchesStatus && matchesSearch;
-    });
-  }, [mapMarkers, mapSearch, mapStatusFilter]);
 
   // Donut Chart Slices
   const shootStatusSlices: DonutSlice[] = useMemo(
@@ -1001,7 +1229,7 @@ export default function CreatorDashboardPage() {
   // ----------------------
   return (
     <>
-      <Topbar pathname={pathname} />
+      <Topbar pathname={pathname} hideDashboardUtilities actions={<NotificationHeaderActions portal="creator" showMarkAll={false} />} />
       <div
         className={`mx-4 lg:mx-8 mt-6 mb-20 rounded-2xl transition-all duration-700 
         ${isDark
@@ -1112,112 +1340,15 @@ export default function CreatorDashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
             {/* Map Section */}
-            <div className={`lg:col-span-2 rounded-2xl border overflow-hidden flex flex-col min-h-[560px] transition-all duration-300 ${isDark
-              ? "bg-[#171717] border-[#3D3D3D] text-white"
-              : "bg-white border-[#E5E5E5] text-black shadow-sm"
-              }`}>
-              <div className={`rounded-t-2xl flex items-center justify-between border-b p-5 shrink-0 transition-colors duration-300 ${isDark
-                ? "bg-[#101010] border-b-[#3D3D3D]"
-                : "bg-[#FFFCF6] border-b-[#E5E5E5]"
-                }`}>
-                <div className="flex items-center gap-2">
-                  <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-                  <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-[#000000]"}`}>Shoot Map</h3>
-                </div>
-                <div className={`text-xs ${isDark ? "text-white/40" : "text-[#32323299]"}`}>
-                  {filteredMarkers.length} events
-                </div>
-              </div>
-              <div className="relative flex-1 min-h-[500px]">
-                {/* Map Controls */}
-                <div className="absolute top-4 left-3 lg:left-4 z-10 flex flex-col lg:flex-row gap-2">
-                  <div className="relative">
-                    <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${isDark ? "text-white/40" : "text-black/40"}`} />
-                    <input
-                      type="text"
-                      placeholder="Search events..."
-                      value={mapSearch}
-                      onChange={(e) => setMapSearch(e.target.value)}
-                      className={`pl-10 h-10 border rounded-lg text-sm w-48 focus:outline-none focus:border-[#E8D1AB]/50 transition-all ${isDark
-                        ? "bg-[#0B0F14]/90 border-white/10 text-white placeholder:text-white/30"
-                        : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black placeholder:text-black/40 shadow-sm"
-                        }`}
-                    />
-                  </div>
-
-                  {/* Filter Select Dropdown Trigger */}
-                  <Select value={mapStatusFilter} onValueChange={setMapStatusFilter}>
-                    <SelectTrigger className={`h-10 w-36 border transition-colors ${isDark
-                      ? "bg-[#0B0F14]/90 border-white/10 text-white"
-                      : "bg-[#FFFDF9]/95 border-[#E5E5E5] text-black shadow-sm"
-                      }`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className={`border transition-colors ${isDark ? "bg-[#0B0F14] border-white/10 text-white" : "bg-[#FFFDF9] border-[#E5E5E5] text-black"
-                      }`}>
-                      <SelectItem value="all">All accepted shoots</SelectItem>
-                      <SelectItem value="accepted">Accepted today</SelectItem>
-                      <SelectItem value="upcoming">Upcoming</SelectItem>
-                      <SelectItem value="past">Past</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Mapbox Layer Element */}
-                <Map
-                  {...viewState}
-                  onMove={(evt) => setViewState(evt.viewState)}
-                  style={{ width: "100%", height: "100%" }}
-                  mapStyle={isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11"}
-                  mapboxAccessToken={NEXT_PUBLIC_MAPBOX_TOKEN}
-                >
-                  <NavigationControl position="top-right" showCompass={false} />
-                  <GeolocateControl
-                    position="top-right"
-                    trackUserLocation={true}
-                    showUserLocation={true}
-                    onGeolocate={(e: any) => {
-                      setViewState((prev) => ({
-                        ...prev,
-                        latitude: e.coords.latitude,
-                        longitude: e.coords.longitude,
-                        zoom: 14,
-                      }));
-                    }}
-                  />
-                  {filteredMarkers.map((marker, idx) => (
-                    <Marker key={idx} latitude={marker.lat} longitude={marker.lng} anchor="bottom">
-                      <div
-                        onClick={() => { setProjectDetailsData(marker.originalData); setProjectDetailsOpen(true); }}
-                        className={`p-1.5 rounded-full border-2 cursor-pointer transition-transform hover:scale-125 ${marker.type === 'accepted'
-                          ? 'bg-[#E8D1AB] border-black text-black'
-                          : marker.type === 'upcoming'
-                            ? 'bg-blue-400 border-black text-black'
-                            : marker.type === 'past'
-                              ? 'bg-emerald-500 border-black text-black'
-                              : marker.type === 'rejected'
-                                ? 'bg-red-500 border-black text-white'
-                                : 'bg-yellow-500 border-black text-black'
-                          }`}
-                      >
-                        {marker.type === 'accepted' ? (
-                          <Camera size={14} />
-                        ) : marker.type === 'upcoming' ? (
-                          <CalendarIcon size={14} />
-                        ) : marker.type === 'past' ? (
-                          <Check size={14} />
-                        ) : marker.type === 'rejected' ? (
-                          <XCircle size={14} />
-                        ) : (
-                          <Clock size={14} />
-                        )}
-                      </div>
-                    </Marker>
-                  ))}
-                </Map>
-
-              </div>
-            </div>
+            <ShootMap
+              markers={mapMarkers}
+              isDark={isDark}
+              mapSearch={mapSearch}
+              setMapSearch={setMapSearch}
+              mapStatusFilter={mapStatusFilter}
+              setMapStatusFilter={setMapStatusFilter}
+              onMarkerClick={handleMarkerClick}
+            />
 
             {/* Availability Calendar */}
             <div className={`rounded-2xl border flex flex-col transition-all duration-300 ${isDark

@@ -101,6 +101,8 @@ export type QuoteEditorHydrationState = {
   discountValue: number;
   taxRate: number;
   taxType: string;
+  cardPaymentChargeEnabled: boolean;
+  cardPaymentMethod: string;
   selectedServices: string[];
   services: QuoteEditorServiceItem[];
   serviceConfigs: Record<string, QuoteEditorServiceConfig>;
@@ -549,6 +551,16 @@ export const buildQuoteEditorHydrationState = ({
   const hydratedLineItems: QuoteEditorSimpleItem[] = [];
   const lineItemConfigs: Record<string, QuoteEditorSimplePriceConfig> = {};
   const appliedLineItemConfigs: Record<string, QuoteEditorSimplePriceConfig> = {};
+  const storedTaxType = getQuoteText(quote.tax_type, "Sales Tax") || "Sales Tax";
+  const includesCardProcessingFee = /(?:card payment charges|tax)\s*\(4%\)/i.test(storedTaxType);
+  const configuredTaxType = storedTaxType
+    .replace(/\s*\+\s*Card Payment Charges\s*\(4%\)/i, "")
+    .replace(/\s*\+\s*Tax\s*\(4%\)/i, "")
+    .replace(/\s*Card Payment Charges\s*\(4%\)/i, "")
+    .replace(/^Tax\s*\(4%\)$/i, "")
+    .replace(/\s+\(\d+(?:\.\d+)?%\)$/, "")
+    .trim();
+  const storedTaxRate = Math.max(0, getQuoteNumber(quote.tax_rate) ?? 0);
   const usedHydratedIds = new Set<string>([
     ...mergedServices.map((item) => item.id),
     ...mergedAddons.map((item) => item.id),
@@ -755,8 +767,12 @@ export const buildQuoteEditorHydrationState = ({
     discountEnabled: normalizedDiscountValue > 0,
     discountType: normalizedDiscountType,
     discountValue: normalizedDiscountValue,
-    taxRate: Math.max(0, getQuoteNumber(quote.tax_rate) ?? 0),
-    taxType: getQuoteText(quote.tax_type, "Sales Tax") || "Sales Tax",
+    taxRate: Math.max(0, getQuoteNumber(quote.sales_tax_rate) ?? (storedTaxRate - (includesCardProcessingFee ? 4 : 0))),
+    taxType: configuredTaxType || "Sales Tax",
+    cardPaymentChargeEnabled: quote.card_payment_charge_enabled === undefined
+      ? includesCardProcessingFee
+      : Boolean(quote.card_payment_charge_enabled),
+    cardPaymentMethod: getQuoteText(quote.card_payment_method),
     selectedServices,
     services: mergedServices,
     serviceConfigs,

@@ -323,6 +323,21 @@ export default function QuotesOverdueWidget({
                     formatQuoteAnalyticsNumber(partiallyPaidValue)}
                 </div>
               </div>
+
+              {/* Total Divider */}
+              <div className="relative pt-1 text-center">
+                <div className={`absolute inset-0 flex items-center ${isDark ? "border-white/10" : "border-black/10"}`}>
+                  <div className={`w-full border-t ${isDark ? "border-white/10" : "border-black/10"}`} />
+                </div>
+                <span
+                  className={`relative px-3 text-xl font-semibold ${isDark
+                    ? "bg-[#101010] text-[#E8D1AB]"
+                    : "bg-zinc-50 text-black"
+                    }`}
+                >
+                  Total {formatQuoteAnalyticsCurrency(overdueValue)}
+                </span>
+              </div>
             </div>
 
             {/* Desktop Horizontal Layout */}
@@ -451,18 +466,147 @@ export default function QuotesOverdueWidget({
       </div>
 
       {/* Collapsible Expandable Table Section */}
-      <div
-        className={`grid transition-all duration-500 ease-in-out ${showTable ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-          }`}
-      >
+      <div className={`grid transition-all duration-500 ease-in-out ${showTable ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
         <div className="overflow-hidden">
         <div className={`border-t rounded-b-2xl ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-black/10 bg-white"}`}>
-          <div className="w-full overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch]">
+          {/*  MOBILE VIEW (Card Accordion)  */}
+          <div className="md:hidden">
+            <div
+              className={`flex justify-between text-sm font-medium px-4 py-3 border-b ${isDark
+                ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
+                : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
+                }`}
+            >
+              <span>Client Name</span>
+              <span>Quote Status</span>
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center px-6 py-20">
+                <Loader2
+                  size={28}
+                  strokeWidth={2.5}
+                  className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-black/60"}`}
+                />
+              </div>
+            ) : rows.length === 0 ? (
+              <div className={`px-6 py-20 text-center text-sm ${isDark ? "text-white" : "text-black"}`}>
+                No overdue quotes found
+              </div>
+            ) : (
+              <div className="text-sm">
+                {rows.map((item) => {
+                  const isExpanded = expandedRowId === String(item.sales_quote_id);
+                  const labelCls = `text-[10px] uppercase tracking-wider mb-1 ${isDark ? "text-white/50" : "text-black/50"}`;
+                  return (
+                    <div
+                      key={item.sales_quote_id}
+                      className={`transition-colors ${isExpanded
+                        ? isDark ? "bg-[#202020]" : "bg-[#F9F9F9]"
+                        : isDark ? "bg-[#171717]" : "bg-white"
+                        }`}
+                    >
+                      {/* Summary row */}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedRowId(isExpanded ? null : String(item.sales_quote_id))}
+                        aria-expanded={isExpanded}
+                        className="w-full flex items-center justify-between gap-3 px-4 py-4 text-left"
+                      >
+                        <div className="min-w-0 flex items-center gap-3">
+                          {/* Chevron */}
+                          <span
+                            className={`shrink-0 border rounded-full w-6 h-6 flex items-center justify-center transition-colors ${isExpanded
+                              ? isDark ? "border-[#E8D1AB] text-[#E8D1AB]" : "border-black text-black"
+                              : isDark ? "border-white/20 text-white/60" : "border-black/20 text-black/60"
+                              }`}
+                          >
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </span>
+
+                          {/* Avatar */}
+                          <span className="w-10 h-10 rounded-lg flex items-center justify-center font-medium text-sm shrink-0 bg-[#E8D1AB] text-black">
+                            {getInitials(item.client?.name || "Client")}
+                          </span>
+
+                          {/* Client info */}
+                          <span className="min-w-0">
+                            <span className={`block truncate font-medium ${isDark ? "text-white" : "text-black"}`}>
+                              {item.client?.name || "-"}
+                            </span>
+                            <span className={`block truncate text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>
+                              {item.client?.email || "-"}
+                            </span>
+                          </span>
+                        </div>
+
+                        {/* Quote status */}
+                        <span className={`shrink-0 inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium ${getQuoteStatusPillClasses(item.quote_status)}`}>
+                          {formatQuoteStatusText(item.quote_status)}
+                        </span>
+                      </button>
+
+                      {/* Expanded details (same fields as the desktop columns) */}
+                      {isExpanded && (
+                        <div className={`grid grid-cols-2 gap-x-4 gap-y-4 px-4 pb-4 pt-1 ${isDark ? "text-white" : "text-black"}`}>
+                          <div className="min-w-0">
+                            <p className={labelCls}>Quote No</p>
+                            <Link
+                              href={`/admin/quotes/${item.sales_quote_id}`}
+                              className={`font-medium text-sm hover:underline ${isDark ? "text-[#E8D1AB]" : "text-black/70"}`}
+                            >
+                              {item.quote_number || "-"}
+                            </Link>
+                          </div>
+                          <div className="min-w-0 text-right">
+                            <p className={labelCls}>Amount</p>
+                            <p className="font-semibold text-sm">${Number(item.quote_value || 0).toLocaleString()}</p>
+                            {item.collected_amount > 0 && (
+                              <p className="text-[10px] text-[#14BC52]">
+                                PAID - ${Number(item.collected_amount).toLocaleString()}
+                              </p>
+                            )}
+                            {item.outstanding_amount > 0 && (
+                              <p className="text-[10px] text-[#F29831]">
+                                PENDING - ${Number(item.outstanding_amount).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className={labelCls}>Booking Status</p>
+                            {item.lead_source ? (
+                              <span className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium capitalize bg-[#D4FFE4] text-[#16A34A]">
+                                {item.lead_source}
+                              </span>
+                            ) : (
+                              <span className="inline-flex whitespace-nowrap items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-[#FFF0CF] text-[#C06D24]">
+                                Pending
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 text-right">
+                            <p className={labelCls}>Validity</p>
+                            <p className="font-medium text-sm">{formatQuoteAnalyticsDate(item.validity?.valid_until)}</p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className={labelCls}>Sales Rep</p>
+                            <p className="font-medium text-sm truncate">{item.sales_rep?.name || "-"}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/*  DESKTOP VIEW (Standard Table)  */}
+          <div className="hidden md:block overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch] no-scrollbar">
             <table className="w-full md:min-w-[1280px] text-left border-collapse table-fixed">
               <thead>
-                {/* Desktop Table Header */}
                 <tr
-                  className={`hidden rounded-b-lg border-b text-sm font-medium capitalize md:table-row ${isDark
+                  className={`rounded-b-lg border-b text-sm font-medium capitalize ${isDark
                     ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
                     : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
                     }`}
@@ -475,17 +619,6 @@ export default function QuotesOverdueWidget({
                   <th className="w-[11%] whitespace-nowrap p-4">Validity</th>
                   <th className="w-[10%] whitespace-nowrap p-4">Sales Rep</th>
                 </tr>
-
-                {/* Mobile Header Row */}
-                <tr
-                  className={`border-b text-sm font-medium md:hidden ${isDark
-                    ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]"
-                    : "border-[#E5E5E5] bg-[#FFFCF6] text-black"
-                    }`}
-                >
-                  <th className="px-4 py-3 text-left w-3/5">Client Name</th>
-                  <th className="px-4 py-3 text-right w-2/5">Quote Status</th>
-                </tr>
               </thead>
 
               <tbody className="text-sm lg:text-base">
@@ -496,8 +629,7 @@ export default function QuotesOverdueWidget({
                         <Loader2
                           size={28}
                           strokeWidth={2.5}
-                          className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-black/60"
-                            }`}
+                          className={`animate-spin ${isDark ? "text-[#E8D1AB]" : "text-black/60"}`}
                         />
                       </div>
                     </td>
@@ -512,86 +644,43 @@ export default function QuotesOverdueWidget({
                     </td>
                   </tr>
                 ) : (
-                  rows.map((item) => {
-                    const isExpanded = expandedRowId === String(item.sales_quote_id);
-
-                    return (
-                      <React.Fragment key={item.sales_quote_id}>
-                        <tr
-                          onClick={() => {
-                            if (
-                              typeof window !== "undefined" &&
-                              window.innerWidth < 1024
-                            ) {
-                              setExpandedRowId(
-                                isExpanded ? null : String(item.sales_quote_id)
-                              );
-                            }
-                          }}
-                          className={`transition-colors cursor-pointer ${isDark
+                  rows.map((item) => (
+                    <tr
+                      key={item.sales_quote_id}
+                      className={`transition-colors ${isDark
                             ? "bg-[#171717] hover:bg-white/[0.02] text-white border-white/10"
                             : "bg-white hover:bg-black/[0.025] text-black border-black/10"
-                            } ${isExpanded
-                              ? isDark
-                                ? "bg-[#202020] border-none"
-                                : "bg-[#F9F9F9] border-none"
-                              : ""
                             }`}
                         >
-                          {/* Client Name & Avatar + Chevron on Mobile */}
-                          <td className="px-4 py-3 md:px-5 md:py-4">
-                            <div className="flex items-center gap-2.5 md:gap-3">
-                              {/* Mobile Chevron */}
-                              <div
-                                className={`shrink-0 md:hidden border rounded-full w-6 h-6 flex items-center justify-center transition-colors pointer-events-auto ${isExpanded
-                                  ? isDark
-                                    ? "border-[#E8D1AB] text-[#E8D1AB]"
-                                    : "border-black text-black"
-                                  : isDark
-                                    ? "border-white/20 text-white/60"
-                                    : "border-black/20 text-black/60"
-                                  }`}
-                              >
-                                {isExpanded ? (
-                                  <ChevronUp size={16} />
-                                ) : (
-                                  <ChevronDown size={16} />
-                                )}
+                      {/* Client Name & Avatar */}
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 lg:h-12 lg:w-12 rounded-lg flex items-center justify-center font-medium text-xs lg:text-xl shrink-0 bg-[#E8D1AB] text-black">
+                            {getInitials(item.client?.name || "Client")}
                               </div>
-
-                              {/* Avatar */}
-                              <div className={`w-8 h-8 lg:h-12 lg:w-12 rounded-lg flex items-center justify-center font-medium text-xs lg:text-xl shrink-0 bg-[#E8D1AB] text-black`}>
-                                {getInitials(item.client.name)}
-                              </div>
-
-                              {/* Client Text Info */}
                               <div className="min-w-0 flex-1">
                                 <div className="truncate">
                                   <span className={`font-medium mr-1 ${isDark ? "text-white" : "text-black"}`}>
-                                    {item.client.name}
+                                {item.client?.name || "-"}
                                   </span>
                                   <Link
                                     href={`/admin/quotes/${item.sales_quote_id}`}
-                                    onClick={(event) => event.stopPropagation()}
                                     className={`text-[10px] lg:text-xs hover:underline ${isDark ? "text-[#E8D1AB]" : "text-black/40"}`}
                                   >
                                     ({item.quote_number})
                                   </Link>
                                 </div>
                                 <div className={`text-xs lg:text-sm truncate ${isDark ? "text-white/40" : "text-black/40"}`}>
-                                  {item.client.email}
+                              {item.client?.email || "-"}
                                 </div>
                               </div>
                             </div>
                           </td>
 
-                          {/* Desktop Specific Cells */}
-                          {/* <td className="hidden p-4 md:table-cell truncate max-w-[150px]">
-                            {item.project}
-                          </td> */}
+                      {/* <td className="p-4 truncate max-w-[150px]">{item.project}</td> */}
 
                           {/* Booking Status Badge */}
-                          <td className="hidden p-4 md:table-cell">
+                      <td className="p-4">
                             {item.lead_source ? (
                               <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#D4FFE4] px-3 py-1.5 text-center text-xs font-medium capitalize text-[#16A34A] lg:text-sm">
                                 {item.lead_source}
@@ -602,140 +691,42 @@ export default function QuotesOverdueWidget({
                               </span>
                             )}
                           </td>
+
                           {/* Amount */}
-                          <td className="hidden p-4 md:table-cell">
-                            <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}
-                            >
-                              ${item.quote_value.toLocaleString()}
+                      <td className="p-4">
+                        <div className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
+                          ${Number(item.quote_value || 0).toLocaleString()}
                             </div>
                             {item.collected_amount > 0 && (
                               <div className="whitespace-nowrap text-[10px] text-[#14BC52] lg:text-xs">
-                                PAID - ${item.collected_amount.toLocaleString()}
+                            PAID - ${Number(item.collected_amount).toLocaleString()}
                               </div>
                             )}
                             {item.outstanding_amount > 0 && (
                               <div className="whitespace-nowrap text-[10px] text-[#F29831] lg:text-xs">
-                                PENDING - ${item.outstanding_amount.toLocaleString()}
+                            PENDING - ${Number(item.outstanding_amount).toLocaleString()}
                               </div>
                             )}
                           </td>
 
                           {/* Quote Status Badge */}
-                          <td className="hidden p-4 md:table-cell">
+                      <td className="p-4">
                             <span className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium lg:text-sm ${getQuoteStatusPillClasses(item.quote_status)}`}>
                               {formatQuoteStatusText(item.quote_status)}
                             </span>
                           </td>
 
-                          <td className="p-4 text-right md:hidden">
-                            <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium ${getQuoteStatusPillClasses(item.quote_status)}`}>
-                              {formatQuoteStatusText(item.quote_status)}
-                            </span>
-                          </td>
-
                           {/* Validity */}
-                          <td className="hidden p-4 whitespace-nowrap md:table-cell">
-                            {formatQuoteAnalyticsDate(item.validity.valid_until)}
+                      <td className="p-4 whitespace-nowrap">
+                        {formatQuoteAnalyticsDate(item.validity?.valid_until)}
                           </td>
 
                           {/* Sales Rep */}
-                          <td className={`hidden p-4 whitespace-nowrap md:table-cell ${isDark ? "text-white/90" : "text-black/90"}`}>
-                            {item.sales_rep.name}
+                      <td className={`p-4 whitespace-nowrap ${isDark ? "text-white/90" : "text-black/90"}`}>
+                        {item.sales_rep?.name || "-"}
                           </td>
-
                         </tr>
-
-                        {/* Mobile Expanded Sub-row View */}
-                        {isExpanded && (
-                          <tr className={`md:hidden ${isDark ? "bg-[#202020]" : "bg-[#F9F9F9]"}`}>
-                            <td
-                              colSpan={2}
-                              className="relative overflow-visible pl-6 pr-4 pb-4 pt-2"
-                            >
-                              <div className="space-y-4 text-xs">
-                                <div className="grid grid-cols-2 gap-y-4 gap-x-4">
-                                  {/* <div>
-                                    <p
-                                      className={`mb-1 ${isDark
-                                        ? "text-white/50"
-                                        : "text-black/50"
-                                        }`}
-                                    >
-                                      Project
-                                    </p>
-                                    <p className="font-medium text-sm truncate">
-                                      {item.project}
-                                    </p>
-                                  </div> */}
-                                  <div className="text-right">
-                                    <p
-                                      className={`mb-1 ${isDark
-                                        ? "text-white/50"
-                                        : "text-black/50"
-                                        }`}
-                                    >
-                                      Booking Status
-                                    </p>
-                                    {item.quote_status.replace("_", " ").replace(/\b\w/g, (char) => char.toUpperCase())}
-                                  </div>
-                                  <div>
-                                    <p
-                                      className={`mb-1 ${isDark
-                                        ? "text-white/50"
-                                        : "text-black/50"
-                                        }`}
-                                    >
-                                      Amount
-                                    </p>
-                                    <p className="font-semibold text-sm">
-                                      ${item.quote_value.toLocaleString()}
-                                    </p>
-                                    {item.collected_amount && (
-                                      <div className="text-[10px] text-[#14BC52]">
-                                        PAID - ${item.collected_amount.toLocaleString()}
-                                      </div>
-                                    )}
-                                    {item.outstanding_amount && (
-                                      <div className="text-[10px] text-[#F29831]">
-                                        PENDING - ${item.outstanding_amount.toLocaleString()}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="text-right">
-                                    <p
-                                      className={`mb-1 ${isDark
-                                        ? "text-white/50"
-                                        : "text-black/50"
-                                        }`}
-                                    >
-                                      Sales Rep
-                                    </p>
-                                    <p className="font-medium text-sm">
-                                      {item.sales_rep.name}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div>
-                                    <p
-                                      className={`mb-1 ${isDark
-                                        ? "text-white/50"
-                                        : "text-black/50"
-                                        }`}
-                                    >
-                                      Validity
-                                    </p>
-                                    <p className="font-medium text-sm">
-                                      {formatQuoteAnalyticsDate(item.validity.valid_until)}
-                                    </p>
-                                  </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })
+                  ))
                 )}
               </tbody>
             </table>

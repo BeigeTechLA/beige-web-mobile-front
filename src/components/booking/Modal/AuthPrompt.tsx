@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Box,
   Typography,
@@ -42,7 +43,11 @@ interface AuthPromptProps {
     name: string;
     phone?: string;
   }) => void;
-  bookingData?: Partial<BookingFormData>;
+  bookingData?: Partial<BookingFormData> & {
+    guestName?: string;
+    guestEmail?: string;
+    guestPhone?: string;
+  };
   onClose?: () => void;
 }
 
@@ -65,6 +70,7 @@ const AuthPrompt: React.FC<AuthPromptProps> = ({
   bookingData,
   onClose,
 }) => {
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const [activeTab, setActiveTab] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
@@ -217,6 +223,13 @@ const AuthPrompt: React.FC<AuthPromptProps> = ({
       onAuthenticated(normalizedUser);
     } catch (error: any) {
       console.error("Login error:", error);
+      if (error?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        const params = new URLSearchParams({ email: error.data.email || loginForm.email, source: 'login' });
+        if (error.data.retry_after_seconds) params.set('cooldown', String(error.data.retry_after_seconds));
+        params.set('returnTo', `${window.location.pathname}${window.location.search}`);
+        router.push(`/verify-email?${params.toString()}`);
+        return;
+      }
       setError(
         error?.data?.message ||
           error?.message ||
@@ -240,59 +253,17 @@ const AuthPrompt: React.FC<AuthPromptProps> = ({
         phone: registerForm.phone,
         bookingContext: bookingData,
       }).unwrap();
-      const normalizedUser: any = {
-        userId: result.user.userId,
-        id:
-          (result.user as any).id ||
-          result.user.userId ||
-          (result.user as any)._id,
-        _id:
-          (result.user as any)._id ||
-          result.user.userId ||
-          (result.user as any).id,
-        role: (result as any)?.user?.role,
-        email: result.user.email,
-        name: result.user.name || registerForm.name,
-        phone: result.user.phone || registerForm.phone,
-      };
-      const role = (result as any)?.user?.role || "client";
-
-      if (!result.token || !normalizedUser.userId) {
-        throw new Error("Invalid response from server");
-      }
-
-      // Attempt to write permissions/refresh token if present in response
-      if ((result as any)?.refreshToken) {
-        Cookies.set(
-          "refreshToken",
-          JSON.stringify((result as any).refreshToken)
-        );
-      }
-      if ((result as any)?.permissions) {
-        const perms = (result as any).permissions;
-        const permsArray = Array.isArray(perms) ? perms : [];
-        Cookies.set("authPermissions", JSON.stringify(permsArray));
-        window.dispatchEvent(new Event("permissions-updated"));
-      } else {
-        try {
-          const permsResp: any = await fetchPermissions(role).unwrap();
-          const permsArray = Array.isArray(permsResp?.[0]?.permissions)
-            ? permsResp[0].permissions
-            : [];
-          Cookies.set("authPermissions", JSON.stringify(permsArray));
-          window.dispatchEvent(new Event("permissions-updated"));
-        } catch {}
-      }
-
-      dispatch(setCredentials({ user: normalizedUser, token: result.token }));
-      await fetchAndCommitUserPermissions(dispatch, normalizedUser.id || normalizedUser.userId, {
-        broadcast: false,
-      });
-
-      // Call success callback with user data
-      onAuthenticated(normalizedUser);
+      const params = new URLSearchParams({ email: result.email || registerForm.email });
+      params.set('returnTo', `${window.location.pathname}${window.location.search}`);
+      router.push(`/verify-email?${params.toString()}`);
     } catch (error: any) {
       console.error("Registration error:", error);
+      if (error?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        const params = new URLSearchParams({ email: error.data.email || registerForm.email, source: 'login' });
+        params.set('returnTo', `${window.location.pathname}${window.location.search}`);
+        router.push(`/verify-email?${params.toString()}`);
+        return;
+      }
       setError(
         error?.data?.message ||
           error?.message ||

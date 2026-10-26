@@ -354,7 +354,12 @@ export default function QuoteSummaryContent({
                     ) : null}
                     {snapshot.taxRate > 0 || snapshot.taxAmount > 0 ? (
                       <div className={`flex items-center justify-between text-sm lg:text-base ${isDark ? "text-[#D4D4D8]" : "text-[#444444]"}`}>
-                        <span>{`${snapshot.taxLabel} (${snapshot.taxRate}%)`}</span>
+                        <span>
+                          {String(snapshot.taxLabel || "Tax").replace(/\bTax\s*\(4%\)/gi, "Card Payment Charges (4%)")}
+                          {snapshot.taxRate > 0 && !String(snapshot.taxLabel || "").includes("%")
+                            ? ` (${snapshot.taxRate}%)`
+                            : ""}
+                        </span>
                         <span>{formatCurrency(snapshot.taxAmount)}</span>
                       </div>
                     ) : null}

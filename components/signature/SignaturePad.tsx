@@ -7,12 +7,14 @@ interface SignaturePadProps {
     onSave: (base64: string) => void | Promise<void>;
     onClear?: () => void;
     isSaving?: boolean;
+    saveLabel?: string;
 }
 
 export default function SignaturePad({
     onSave,
     onClear,
     isSaving = false,
+    saveLabel = "Save Signature",
 }: SignaturePadProps) {
     const sigRef = useRef<SignatureCanvas>(null);
     const [isEmpty, setIsEmpty] = useState(true);
@@ -53,7 +55,7 @@ export default function SignaturePad({
                     className="bg-[#E5D5B8] text-black hover:bg-[#E5D5B8]/90"
                 >
                     {isSaving ? <Loader2 size={16} className="mr-2 animate-spin" /> : null}
-                    {isSaving ? "Saving..." : "Save Signature"}
+                    {isSaving ? "Signing..." : saveLabel}
                 </Button>
             </div>
             {/* Canvas Box */}

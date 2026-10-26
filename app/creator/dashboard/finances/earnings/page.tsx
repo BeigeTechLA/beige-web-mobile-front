@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 
 import { toast } from "sonner";
 import { SortDateButton } from "@/components/admin/SortDateButton";
@@ -437,9 +437,39 @@ export default function RequestsShootsPage() {
   const [selectedShootData, setSelectedShootData] = useState<SelectedShootData | null>(null);
 
   const [selectedEarningId, setSelectedEarningId] = useState<number | null>(null);
+  const openedNotificationEarning = useRef(false);
   const [timelineData, setTimelineData] = useState<TimelineEvent[]>([]);
   const [paymentReceipts, setPaymentReceipts] = useState<PaymentReceiptItem[]>([]);
   const [disputeRefreshKey, setDisputeRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const earningId = Number(new URLSearchParams(window.location.search).get("earning_id"));
+    if (openedNotificationEarning.current || !Number.isInteger(earningId) || earningId <= 0) return;
+    openedNotificationEarning.current = true;
+    getCreatorEarningDetails(earningId).then((response) => {
+      if (!response?.success || !response.data) return;
+      const detail = response.data;
+      const shoot = detail.shoot_info || {};
+      setSelectedEarningId(earningId);
+      setSelectedShootData(mapRowToShootData({
+        creator_earning_id: earningId,
+        booking_id: detail.booking_id,
+        shoot_name: shoot.shoot_name || `Shoot #${detail.booking_id}`,
+        client_name: shoot.client_name || "Client",
+        status: shoot.status,
+        event_date: shoot.event_date,
+        event_location: shoot.event_location || "",
+        start_time: shoot.start_time,
+        end_time: shoot.end_time,
+        total_compensation: Number(detail.total_compensation || 0),
+        advance_paid: Number(detail.payment_breakdown?.paid_total || 0),
+        remaining_balance: Number(detail.payment_breakdown?.remaining_balance || 0),
+        due_date: shoot.due_date,
+      }));
+      setPaymentReceipts(mapPaymentHistoryToReceipts(detail.payment_history || []));
+      setIsModalOpen(true);
+    }).catch(() => {});
+  }, []);
 
   const activeDisputeByEarningId = useMemo(() => (
     new Map(

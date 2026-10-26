@@ -17,6 +17,7 @@ import {
   Clock3,
   Loader2,
   MapPin,
+  RefreshCw,
   Search,
   Video,
   X,
@@ -94,7 +95,6 @@ type GlobeShoot = {
 
 type ShootsGlobeViewProps = {
   isDark: boolean;
-  onBack?: () => void;
   onOpenCalendarDay?: (date: Date) => void;
 };
 
@@ -209,15 +209,17 @@ const getLocationLabel = (project: any) => {
 };
 
 const getShootStatus = (project: any): GlobeStatus | null => {
-  if (Number(project?.is_active) === 0) {
+  if (
+    Number(project?.is_active) === 0 ||
+    String(project?.status || "").toLowerCase() === "cancelled"
+  ) {
     return "cancelled";
   }
 
-  if (!project?.event_date) return null;
+  const rawDate = project?.event_date || project?.date;
+  if (!rawDate) return null;
 
-  const eventDate = new Date(
-    `${String(project.event_date).slice(0, 10)}T00:00:00`,
-  );
+  const eventDate = new Date(`${String(rawDate).slice(0, 10)}T00:00:00`);
   if (Number.isNaN(eventDate.getTime())) return null;
 
   const today = new Date();
@@ -249,10 +251,10 @@ const statusConfig: Record<
   },
   completed: {
     label: "Completed Shoots",
-    marker: "bg-[#10B981]",
-    ring: "border-[#10B981]",
-    badgeDark: "border border-[#2F6848] bg-[#123A27] text-[#53D18B]",
-    badgeLight: "border border-[#B9E7CD] bg-[#DCF7E8] text-[#1F8A53]",
+    marker: "bg-[#A78BFA]",
+    ring: "border-[#A78BFA]",
+    badgeDark: "border border-[#594A85] bg-[#27203D] text-[#C4B5FD]",
+    badgeLight: "border border-[#DDD6FE] bg-[#F5F3FF] text-[#6D28D9]",
   },
   cancelled: {
     label: "Cancelled Shoots",
@@ -276,33 +278,68 @@ const formatDate = (value?: string | null) => {
 
 const formatTime = (value?: string | null) => {
   if (!value) return "Time TBD";
-  const raw = String(value).trim();
-  const match = raw.match(/(\d{1,2}):(\d{2})/);
-  if (!match) return raw;
-  const hour24 = Number(match[1]);
-  const minute = Number(match[2]);
-  if (!Number.isFinite(hour24) || !Number.isFinite(minute)) return raw;
-  return `${hour24 % 12 || 12}:${String(minute).padStart(2, "0")} ${
-    hour24 >= 12 ? "PM" : "AM"
-  }`;
+  const minutes = timeToMinutes(value);
+  if (!Number.isFinite(minutes)) return String(value).trim();
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return `${hour % 12 || 12}:${String(minute).padStart(2, "0")} ${hour >= 12 ? "PM" : "AM"}`;
 };
 
 const timeToMinutes = (value?: string | null) => {
   if (!value) return Number.POSITIVE_INFINITY;
-  const match = String(value).trim().match(/(\d{1,2}):(\d{2})/);
-  if (!match) return Number.POSITIVE_INFINITY;
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+  const raw = String(value).trim();
+  const match = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  const isoMatch = raw.match(/(?:T|\s)(\d{1,2}):(\d{2})(?::\d{2})?/);
+  const parts = match || isoMatch;
+  if (!parts) return Number.POSITIVE_INFINITY;
+  let hour = Number(parts[1]);
+  const minute = Number(parts[2]);
+  const meridiem = match?.[3]?.toUpperCase();
+  if (!Number.isFinite(hour) || !Number.isFinite(minute) || minute > 59) {
+    return Number.POSITIVE_INFINITY;
+  }
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return Number.POSITIVE_INFINITY;
+    hour = (hour % 12) + (meridiem === "PM" ? 12 : 0);
+  } else if (hour > 23) {
     return Number.POSITIVE_INFINITY;
   }
   return hour * 60 + minute;
+};
+
+const getTodayShootsFromCalendarResponse = (response: any): any[] => {
+  const payload = response?.success !== undefined ? response : response?.data;
+  if (!payload || payload.success === false) {
+    throw new Error(payload?.message || payload?.error || "Failed to load today's shoots");
+  }
+
+  const data = payload.data || {};
+  const items = Array.isArray(data.active_shoots)
+    ? data.active_shoots
+    : Array.isArray(data.shoots)
+      ? data.shoots
+      : [];
+
+  return items.filter((item: any) => {
+    const type = String(item?.type || item?.event_type || "").toLowerCase();
+    const status = String(item?.status || "").toLowerCase();
+    return (
+      item?.is_deleted !== true &&
+      item?.is_deleted !== 1 &&
+      !item?.deleted_at &&
+      !type.includes("meeting") &&
+      !type.includes("deleted") &&
+      !status.includes("deleted")
+    );
+  });
 };
 
 const getProjectsFromGlobalResponse = (response: any): any[] => {
   if (Array.isArray(response?.data?.projects)) return response.data.projects;
   if (Array.isArray(response?.projects)) return response.projects;
   if (Array.isArray(response?.data?.data?.projects)) return response.data.data.projects;
+  if (Array.isArray(response?.data?.data)) return response.data.data;
+  if (Array.isArray(response?.data)) return response.data;
   return [];
 };
 
@@ -370,9 +407,9 @@ const mapProjectToGlobeShoot = (item: any): GlobeShoot | null => {
         project?.title ||
         project?.name ||
         "Untitled Shoot",
-    ),
-    date: formatDate(project?.event_date),
-    rawDate: project?.event_date || null,
+    ).replace(/^CUSTOM Shoot\b/i, "CUSTOM"),
+    date: formatDate(project?.event_date || project?.date),
+    rawDate: project?.event_date || project?.date || null,
     startTime: project?.start_time || null,
     endTime: project?.end_time || null,
     location: getLocationLabel(project),
@@ -442,7 +479,6 @@ const calculateViewport = (events: GlobeShoot[]) => {
 
 export const ShootsGlobeView = ({
   isDark,
-  onBack,
   onOpenCalendarDay,
 }: ShootsGlobeViewProps) => {
   const router = useRouter();
@@ -460,13 +496,19 @@ export const ShootsGlobeView = ({
   const [eventsLoading, setEventsLoading] = useState(true);
   const [todayLoading, setTodayLoading] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
+  const [eventsError, setEventsError] = useState(false);
+  const [todayError, setTodayError] = useState(false);
+  const [refreshEventsKey, setRefreshEventsKey] = useState(0);
+  const [refreshTodayKey, setRefreshTodayKey] = useState(0);
+  const [locatingTodayEventId, setLocatingTodayEventId] = useState<string | null>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<GlobeStatusFilter>("all");
   const [crewFilter, setCrewFilter] = useState<CrewFilter>("all");
   const [postProductionUserFilter, setPostProductionUserFilter] = useState("all");
-  const [postProductionTeamOptions, setPostProductionTeamOptions] = useState<PostProductionTeamOption[]>([]);
-  const [isLoadingPostProductionTeam, setIsLoadingPostProductionTeam] = useState(false);
+  const [postProductionTeamOptions] = useState<PostProductionTeamOption[]>([]);
+  const [isLoadingPostProductionTeam] = useState(false);
   const selectedPostProductionUser = postProductionTeamOptions.find(
     (option) => String(option.id) === postProductionUserFilter,
   );
@@ -562,6 +604,15 @@ export const ShootsGlobeView = ({
     });
   }, []);
 
+  const retryLoadShoots = useCallback(() => {
+    geocodeCache.current.clear();
+    setRefreshEventsKey((value) => value + 1);
+  }, []);
+
+  const retryLoadToday = useCallback(() => {
+    setRefreshTodayKey((value) => value + 1);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -573,6 +624,8 @@ export const ShootsGlobeView = ({
       }
 
       setEventsLoading(true);
+      setEventsError(false);
+      setGeocoding(false);
       setSelectedEvent(null);
       initialZoomDone.current = false;
 
@@ -582,28 +635,22 @@ export const ShootsGlobeView = ({
             ? { start_date: customStartDate, end_date: customEndDate }
             : { range };
 
-        if (debouncedSearchQuery) {
-          params.search = debouncedSearchQuery;
-        }
-
-        if (statusFilter !== "all") {
-          params.status = statusFilter;
-        }
-
-        if (crewFilter !== "all") {
-          params.cp_assignment = crewFilter;
-        }
+        if (debouncedSearchQuery) params.search = debouncedSearchQuery;
+        if (statusFilter !== "all") params.status = statusFilter;
+        if (crewFilter !== "all") params.cp_assignment = crewFilter;
 
         const response = await adminApi.getGlobalShoots(params as any);
         if (cancelled) return;
 
-        const projects = getProjectsFromGlobalResponse(response);
+        if (response?.success === false) {
+          throw new Error(response?.message || response?.error || "Could not load shoots");
+        }
 
+        const projects = getProjectsFromGlobalResponse(response);
         const transformedEvents = projects
           .map(mapProjectToGlobeShoot)
           .filter((event): event is GlobeShoot => Boolean(event));
 
-        // Same flow as the reference: store every project first.
         setDbEvents(transformedEvents);
         setEventsLoading(false);
 
@@ -614,15 +661,9 @@ export const ShootsGlobeView = ({
             event.location !== "Location TBD",
         );
 
-        if (!eventsToGeocode.length || !isValidMapboxToken) {
-          setGeocoding(false);
-          return;
-        }
+        if (!eventsToGeocode.length || !isValidMapboxToken) return;
 
         setGeocoding(true);
-
-        // Same as reference: geocode missing coordinates in the background,
-        // then patch successful results into the existing event list.
         const results = await Promise.all(
           eventsToGeocode.map(async (event) => {
             const coordinates = await geocodeAddress(event.location);
@@ -644,7 +685,9 @@ export const ShootsGlobeView = ({
         );
 
         if (successful.length) {
-          const geocodedById = new Map(successful.map((item) => [item.id, item]));
+          const geocodedById = new Map(
+            successful.map((item) => [item.id, item]),
+          );
 
           setDbEvents((previous) =>
             previous.map((event) => {
@@ -667,7 +710,7 @@ export const ShootsGlobeView = ({
         if (!cancelled) {
           setDbEvents([]);
           setSelectedEvent(null);
-          setEventsLoading(false);
+          setEventsError(true);
         }
       } finally {
         if (!cancelled) {
@@ -690,7 +733,51 @@ export const ShootsGlobeView = ({
     statusFilter,
     crewFilter,
     geocodeAddress,
+    refreshEventsKey,
   ]);
+
+  // The Today Calendar deliberately has its own request so it remains useful
+  // while the map is filtered to another date range. Always finish loading,
+  // including when the API returns no projects or the request fails.
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTodayShoots = async () => {
+      setTodayLoading(true);
+
+      try {
+        const response = await adminApi.getGlobalShoots({ range: "today" });
+        if (cancelled) return;
+
+        const projects = getProjectsFromGlobalResponse(response);
+        setTodayEvents(
+          projects
+            .map(mapProjectToGlobeShoot)
+            .filter((event): event is GlobeShoot => Boolean(event)),
+        );
+      } catch (error) {
+        console.error("Failed to load today's shoots:", error);
+        if (!cancelled) setTodayEvents([]);
+      } finally {
+        if (!cancelled) setTodayLoading(false);
+      }
+    };
+
+    void loadTodayShoots();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const sortedTodayEvents = useMemo(
+    () =>
+      [...todayEvents].sort(
+        (first, second) =>
+          timeToMinutes(first.startTime) - timeToMinutes(second.startTime),
+      ),
+    [todayEvents],
+  );
 
   const mappedEvents = useMemo(
     () =>
@@ -703,25 +790,15 @@ export const ShootsGlobeView = ({
   );
 
   useEffect(() => {
-    if (!mappedEvents.length || initialZoomDone.current) return;
+    if (!isMapReady || !mappedEvents.length || initialZoomDone.current) return;
 
     const frame = window.requestAnimationFrame(() => {
-      moveMapTo(
-        {
-          latitude: 39.8283,
-          longitude: -98.5795,
-          zoom: 3,
-          pitch: 0,
-          bearing: 0,
-        },
-        500,
-      );
-      setSelectedEvent(null);
+      moveMapTo(calculateViewport(mappedEvents), 500);
       initialZoomDone.current = true;
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [mappedEvents.length, moveMapTo]);
+  }, [isMapReady, mappedEvents, moveMapTo]);
 
   const legendItems = useMemo(
     () =>
@@ -794,6 +871,7 @@ export const ShootsGlobeView = ({
 
   const clearAllFilters = useCallback(() => {
     setActiveFilters(new Set<GlobeStatus>());
+    setSelectedEvent(null);
   }, []);
 
   const handleMarkerClick = useCallback(
@@ -818,6 +896,72 @@ export const ShootsGlobeView = ({
       calculateViewport(filteredEvents.length ? filteredEvents : mappedEvents),
     );
   }, [filteredEvents, mappedEvents, moveMapTo]);
+
+  const handleTodayShootClick = useCallback(
+    async (event: GlobeShoot) => {
+      if (event.hasCoordinates && hasValidCoordinates(event.latitude, event.longitude)) {
+        handleMarkerClick(event);
+        return;
+      }
+
+      if (!isValidMapboxToken || !event.location || event.location === "Location TBD") {
+        toast.error("This shoot does not have a location available on the map.");
+        return;
+      }
+
+      setLocatingTodayEventId(event.id);
+      try {
+        const coordinates = await geocodeAddress(event.location);
+        if (!coordinates) {
+          toast.error("Unable to locate this shoot on the map.");
+          return;
+        }
+
+        const locatedEvent: GlobeShoot = {
+          ...event,
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          location: coordinates.placeName || event.location,
+          hasCoordinates: true,
+          isGeocoded: true,
+        };
+
+        setTodayEvents((previous) =>
+          previous.map((item) => item.id === event.id ? locatedEvent : item),
+        );
+        setDbEvents((previous) =>
+          previous.map((item) => item.id === event.id
+            ? {
+                ...item,
+                latitude: coordinates.latitude,
+                longitude: coordinates.longitude,
+                location: coordinates.placeName || item.location,
+                hasCoordinates: true,
+                isGeocoded: true,
+              }
+            : item),
+        );
+        handleMarkerClick(locatedEvent);
+      } finally {
+        setLocatingTodayEventId(null);
+      }
+    },
+    [geocodeAddress, handleMarkerClick],
+  );
+
+  const resetGlobeFilters = useCallback(() => {
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+    setStatusFilter("all");
+    setCrewFilter("all");
+    setPostProductionUserFilter("all");
+    setRange("all");
+    setCustomStartDate("");
+    setCustomEndDate("");
+    setActiveFilters(
+      new Set<GlobeStatus>(["active", "upcoming", "completed", "cancelled"]),
+    );
+  }, []);
 
   const openCustomRangeDialog = useCallback(() => {
     setDraftCustomRangeStartDate(
@@ -891,6 +1035,19 @@ export const ShootsGlobeView = ({
       ? `${formatDateFns(new Date(`${customStartDate}T00:00:00`), "MMM dd, yyyy")} - ${formatDateFns(new Date(`${customEndDate}T00:00:00`), "MMM dd, yyyy")}`
       : "";
 
+  const hasApiFilters = Boolean(
+    debouncedSearchQuery ||
+      statusFilter !== "all" ||
+      crewFilter !== "all" ||
+      postProductionUserFilter !== "all" ||
+      range !== "all",
+  );
+  const hasHiddenMarkers = mappedEvents.length > 0 && filteredEvents.length === 0;
+  const hasUnmappedShoots = dbEvents.length > 0 && mappedEvents.length === 0;
+  const showMapEmptyState =
+    !eventsLoading && !geocoding && !eventsError &&
+    (dbEvents.length === 0 || hasHiddenMarkers || hasUnmappedShoots);
+
   const mapStyleUrl = isDark
     ? "mapbox://styles/mapbox/dark-v11"
     : "mapbox://styles/mapbox/light-v11";
@@ -956,6 +1113,7 @@ export const ShootsGlobeView = ({
           attributionControl={false}
           projection="globe"
           fog={mapFog}
+          onLoad={() => setIsMapReady(true)}
           onClick={() => setSelectedEvent(null)}
         >
           <NavigationControl position="bottom-right" showCompass={false} />
@@ -1055,6 +1213,77 @@ export const ShootsGlobeView = ({
           <p className={`mt-2 max-w-md text-sm ${isDark ? "text-white/45" : "text-[#777777]"}`}>
             Add NEXT_PUBLIC_MAPBOX_TOKEN to your environment to display the Globe View map.
           </p>
+        </div>
+      )}
+
+      {isValidMapboxToken && !eventsLoading && eventsError && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 pt-20">
+          <div
+            role="alert"
+            className={`pointer-events-auto w-full max-w-[340px] rounded-2xl border px-5 py-10 text-center ${
+              isDark ? "border-[#333333] bg-[#141414]" : "border-[#E5E5E5] bg-white"
+            }`}
+          >
+            <MapPin size={30} className={`mx-auto mb-3 ${isDark ? "text-white/20" : "text-black/20"}`} />
+            <p className={`text-sm font-medium ${isDark ? "text-white/65" : "text-black/65"}`}>
+              Failed to load shoots
+            </p>
+            <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>
+              Please try again.
+            </p>
+            <button
+              type="button"
+              onClick={retryLoadShoots}
+              className={`mt-4 inline-flex h-9 items-center gap-2 rounded-lg border px-4 text-xs font-medium transition-colors ${
+                isDark
+                  ? "border-[#333333] bg-[#202020] text-white/75 hover:bg-[#2A2A2A]"
+                  : "border-[#E5E5E5] bg-white text-black/70 hover:bg-[#F7F7F7]"
+              }`}
+            >
+              <RefreshCw size={14} /> Retry
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isValidMapboxToken && showMapEmptyState && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 pt-20">
+          <div
+            className={`pointer-events-auto w-full max-w-[340px] rounded-2xl border px-5 py-10 text-center ${
+              isDark ? "border-[#333333] bg-[#141414]" : "border-[#E5E5E5] bg-white"
+            }`}
+          >
+            <MapPin size={30} className={`mx-auto mb-3 ${isDark ? "text-white/20" : "text-black/20"}`} />
+            <p className={`text-sm font-medium ${isDark ? "text-white/65" : "text-black/65"}`}>
+              {hasHiddenMarkers
+                ? "No shoots in selected statuses"
+                : hasUnmappedShoots
+                  ? "No shoot locations found"
+                  : "No shoots found"}
+            </p>
+            <p className={`mt-1 text-xs leading-5 ${isDark ? "text-white/40" : "text-black/40"}`}>
+              {hasHiddenMarkers
+                ? "Select All in the legend to show your shoots."
+                : hasUnmappedShoots
+                  ? "Shoots are available, but none have mappable locations."
+                  : hasApiFilters
+                    ? "Try adjusting or clearing the filters."
+                    : "There are no shoots to display."}
+            </p>
+            {(hasHiddenMarkers || hasApiFilters || hasUnmappedShoots) && (
+              <button
+                type="button"
+                onClick={hasHiddenMarkers ? selectAllFilters : hasApiFilters ? resetGlobeFilters : retryLoadShoots}
+                className={`mt-4 inline-flex h-9 items-center gap-2 rounded-lg border px-4 text-xs font-medium transition-colors ${
+                  isDark
+                    ? "border-[#333333] bg-[#202020] text-white/75 hover:bg-[#2A2A2A]"
+                    : "border-[#E5E5E5] bg-white text-black/70 hover:bg-[#F7F7F7]"
+                }`}
+              >
+                {hasHiddenMarkers ? "Show all" : hasApiFilters ? "Clear filters" : "Retry locations"}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -1324,6 +1553,7 @@ export const ShootsGlobeView = ({
         </div>
       )}
 
+      {!eventsLoading && !eventsError && mappedEvents.length > 0 && (
       <div
         className={`absolute bottom-4 left-4 z-20 hidden w-[248px] rounded-xl border p-3 shadow-xl md:block ${
           isDark
@@ -1391,6 +1621,7 @@ export const ShootsGlobeView = ({
           })}
         </div>
       </div>
+      )}
 
       {selectedEvent && (
         <div
@@ -1515,22 +1746,28 @@ export const ShootsGlobeView = ({
         </div>
       )}
 
-      {(eventsLoading || geocoding) && (
+      {isValidMapboxToken && eventsLoading && (
         <div
-          className={`absolute inset-0 z-40 flex items-center justify-center backdrop-blur-[1px] ${
-            isDark ? "bg-black/35" : "bg-white/35"
+          role="status"
+          aria-label="Loading shoots"
+          className={`absolute inset-0 z-40 flex items-center justify-center ${
+            isDark ? "bg-[#111111]/75" : "bg-white/75"
           }`}
         >
-          <div
-            className={`flex min-w-[150px] items-center justify-center gap-2 rounded-xl border px-4 py-3 shadow-xl ${
-              isDark
-                ? "border-[#333333] bg-[#171717] text-white"
-                : "border-[#E5E5E5] bg-white text-black"
-            }`}
-          >
-            <Loader2 size={18} className="animate-spin text-[#E8D1AB]" />
-            <span className="text-xs font-medium">{eventsLoading ? "Loading shoots..." : "Mapping locations..."}</span>
-          </div>
+          <Loader2 className="animate-spin text-[#E8D1AB]" size={28} />
+        </div>
+      )}
+
+      {isValidMapboxToken && !eventsLoading && geocoding && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`pointer-events-none absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
+            isDark ? "border-[#333333] bg-[#171717] text-white/65" : "border-[#E5E5E5] bg-white text-black/60"
+          }`}
+        >
+          <Loader2 size={14} className="animate-spin text-[#E8D1AB]" />
+          Locating shoots...
         </div>
       )}
       </div>
@@ -1570,13 +1807,16 @@ export const ShootsGlobeView = ({
               >
                 {todayLoading
                   ? "Loading today's shoots..."
-                  : `${sortedTodayEvents.length} ${sortedTodayEvents.length === 1 ? "shoot" : "shoots"} scheduled`}
+                  : todayError
+                    ? "Unable to load today's schedule"
+                    : `${sortedTodayEvents.length} ${sortedTodayEvents.length === 1 ? "shoot" : "shoots"} scheduled`}
               </p>
             </div>
             <button
               type="button"
               onClick={() => onOpenCalendarDay?.(new Date())}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors ${
+              disabled={!onOpenCalendarDay}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 isDark
                   ? "border-[#333333] bg-[#202020] text-[#E8D1AB] hover:bg-[#2A2A2A]"
                   : "border-[#E5E5E5] bg-[#FFFCF6] text-[#9B7B4F] hover:bg-[#F8F1E5]"
@@ -1591,8 +1831,34 @@ export const ShootsGlobeView = ({
 
         <div className="custom-scrollbar flex-1 overflow-y-auto p-4">
           {todayLoading ? (
-            <div className="flex h-full min-h-[220px] items-center justify-center">
-              <Loader2 size={22} className="animate-spin text-[#E8D1AB]" />
+            <div role="status" aria-label="Loading today's shoots" className="flex min-h-[240px] items-center justify-center">
+              <Loader2 className="animate-spin text-[#E8D1AB]" size={28} />
+            </div>
+          ) : todayError ? (
+            <div
+              role="alert"
+              className={`rounded-2xl border px-5 py-12 text-center ${
+                isDark ? "border-[#303030] bg-[#141414]" : "border-[#E5E5E5] bg-white"
+              }`}
+            >
+              <CalendarDays size={30} className={`mx-auto mb-3 ${isDark ? "text-white/20" : "text-black/20"}`} />
+              <p className={`text-sm font-medium ${isDark ? "text-white/55" : "text-black/55"}`}>
+                Failed to load today's shoots
+              </p>
+              <p className={`mt-1 text-xs ${isDark ? "text-white/30" : "text-black/30"}`}>
+                Please try again.
+              </p>
+              <button
+                type="button"
+                onClick={retryLoadToday}
+                className={`mt-4 inline-flex h-9 items-center gap-2 rounded-lg border px-4 text-xs font-medium transition-colors ${
+                  isDark
+                    ? "border-[#333333] bg-[#202020] text-white/70 hover:bg-[#2A2A2A]"
+                    : "border-[#E5E5E5] bg-white text-black/70 hover:bg-[#F7F7F7]"
+                }`}
+              >
+                <RefreshCw size={14} /> Retry
+              </button>
             </div>
           ) : sortedTodayEvents.length ? (
             <div className="space-y-3">
@@ -1605,7 +1871,8 @@ export const ShootsGlobeView = ({
                     key={event.id}
                     type="button"
                     onClick={() => void handleTodayShootClick(event)}
-                    className={`w-full rounded-xl border p-4 text-left transition-all ${
+                    disabled={locatingTodayEventId !== null}
+                    className={`w-full rounded-xl border p-4 text-left transition-all disabled:cursor-wait ${
                       isSelected
                         ? isDark
                           ? "border-[#E8D1AB]/60 bg-[#201D18] ring-1 ring-[#E8D1AB]/20"
@@ -1619,7 +1886,9 @@ export const ShootsGlobeView = ({
                       <div className="min-w-0 flex-1">
                         <div className="mb-2 flex items-center gap-2">
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold capitalize ${colors.badge}`}
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold capitalize ${
+                              isDark ? colors.badgeDark : colors.badgeLight
+                            }`}
                           >
                             {event.status}
                           </span>
@@ -1669,14 +1938,20 @@ export const ShootsGlobeView = ({
                           isDark ? "text-white/30" : "text-black/35"
                         }`}
                       >
-                        {event.hasCoordinates
-                          ? "Click to focus on map"
-                          : "Click to locate on map"}
+                        {locatingTodayEventId === event.id
+                          ? "Locating shoot..."
+                          : event.hasCoordinates
+                            ? "Click to focus on map"
+                            : "Click to locate on map"}
                       </span>
-                      <MapPin
-                        size={14}
-                        className={isSelected ? "text-[#E8D1AB]" : "opacity-45"}
-                      />
+                      {locatingTodayEventId === event.id ? (
+                        <Loader2 size={14} className="animate-spin text-[#C7A46B]" />
+                      ) : (
+                        <MapPin
+                          size={14}
+                          className={isSelected ? "text-[#E8D1AB]" : "opacity-45"}
+                        />
+                      )}
                     </div>
                   </button>
                 );
@@ -1684,23 +1959,16 @@ export const ShootsGlobeView = ({
             </div>
           ) : (
             <div
-              className={`flex min-h-[240px] flex-col items-center justify-center rounded-xl border border-dashed px-5 text-center ${
-                isDark
-                  ? "border-[#333333] bg-[#151515]"
-                  : "border-[#E5E5E5] bg-[#FAFAFA]"
+              className={`rounded-2xl border px-5 py-12 text-center ${
+                isDark ? "border-[#303030] bg-[#141414]" : "border-[#E5E5E5] bg-white"
               }`}
             >
-              <CalendarDays
-                size={28}
-                className={isDark ? "text-white/20" : "text-black/20"}
-              />
-              <p className="mt-3 text-sm font-medium">No shoots today</p>
-              <p
-                className={`mt-1 text-xs ${
-                  isDark ? "text-white/35" : "text-black/40"
-                }`}
-              >
-                Today's calendar is independent from the map filters.
+              <CalendarDays size={30} className={`mx-auto mb-3 ${isDark ? "text-white/20" : "text-black/20"}`} />
+              <p className={`text-sm font-medium ${isDark ? "text-white/55" : "text-black/55"}`}>
+                No shoots found
+              </p>
+              <p className={`mt-1 text-xs ${isDark ? "text-white/30" : "text-black/30"}`}>
+                There are no shoots scheduled for today.
               </p>
             </div>
           )}

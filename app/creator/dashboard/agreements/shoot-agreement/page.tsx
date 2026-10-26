@@ -5,17 +5,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Topbar from "@/components/admin/Topbar";
-import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
+import { agreementApi, AgreementDocument, type AgreementEvent, type AgreementResponse } from "@/lib/api/agreements";
+import { AgreementSignatureEvidence } from "@/components/creator-profile/AgreementSignatureEvidence";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+import { formatAgreementDate } from "@/lib/utils/agreementDate";
 
 type AgreementSection = { id?: string; num?: string; title?: string; content?: string };
-type EventItem = { event_type?: string; created_at?: string };
 
-const formatDate = (value?: string | null, withTime = false) => value
-  ? new Intl.DateTimeFormat("en-GB", withTime
-    ? { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }
-    : { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value))
-  : "—";
+const formatDate = formatAgreementDate;
 
 const titleCase = (value?: string) => (value || "Pending").replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
@@ -38,7 +35,8 @@ export default function ShootAgreementPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [agreement, setAgreement] = useState<AgreementDocument | null>(null);
-  const [events, setEvents] = useState<EventItem[]>([]);
+  const [events, setEvents] = useState<AgreementEvent[]>([]);
+  const [signatureResponse, setSignatureResponse] = useState<AgreementResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const agreementId = Number(searchParams.get("agreement_id"));
 
@@ -54,7 +52,8 @@ export default function ShootAgreementPage() {
           return;
         }
         setAgreement(response.data.agreement);
-        setEvents(Array.isArray(response.data.events) ? response.data.events as EventItem[] : []);
+        setSignatureResponse(response.data.responses.find((item) => item.action === "accepted") || null);
+        setEvents(Array.isArray(response.data.events) ? response.data.events : []);
       })
       .catch(() => router.replace("/creator/dashboard/profile"))
       .finally(() => setLoading(false));
@@ -69,7 +68,7 @@ export default function ShootAgreementPage() {
   const currency = agreement.currency || snapshot.compensation?.currency || "USD";
   const compensation = Number(agreement.compensation_amount ?? snapshot.compensation?.amount ?? 0);
   const savedSections = getAgreementSections(agreement.content_json);
-  const fallbackSections = [
+  const fallbackSections: AgreementSection[] = [
     { title: "Scope of Services", content: String(shoot.scope || "") },
     { title: "Equipment Requirements", content: Array.isArray(shoot.equipment) ? shoot.equipment.join(", ") : String(shoot.equipment || "") },
     { title: "Deliverables / Media Transfer", content: Array.isArray(shoot.deliverables) ? shoot.deliverables.join(", ") : String(shoot.deliverables || "") },
@@ -113,11 +112,12 @@ export default function ShootAgreementPage() {
                 <section className="border-t border-dashed border-[#3D3D3D] pt-6 text-xs leading-5 text-[#9E9690]">This Shoot Assignment Agreement is issued under the Beige Creative Partner Agreement. By accepting, the Creative Partner confirms their ability to perform the assignment as described and agrees to the terms herein and the governing Beige Creative Partner Agreement.<div className="mt-4 flex gap-8"><div><p className="text-[#E8D1AB]">Beige Sheet Version</p><b className="text-white">{agreement.display_version}</b></div><div><p className="text-[#E8D1AB]">Created</p><b className="text-white">{formatDate(agreement.created_at, true)}</b></div></div></section>
               </div>
             </article>
+            <AgreementSignatureEvidence response={signatureResponse} />
           </section>
 
           <aside className="space-y-5">
             <section className="rounded-2xl border border-[#3D3D3D] bg-[#171717] p-5"><h2 className="mb-4 text-sm font-semibold">Version History</h2><div className="border-l border-[#5E533F] pl-4"><p className="text-sm font-medium">{agreement.display_version} <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${statusClass}`}>{titleCase(agreement.status)}</span></p><p className="mt-2 text-xs text-[#AAA7A7]">Created {formatDate(agreement.created_at, true)}</p><p className="mt-1 text-xs text-[#AAA7A7]">Compensation {currency} {compensation.toFixed(2)}</p><Button className="mt-4 h-9 w-full bg-[#E8D1AB] text-xs font-semibold text-black hover:bg-[#D4C3A3]" onClick={() => router.push(`/creator/dashboard/request/review-agreement?agreement_id=${agreement.agreement_document_id}`)}>Preview Agreement</Button></div></section>
-            <section className="rounded-2xl border border-[#3D3D3D] bg-[#171717] p-5"><h2 className="mb-4 text-sm font-semibold">Activity Log</h2>{events.length ? <div className="space-y-3">{events.map((event, index) => <div key={`${event.event_type}-${index}`} className="border-b border-[#2C2C2C] pb-3 last:border-0"><p className="text-xs font-medium">{titleCase(event.event_type)}</p><p className="mt-1 text-xs text-[#AAA7A7]">{formatDate(event.created_at, true)}</p></div>)}</div> : <p className="text-sm text-[#AAA7A7]">No activity recorded yet.</p>}</section>
+            <section className="rounded-2xl border border-[#3D3D3D] bg-[#171717] p-5"><h2 className="mb-4 text-sm font-semibold">Activity Log</h2>{events.length ? <div className="space-y-3">{events.map((event) => <div key={event.agreement_event_id} className="border-b border-[#2C2C2C] pb-3 last:border-0"><p className="text-xs font-medium">{titleCase(event.event_type)}</p><p className="mt-1 text-xs text-[#AAA7A7]">{formatDate(event.occurred_at, true)}</p></div>)}</div> : <p className="text-sm text-[#AAA7A7]">No activity recorded yet.</p>}</section>
           </aside>
         </div>
       </main>

@@ -36,6 +36,7 @@ const PAYMENT_MODE_OPTIONS = [
   { label: "Zelle", value: "zelle" },
   { label: "Venmo", value: "venmo" },
   { label: "CashApp", value: "cashapp" },
+  { label: "Payment Link", value: "payment_link" },
   { label: "ApplePay", value: "applepay" },
   { label: "Stripe", value: "stripe" },
   { label: "Other", value: "other" },
@@ -51,7 +52,7 @@ export default function PaymentTransactionModal({
 }: PaymentTransactionModalProps) {
   const [paymentType, setPaymentType] = useState<"full" | "partial">("full");
   const [amount, setAmount] = useState("");
-  const [paymentMode, setPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other">("cash");
+  const [paymentMode, setPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "payment_link" | "applepay" | "stripe" | "other">("cash");
   const [otherPaymentMode, setOtherPaymentMode] = useState("");
   const [notes, setNotes] = useState("");
   const [proofFileName, setProofFileName] = useState("");
@@ -278,7 +279,7 @@ export default function PaymentTransactionModal({
                 <BasicDropdown
                   label="Payment Mode"
                   value={paymentMode}
-                  onChange={(value) => setPaymentMode(value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other")}
+                  onChange={(value) => setPaymentMode(value as typeof paymentMode)}
                   options={PAYMENT_MODE_OPTIONS}
                   width="w-full"
                 />

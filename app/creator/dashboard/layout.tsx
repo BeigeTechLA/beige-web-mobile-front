@@ -18,6 +18,7 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { SidebarProvider, useSidebar } from "@/context/SidebarContext";
 import Sidebar from "@/components/creator-profile/Sidebar";
 import WebPushRegistration from "@/components/chat/WebPushRegistration";
+import NotificationPopup from "@/components/notifications/NotificationPopup";
 import { CreatorAgreementGate } from "@/components/creator-profile/CreatorAgreementGate";
 
 type CpStatusPayload = {
@@ -162,6 +163,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     const publicCreatorPaths = new Set([
       "/creator/dashboard",
       "/creator/dashboard/profile",
+      "/creator/dashboard/notifications",
+      "/creator/dashboard/notifications/preferences",
     ]);
 
     if (publicCreatorPaths.has(pathname)) return;
@@ -179,6 +182,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const publicCreatorPaths = new Set([
     "/creator/dashboard",
     "/creator/dashboard/profile",
+    "/creator/dashboard/notifications",
+    "/creator/dashboard/notifications/preferences",
   ]);
   const isPublicCreatorPath = publicCreatorPaths.has(pathname);
   const isRegistrationComplete =
@@ -233,6 +238,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           children
         )}
       </main>
+      <NotificationPopup portal="creator" />
     </div>
   );
 }

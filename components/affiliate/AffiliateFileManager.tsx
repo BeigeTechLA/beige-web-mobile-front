@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Camera,
@@ -100,7 +101,7 @@ const prettifyFolderName = (name?: string) => {
   if (!normalized) return "Folder";
   if (normalized === "Pre-Production") return "Pre Production";
   if (normalized === "Post-Production") return "Post Production";
-  if (normalized === "Raw Footage") return "Raw Footages";
+  if (normalized === "Raw Footage") return "Raw Footage";
   if (normalized === "Revisions") return "Revision";
   return normalized.replace(/-/g, " ");
 };
@@ -175,6 +176,8 @@ export default function AffiliateFileManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [workspaces, setWorkspaces] = useState<WorkspaceCard[]>([]);
+  const router = useRouter();
+  const handledBookingDeepLink = useRef<string | null>(null);
 
   const [selectedWorkspace, setSelectedWorkspace] = useState<WorkspaceCard | null>(null);
   const [accessWorkspace, setAccessWorkspace] = useState<WorkspaceCard | null>(null);
@@ -378,6 +381,59 @@ export default function AffiliateFileManager() {
       setIsPhaseLoading(false);
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const bookingId = params.get("bookingId")?.trim();
+    if (!bookingId) {
+      handledBookingDeepLink.current = null;
+      return;
+    }
+    if (!/^\d+$/.test(bookingId)) return;
+    if (handledBookingDeepLink.current === bookingId) return;
+    handledBookingDeepLink.current = bookingId;
+    params.delete("bookingId");
+
+    let cancelled = false;
+    void fileManagerApi.getExternalWorkspace(bookingId)
+      .then((response) => {
+        if (cancelled) return;
+        if (!response?.workspace) {
+          setError("The linked project files are no longer available.");
+          return;
+        }
+        const workspace = response.workspace;
+        const title = workspace.isCommonEvent
+          ? workspace.folderName || "Common Event"
+          : formatFileManagerWorkspaceName(workspace.folderName);
+        setSelectedWorkspace({
+          externalId: String(workspace.externalId),
+          title,
+          rawName: workspace.folderName,
+          fileCount: Number(workspace.fileCount || 0),
+          lastOpened: workspace.updatedAt || workspace.createdAt || "",
+          userInitials: getInitials(title),
+          category: inferWorkspaceCategory(workspace.folderName),
+          updatedAtRaw: workspace.updatedAt || workspace.createdAt || "",
+          visibleUntil: workspace.visibleUntil || null,
+          consoleUrl: workspace.consoleUrl,
+        });
+        setSelectedPhase(null);
+        setSelectedPath("");
+        setWorkspaceFolders((response.folders || []).map((folder) => ({
+          name: folder.name,
+          title: prettifyFolderName(folder.name),
+          path: folder.path,
+          fileCount: Number(folder.fileCount || 0),
+          lastOpened: folder.updatedAt || folder.createdAt || "",
+        })));
+        router.replace(`/affiliate/file-manager${params.size ? `?${params.toString()}` : ""}`, { scroll: false });
+      })
+      .catch((error) => {
+        if (!cancelled) setError(getErrorMessage(error, "Could not open the linked project files"));
+      });
+    return () => { cancelled = true; };
+  }, [router]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

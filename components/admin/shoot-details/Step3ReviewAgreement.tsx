@@ -17,6 +17,7 @@ interface Step3ReviewAgreementProps {
   callTime: string;
   endTime: string;
   sections: ClauseSection[];
+  agreementVersion?: string;
   onOpenSendDialog: () => void;
   onPrevious: () => void;
   onSave: () => void;
@@ -34,6 +35,7 @@ export function Step3ReviewAgreement({
   callTime,
   endTime,
   sections,
+  agreementVersion = "v1",
   onOpenSendDialog,
   onPrevious,
   onSave,
@@ -55,7 +57,7 @@ export function Step3ReviewAgreement({
               <span>
                 {cpList.map((cp) => cp.name).join(" · ")}
               </span>
-              {" - v1.0"}
+              {` - ${agreementVersion}`}
             </p>
           </div> : <div>
             <h1 className={`text-xl lg:text-2xl font-semibold mb-1 ${isDark ? "text-white" : "text-black"}`}>
@@ -66,7 +68,7 @@ export function Step3ReviewAgreement({
                 {" "}
                 Agreement {reviewCpIndex + 1} of {cpList.length}
               </span>{" "}
-              - {reviewCP.role} - {reviewCP.assignCode} - v1.0
+              - {reviewCP.role} - {reviewCP.assignCode} - {agreementVersion}
             </p>
           </div>
         }
@@ -77,7 +79,7 @@ export function Step3ReviewAgreement({
           className="bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] h-12 px-5 rounded-lg font-medium text-sm flex items-center gap-2"
         >
           <Send size={14} />
-          Send Agreement To CP
+          Save and Send Agreement
         </Button>
       </div>
 
@@ -110,7 +112,7 @@ export function Step3ReviewAgreement({
                       </h3>
 
                       <p className={`text-xs lg:text-sm ${isDark ? "text-[#737370]" : "text-gray-500"}`}>
-                        Agreement Version: v1.0 · {cpList.length} Recipients
+                        Agreement Version: {agreementVersion} · {cpList.length} Recipients
                       </p>
                     </div>
 
@@ -353,7 +355,7 @@ export function Step3ReviewAgreement({
                   className={`shrink-0 ${isDark ? "text-[#E8D1AB]" : "text-gray-400"}`}
                 />
                 <span className={isDark ? "text-[#E8D1AB]" : "text-gray-500"}>
-                  Each creative partner's compensation is specified individually. All
+                  Each creative partner&apos;s compensation is specified individually. All
                   recipients are reviewing the same agreement.
                 </span>
               </div>
@@ -399,7 +401,7 @@ export function Step3ReviewAgreement({
           <div>
             <span className="text-[#E8D1AB]">Beige Sheet Version</span>
             <p className={`font-semibold text-sm lg:text-base ${isDark ? "text-white" : "text-black"}`}>
-              v1.0
+              {agreementVersion}
             </p>
           </div>
           <div>
@@ -426,7 +428,7 @@ export function Step3ReviewAgreement({
           onClick={onSave}
           className="h-12 lg:h-18 lg:min-w-50 rounded-xl border text-sm lg:text-xl font-medium bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] transition-colors"
         >
-          Save
+          Save and Send
         </Button>
       </div >
     </div >

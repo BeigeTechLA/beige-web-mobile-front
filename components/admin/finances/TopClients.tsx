@@ -1,24 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Info, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Info, Search, ChevronLeft, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { useTheme } from "next-themes";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { SelectedShootCP } from './TopCPsByShoots';
 /* ------------------------------------------------------------------ */
-/* Dummy data                                                          */
+/* Types                                                               */
 /* ------------------------------------------------------------------ */
 
-type ClientStatus = 'active' | 'inactive' | 'new';
-type Period = 'this_month' | 'last_month' | 'last_3_months';
-type ClientType = 'brand' | 'agency' | 'studio';
 type SortKey = 'shoots' | 'spend';
+type ClientStatus = 'fully_paid' | 'partially_paid' | 'pending';
 
 export interface TopClient {
   id: string;
@@ -26,30 +19,15 @@ export interface TopClient {
   avatarUrl?: string;   // optional – falls back to initials on a pastel tile
   shoots: number;
   spend: number;        // USD
-  status: ClientStatus;
-  period: Period;
-  type: ClientType;
+  status?: ClientStatus;
 }
 
-const NAMES = [
-  'Prince Carter', 'Ethan Carter', 'Sophia Johnson', 'Maya Ross', 'John Lee', 'Arvi Ross',
-  'Daniel Roberts', 'Raj Yadhav', 'Lena Hart', 'Omar Haddad', 'Grace Kim', 'Victor Hale',
-  'Nina Patel', 'Lucas Gray', 'Ivy Chen', 'Mateo Cruz', 'Zara Ali', 'Owen Price',
-  'Aisha Khan', 'Leo Brooks', 'Chloe Martin', 'Kai Tanaka', 'Ruby Evans', 'Sam Okafor',
-];
-const STATUSES: ClientStatus[] = ['active', 'active', 'new', 'inactive'];
-const PERIODS: Period[] = ['this_month', 'this_month', 'last_month', 'last_3_months'];
-const TYPES: ClientType[] = ['brand', 'agency', 'studio'];
+export interface ClientFilters {
+  sortKey: SortKey;
+  status: 'all' | ClientStatus;
+}
 
-const DUMMY_CLIENTS: TopClient[] = NAMES.map((name, i) => ({
-  id: `client_${i + 1}`,
-  name,
-  shoots: [45, 10, 20, 16, 9, 11, 38, 40, 27, 6, 33, 14, 22, 8, 19, 30, 12, 25, 5, 17, 28, 7, 13, 21][i],
-  spend: [188, 45, 95, 100, 150, 70, 20, 35, 64, 12, 88, 40, 57, 18, 49, 76, 30, 61, 9, 44, 72, 15, 26, 53][i] * 1_000_000,
-  status: STATUSES[i % STATUSES.length],
-  period: PERIODS[i % PERIODS.length],
-  type: TYPES[i % TYPES.length],
-}));
+type ApiClients = FinanceAnalyticsData['clients'];
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -78,14 +56,108 @@ const pageList = (current: number, total: number): (number | '…')[] => {
 };
 
 /* ------------------------------------------------------------------ */
+/* Info tooltip                                                        */
+/* ------------------------------------------------------------------ */
+
+// Hover on desktop, tap on touch screens (tap again / tap elsewhere closes).
+// Position is measured so the tooltip always stays inside the card marked [data-tooltip-bounds].
+interface InfoTooltipProps {
+  text: string;
+  label: string;
+  isDark: boolean;
+  iconClassName: string;
+  iconSize?: number;
+  width?: number;
+  placement?: 'top' | 'bottom';
+  textClassName?: string;
+}
+
+function InfoTooltip({
+  text,
+  label,
+  isDark,
+  iconClassName,
+  iconSize = 13,
+  width = 224,
+  placement = 'bottom',
+  textClassName = 'text-xs',
+}: InfoTooltipProps) {
+  const wrapRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ left: number; width: number } | null>(null);
+
+  const place = useCallback(() => {
+    const anchor = wrapRef.current?.getBoundingClientRect();
+    const boundsEl = wrapRef.current?.closest('[data-tooltip-bounds]') ?? document.documentElement;
+    const bounds = boundsEl.getBoundingClientRect();
+    if (!anchor) return;
+    const gutter = 12;
+    const w = Math.min(width, bounds.width - gutter * 2);
+    // Centred on the icon, then pulled back inside the card if it would overflow
+    const desired = anchor.left + anchor.width / 2 - w / 2;
+    const clamped = Math.max(bounds.left + gutter, Math.min(desired, bounds.right - gutter - w));
+    const left = clamped - anchor.left; // relative to the icon wrapper
+    setPos((prev) => (prev?.left === left && prev?.width === w ? prev : { left, width: w }));
+  }, [width]);
+
+  // While open: re-measure on resize / rotate, close on a tap anywhere else
+  useEffect(() => {
+    if (!open) return;
+    place();
+    const onResize = () => place();
+    const onPointerDown = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [open, place]);
+
+  return (
+    <span
+      ref={wrapRef}
+      onMouseEnter={place}
+      onClick={(e) => e.stopPropagation()}
+      className="relative group/info inline-flex"
+    >
+      <button
+        type="button"
+        aria-label={`About ${label}`}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex p-1 -m-1 rounded-full focus:outline-none focus-visible:ring-1 focus-visible:ring-[#E8D1AB]"
+      >
+        <Info size={iconSize} className={iconClassName} />
+      </button>
+      <span
+        role="tooltip"
+        style={{ left: pos?.left ?? -(width / 2) + iconSize / 2, width: pos?.width ?? width }}
+        className={`absolute ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} rounded-lg border px-3 py-2 ${textClassName} leading-snug font-normal text-left transition-all duration-200 z-50 pointer-events-none shadow-2xl ${open ? 'opacity-100 visible' : 'opacity-0 invisible [@media(hover:hover)]:group-hover/info:opacity-100 [@media(hover:hover)]:group-hover/info:visible'} ${isDark ? "bg-[#1A1A1A] border-[#3D3D3D] text-zinc-300" : "bg-white border-[#E3E3E3] text-zinc-600"}`}
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
 interface TopClientsProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: TopClient[];
+  /** analytics.clients.top_by_shoots */
+  shootsData?: ApiClients['top_by_shoots'] | null;
+  /** analytics.clients.top_by_spend */
+  spendData?: ApiClients['top_by_spend'] | null;
+  loading?: boolean;
+  onFiltersChange?: (filters: ClientFilters) => void;
   pageSize?: number;
   title?: string;
+  selectedId?: string | null;
+  onSelectClient?: (client: SelectedShootCP | null) => void;
 }
 
 // Default tooltip text per tab
@@ -95,47 +167,53 @@ const DEFAULT_INFO: Record<SortKey, string> = {
 };
 
 export default function TopClients({
-  data,
+  shootsData = null,
+  spendData = null,
+  loading = false,
+  onFiltersChange,
   pageSize = 8,
   title = 'Top Clients',
+  selectedId = null,
+  onSelectClient,
 }: TopClientsProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
   const [sortKey, setSortKey] = useState<SortKey>('shoots');
   const [status, setStatus] = useState<'all' | ClientStatus>('all');
-  const [period, setPeriod] = useState<'all' | Period>('all');
-  const [type, setType] = useState<'all' | ClientType>('all');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
 
   useEffect(() => setMounted(true), []);
 
-  // Simulated fetch whenever filters that would hit the API change
-  useEffect(() => {
-    setIsLoading(true);
-    const t = setTimeout(() => setIsLoading(false), 400);
-    return () => clearTimeout(t);
-  }, [sortKey, status, period, type]);
-
   // Back to page 1 when the result set changes
-  useEffect(() => setPage(1), [sortKey, status, period, type, query]);
+  useEffect(() => setPage(1), [sortKey, status, query, shootsData, spendData]);
+
+  useEffect(() => {
+    onFiltersChange?.({ sortKey, status });
+  }, [sortKey, status, onFiltersChange]);
 
   const isDark = !mounted || theme === "dark";
 
   // Tooltip follows the selected tab (By Shoot / By Spend)
   const tooltipText = DEFAULT_INFO[sortKey];
 
-  // Filter → search → sort by the toggle (desc)
+  // Pick the list for the active tab → search by name → sort (desc)
   const filtered: TopClient[] = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (data ?? DUMMY_CLIENTS)
+    const source = (sortKey === 'shoots' ? shootsData : spendData) ?? [];
+    return source
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        shoots: c.shoots,
+        spend: c.spend,
+        status: (c as { status?: ClientStatus }).status,
+      }))
       .filter((c) => status === 'all' || c.status === status)
-      .filter((c) => period === 'all' || c.period === period)
-      .filter((c) => type === 'all' || c.type === type)
       .filter((c) => !q || c.name.toLowerCase().includes(q))
       .sort((a, b) => (sortKey === 'shoots' ? b.shoots - a.shoots : b.spend - a.spend));
-  }, [data, status, period, type, query, sortKey]);
+  }, [shootsData, spendData, query, sortKey, status]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -146,31 +224,28 @@ export default function TopClients({
   const headerBg = isDark ? 'bg-[#090909]' : 'bg-[#F4F5F7]';
   const divider = isDark ? 'border-[#3D3D3D]' : 'border-[#E5E5E5]';
   const gold = isDark ? 'text-[#E8D1AB]' : 'text-[#9C7B45]';
+  const skeleton = isDark ? 'bg-white/10' : 'bg-zinc-200';
   const triggerCls = `w-auto min-w-[48px] gap-2 rounded-full h-8 px-2.5 text-[10px] focus:ring-0 ${isDark ? "bg-[#171717] border-[#807E7E] text-[#C4C4C4]" : "bg-white border-[#E3E3E3] text-[#323232]"}`;
   const contentCls = isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]";
-  const skeleton = isDark ? 'bg-white/10' : 'bg-zinc-200';
 
   return (
-    <div className={`transition-colors duration-300 border rounded-2xl w-full h-full flex flex-col overflow-hidden ${cardCls}`}>
+    <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full h-full flex flex-col overflow-hidden ${cardCls}`}>
       {/* Header: title, toggle, filters, search */}
       <div className={`shrink-0 p-5 ${isDark ? "bg-[#090909]" : "bg-[#F4F5F7]"}`}>
-        <div className="flex items-center justify-between gap-2 mb-5">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 mb-5">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-3">
             <div className="flex items-center gap-1">
               <p className="text-sm lg:text-base shrink-0">{title}</p>
-              <span className="relative group/info inline-flex">
-                <Info
-                  size={13}
-                  className={isDark ? 'text-[#E8D1AB] fill-[#E8D1AB] stroke-[#101010]' : 'text-[#BFA780] fill-[#BFA780] stroke-[#F4F5F7]'}
+              <InfoTooltip
+                text={tooltipText}
+                label={title}
+                isDark={isDark}
+                iconClassName={isDark ? 'text-[#E8D1AB] fill-[#E8D1AB] stroke-[#101010]' : 'text-[#BFA780] fill-[#BFA780] stroke-[#F4F5F7]'}
                 />
-                <span className={`absolute left-1/2 -translate-x-1/2 top-full mt-2 w-56 rounded-lg border px-3 py-2 text-xs leading-snug font-normal opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-200 z-50 pointer-events-none shadow-2xl ${isDark ? "bg-[#1A1A1A] border-[#3D3D3D] text-zinc-300" : "bg-white border-[#E3E3E3] text-zinc-600"}`}>
-                  {tooltipText}
-                </span>
-              </span>
             </div>
 
             {/* By Shoot / By Spend toggle */}
-            <div role="tablist" aria-label="Rank clients by" className={`flex items-center rounded-full border p-0.5 ${isDark ? 'bg-[#171717] border-[#807E7E]' : 'border-[#E3E3E3] bg-white'}`}>
+            <div role="tablist" aria-label="Rank clients by" className={`w-fit flex items-center rounded-full border p-0.5 ${isDark ? 'bg-[#171717] border-[#807E7E]' : 'border-[#E3E3E3] bg-white'}`}>
               {([['shoots', 'By Shoot'], ['spend', 'By Spend']] as [SortKey, string][]).map(([key, label]) => {
                 const active = sortKey === key;
                 return (
@@ -193,42 +268,17 @@ export default function TopClients({
           <div className="flex items-center gap-1.5">
             <Select value={status} onValueChange={(v: string) => setStatus(v as 'all' | ClientStatus)}>
               <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="Status">{status === 'all' ? 'Status' : status[0].toUpperCase() + status.slice(1)}</SelectValue>
+                <SelectValue placeholder="Status">{status === 'all' ? 'Status' : status === 'fully_paid' ? 'Fully paid' : status === 'partially_paid' ? 'Partially paid' : 'Pending'}</SelectValue>
               </SelectTrigger>
               <SelectContent className={contentCls}>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={period} onValueChange={(v: string) => setPeriod(v as 'all' | Period)}>
-              <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="Month">
-                  {period === 'all' ? 'Month' : period === 'this_month' ? 'This Month' : period === 'last_month' ? 'Last Month' : '3 Months'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className={contentCls}>
-                <SelectItem value="all">Any time</SelectItem>
-                <SelectItem value="this_month">This Month</SelectItem>
-                <SelectItem value="last_month">Last Month</SelectItem>
-                <SelectItem value="last_3_months">Last 3 Months</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={type} onValueChange={(v: string) => setType(v as 'all' | ClientType)}>
-              <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="All">{type === 'all' ? 'All' : type[0].toUpperCase() + type.slice(1)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent className={contentCls}>
-                <SelectItem value="all">All clients</SelectItem>
-                <SelectItem value="brand">Brands</SelectItem>
-                <SelectItem value="agency">Agencies</SelectItem>
-                <SelectItem value="studio">Studios</SelectItem>
+                <SelectItem value="all">All payment states</SelectItem>
+                <SelectItem value="fully_paid">Fully paid</SelectItem>
+                <SelectItem value="partially_paid">Partially paid</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
         </div>
 
         {/* Search */}
@@ -269,7 +319,7 @@ export default function TopClients({
                 </tr>
               ))
               : rows.map((c: TopClient, i: number) => (
-                <tr key={c.id} className={`transition-colors ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.02]'}`}>
+                <tr key={c.id} className={`transition-all duration-300 ${selectedId && selectedId !== c.id ? 'opacity-40' : 'opacity-100'} ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.02]'}`}>
                   <td className={`p-5 ${i === 0 ? 'pt-5' : 'pt-3.5'} pb-3.5`}>
                     <div className="flex items-center gap-4 min-w-0">
                       {c.avatarUrl ? (
@@ -283,6 +333,15 @@ export default function TopClients({
                         </div>
                       )}
                       <span className="text-sm lg:text-base truncate">{c.name}</span>
+                      <button
+                        type="button"
+                        aria-label={selectedId === c.id ? `Close ${c.name} shoot history` : `Open ${c.name} shoot history`}
+                        aria-expanded={selectedId === c.id}
+                        onClick={() => onSelectClient?.(selectedId === c.id ? null : { id: c.id, name: c.name, shoots: c.shoots })}
+                        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${isDark ? 'bg-[#2C2C2B] text-white hover:bg-[#3A3A39]' : 'bg-[#E8E8E8] text-[#171717] hover:bg-[#DADADA]'}`}
+                      >
+                        <ArrowUpRight size={14} className={`transition-transform duration-300 ${selectedId === c.id ? 'rotate-90' : ''}`} />
+                      </button>
                     </div>
                   </td>
                   <td className={`p-5 text-center text-sm lg:text-base ${i === 0 ? 'pt-5' : 'pt-3.5'} pb-3.5`}>
@@ -297,7 +356,7 @@ export default function TopClients({
             {!isLoading && rows.length === 0 && (
               <tr>
                 <td colSpan={3} className={`text-center text-sm py-12 ${isDark ? 'text-white/50' : 'text-zinc-500'}`}>
-                  No clients match these filters.
+                  {query.trim() ? 'No clients match this search.' : 'No clients found.'}
                 </td>
               </tr>
             )}

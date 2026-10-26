@@ -240,10 +240,19 @@ export default function CPPayoutTable({
     const normalizedSearch = searchQuery.trim().toLowerCase();
 
     const filtered = rows.filter((row) => {
+      const overdue = statusFilter === "Overdue" &&
+        row.status !== "Fully Paid" &&
+        getDueDateMeta(
+          rowDueDates[row.id] ||
+          parseRowDate(row.dueDate || "") ||
+          getDefaultDueDate(row.date),
+        ).label === "Overdue";
       if (
         !isPendingCompensation &&
         statusFilter !== "All" &&
-        row.status.toLowerCase() !== statusFilter.toLowerCase()
+        (statusFilter === "Overdue"
+          ? !overdue
+          : row.status.toLowerCase() !== statusFilter.toLowerCase())
       ) {
         return false;
       }
@@ -282,7 +291,7 @@ export default function CPPayoutTable({
       const dateB = parseSortDate(b.sortDate || b.date)?.getTime() || 0;
       return dateB - dateA;
     });
-  }, [rows, monthFilter, statusFilter, searchQuery, isPendingCompensation]);
+  }, [rows, rowDueDates, monthFilter, statusFilter, searchQuery, isPendingCompensation]);
 
   // Reset to first page on any query adjustment
   useEffect(() => {
@@ -458,6 +467,7 @@ export default function CPPayoutTable({
                     }
                   >
                     <SelectItem value="All">All Status</SelectItem>
+                    <SelectItem value="Overdue">Overdue</SelectItem>
                     <SelectItem value="Partially Paid">
                       Partially Paid
                     </SelectItem>

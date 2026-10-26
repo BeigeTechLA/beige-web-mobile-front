@@ -15,7 +15,9 @@ interface AddCompensationModalProps {
   shoots: PendingCompensationShoot[];
   loading?: boolean;
   isSubmitting?: boolean;
-  onSubmit: (payload: AddCpCompensationPayload) => Promise<void>;
+  onSubmit?: (payload: AddCpCompensationPayload) => Promise<void>;
+  onPrepareAgreement?: (payload: AddCpCompensationPayload, creators: PendingCompensationShoot["creators"]) => Promise<void>;
+  showAgreementAction?: boolean;
   enableAdvanceProofUpload?: boolean;
   initialShootId?: number | null;
 }
@@ -242,10 +244,12 @@ export default function AddCompensationModal({
   loading = false,
   isSubmitting = false,
   onSubmit,
+  onPrepareAgreement,
+  showAgreementAction = true,
   enableAdvanceProofUpload = false,
   initialShootId,
 }: AddCompensationModalProps) {
-  const router = useRouter()
+  const router = useRouter();
   const [selectedShootId, setSelectedShootId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [compensationMethod, setCompensationMethod] = useState<TabType>("equal");
@@ -262,21 +266,9 @@ export default function AddCompensationModal({
     () => shoots.find((shoot) => String(shoot.booking_id) === selectedShootId),
     [selectedShootId, shoots]
   );
-
-  // A shoot agreement is bound to an assigned_crew record, not merely to a
-  // selected CP. In the "add creatives" flow that row is created only when
-  // compensation is submitted, so navigating to the agreement wizard early
-  // would always produce an empty state.
-  const canAddShootAgreement = useMemo(() => {
-    if (!currentShoot || selectedCreators.length === 0) return false;
-
-    return selectedCreators.every((creatorId) => {
-      const creator = currentShoot.creators.find(
-        (item) => String(item.creator_id) === creatorId,
-      );
-      return Number(creator?.assignment_id || 0) > 0;
-    });
-  }, [currentShoot, selectedCreators]);
+  const canOpenExistingAgreement = Boolean(currentShoot && selectedCreators.length && selectedCreators.every((creatorId) =>
+    Number(currentShoot.creators.find((creator) => String(creator.creator_id) === creatorId)?.assignment_id || 0) > 0
+  ));
 
   const filteredShoots = useMemo(() => {
     const query = shootSearchQuery.trim().toLowerCase();
@@ -683,12 +675,17 @@ export default function AddCompensationModal({
     //   compensation_method: methodToApi(compensationMethod),
     //   creators,
     // });
-    await onSubmit({
+    const payload: AddCpCompensationPayload = {
       booking_id: currentShoot.booking_id,
       compensation_method: methodToApi(compensationMethod),
       send_email: sendMail,
       creators,
-    });
+    };
+    if (onPrepareAgreement) {
+      await onPrepareAgreement(payload, currentShoot.creators.filter((creator) => selectedCreators.includes(String(creator.creator_id))));
+    } else if (onSubmit) {
+      await onSubmit(payload);
+    }
   };
 
   return (
@@ -1155,7 +1152,7 @@ export default function AddCompensationModal({
         </div>
 
         <div className={`sticky bottom-0 inset-x-0 p-4 lg:p-6 pt-2 z-40 mt-auto ${isDark ? "bg-black" : "bg-white"}`}>
-          {selectedShootId && selectedCreators.length > 0 && (
+          {!onPrepareAgreement && selectedShootId && selectedCreators.length > 0 && (
             <div className="flex items-center gap-3 mb-4">
               <input
                 id="send-mail-to-creators"
@@ -1171,7 +1168,7 @@ export default function AddCompensationModal({
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className={`grid grid-cols-1 gap-4 ${onPrepareAgreement || !showAgreementAction ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
             <button
               type="button"
               onClick={onClose}
@@ -1179,25 +1176,25 @@ export default function AddCompensationModal({
             >
               Back
             </button>
-            <button
+            {!onPrepareAgreement && <button
               type="button"
               disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0}
               onClick={handleFormSubmit}
               className="h-12 rounded-lg flex items-center justify-center bg-[#10B981] hover:bg-[#10B981]/90 text-black font-semibold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Submitting..." : "Submit To Finance"}
-            </button>
-             <button
+            </button>}
+            {showAgreementAction && <button
               type="button"
-              disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0 || !canAddShootAgreement}
-              onClick={() => router.push(`/admin/shoots/${selectedShootId}/shoot-agreement`)}
-              title={canAddShootAgreement ? "Create a shoot agreement" : "Submit compensation first to assign the selected Creative Partner(s) to this shoot."}
+              disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0 || (!onPrepareAgreement && !canOpenExistingAgreement)}
+              onClick={onPrepareAgreement ? handleFormSubmit : () => router.push(`/admin/shoots/${selectedShootId}/shoot-agreement`)}
+              title="Create a shoot agreement"
               className="h-12 rounded-lg flex items-center justify-center bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black font-semibold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
             >
               Add Shoot Agreement
-            </button>
+            </button>}
           </div>
-          {selectedShootId && selectedCreators.length > 0 && !canAddShootAgreement && (
+          {showAgreementAction && !onPrepareAgreement && selectedShootId && selectedCreators.length > 0 && (
             <p className={`mt-3 text-xs ${isDark ? "text-white/60" : "text-black/60"}`}>
               Submit compensation first. This assigns the selected Creative Partner(s), after which you can create their shoot agreement.
             </p>

@@ -296,6 +296,16 @@ export default function DisputesPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
+    const disputeId = new URLSearchParams(window.location.search).get("dispute_id");
+    if (!disputeId) return;
+    let cancelled = false;
+    financeTransactionsApi.getCreatorDisputeDetails(disputeId).then((response) => {
+      if (!cancelled) setSelectedDispute(mapDetails(response.data));
+    }).catch((error) => console.error("Failed to open linked dispute:", error));
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     let isCancelled = false;
 
     const fetchData = async () => {

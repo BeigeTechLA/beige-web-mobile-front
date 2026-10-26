@@ -17,9 +17,11 @@ interface TopbarProps {
   title?: string;
   /** Optional overrides for specific breadcrumb path segments */
   breadcrumbOverrides?: Record<string, string>;
+  /** Hide the built-in dashboard theme/profile controls when the page supplies its own header controls. */
+  hideDashboardUtilities?: boolean;
 }
 
-export default function Topbar({ pathname, actions, title, breadcrumbOverrides }: TopbarProps) {
+export default function Topbar({ pathname, actions, title, breadcrumbOverrides, hideDashboardUtilities = false }: TopbarProps) {
   const { theme } = useTheme();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -103,9 +105,9 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
 
         {/* Bottom Row: Breadcrumbs & Counts */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-          {isShootsPage ? (
+          {(isShootsPage || title) ? (
             <h1 className={`font-semibold text-sm whitespace-nowrap ${isDark ? "text-white" : "text-[#101010]"}`}>
-              Shoots Management
+              {title || "Shoots Management"}
             </h1>
           ) : (
             <nav className={`flex items-center gap-2 text-xs whitespace-nowrap ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
@@ -140,7 +142,7 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
         {/* Left: Title */}
         <div className="flex items-center gap-6 min-w-0">
           {
-            isShootsPage ? (
+            (isShootsPage || title) ? (
               <h1 className={`font-semibold text-lg ${isDark ? "text-white" : "text-[#101010]"}`}>{title || "Shoots Management"}</h1>
             ) : (
               <nav className={`flex items-center gap-4 text-sm min-w-0 truncate ${isDark ? "text-white/40" : "text-[#00000066]"}`}>
@@ -165,11 +167,11 @@ export default function Topbar({ pathname, actions, title, breadcrumbOverrides }
         </div >
 
         {/* Right: Desktop Actions */}
-        <div className="flex flex-nowrap items-center justify-end gap-3 min-w-0 max-w-full overflow-x-auto no-scrollbar">
+        <div className="-my-2 flex min-w-0 max-w-full flex-nowrap items-center justify-end gap-3 overflow-x-auto py-2 no-scrollbar">
           {actions}
 
           {
-            (isDashboardRoot) && (
+            (isDashboardRoot && !hideDashboardUtilities) && (
               <>
                 <ModeToggle />
                 <div

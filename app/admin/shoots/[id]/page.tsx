@@ -41,6 +41,8 @@ import EditorRemovalConfirmationModal from "@/components/admin/shoot-details/Edi
 import type { Editor } from "@/components/admin/shoot-details/AssignEditorModal";
 import type { EditorShootSummary } from "@/components/admin/shoot-details/EditorAssignmentConfirmationModal";
 import type { CompensationShoot, EditorCompensationPayload } from "@/components/admin/shoot-details/AddEditorCompensationModal";
+import ProjectProducerSection from "@/components/admin/shoot-details/ProjectProducerSection";
+import type { Producer } from "@/components/admin/shoot-details/ProducerSelectionModal";
 
 type SkillOption = {
   id?: number | string;
@@ -196,7 +198,19 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const activeTab = searchParams.get("tab") || "Overview";
 
   const [project, setProject] = useState<ProjectDetails | null>(null);
+  const [producerOptions, setProducerOptions] = useState<Producer[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    adminApi.getPostProductionTeamOptions().then((response) => {
+      if (cancelled) return;
+      setProducerOptions((response?.success && Array.isArray(response.data) ? response.data : []).map((user: { id: number; name: string; email?: string; role_name?: string }) => ({
+        id: String(user.id), name: user.name, email: user.email, role: user.role_name || "Producer",
+      })));
+    });
+    return () => { cancelled = true; };
+  }, []);
   const [previewInvoice, { isLoading: isViewingInvoice }] = usePreviewInvoiceMutation();
 
   // State to handle mobile timeline visibility
@@ -602,8 +616,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     const creator = assignment?.crew_member || assignment?.creator || {};
     const name = [creator.first_name, creator.last_name].filter(Boolean).join(" ") || creator.name || `CP #${assignment?.crew_member_id || assignmentId}`;
     const agreement = currentAgreementByAssignmentId.get(assignmentId);
-    const statusMap: Record<string, "Accepted" | "Pending" | "Rejected" | "Draft" | "Cancelled"> = {
-      accepted: "Accepted",
+    const statusMap: Record<string, "Completed" | "Pending" | "Rejected" | "Draft" | "Cancelled"> = {
+      accepted: "Completed",
       pending_acceptance: "Pending",
       rejected: "Rejected",
       draft: "Draft",
@@ -734,7 +748,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             >
               <CircleX /> Cancel Shoot
             </Button>
-            <Button
+            {/* <Button
               variant="outline"
               className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
                 ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
@@ -742,7 +756,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 }`}
             >
               <SlidersHorizontal className="w-4 h-4" /> Filters
-            </Button>
+            </Button> */}
             <Button
               onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
               disabled={!canEdit}
@@ -811,6 +825,26 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
               {activeTab === "Overview" && (
                 <>
+                  <div className="px-5 mb-6">
+                    <ProjectProducerSection
+                      title="Producer"
+                      canManage={canEdit}
+                      producer={producerOptions.find((option) => option.id === String(project?.producer_user_id)) || null}
+                      producers={producerOptions.filter((option) => option.id === String(project?.producer_user_id) || !((project?.assigned_post_production_members || []) as Array<{ post_production_member?: { email?: string } }>).some((member) => !!option.email && member.post_production_member?.email?.trim().toLowerCase() === option.email.trim().toLowerCase()))}
+                      shoot={{ id: String(id), clientName: project?.project_name || `Shoot #${id}`, serviceType: String(project?.shoot_type || 'Shoot'), code: `#${id}` }}
+                      onAssign={async (producer) => {
+                        const response = await adminApi.setShootProducer(Number(id), Number(producer.id));
+                        if (!response.success) throw new Error(response.message);
+                        await fetchProjectAndSkills(false);
+                      }}
+                      onRemove={async () => {
+                        const response = await adminApi.setShootProducer(Number(id), null);
+                        if (!response.success) throw new Error(response.message);
+                        await fetchProjectAndSkills(false);
+                      }}
+                    />
+                  </div>
+
                   <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <ProjectTeam
                       projectId={id}
@@ -910,9 +944,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                     </div>
                   ) : null}
 
-                  {/* If shoot Agreement is sent to CPs, show them below */}
-                  {
-                    isCPAgreementAvailable &&
+                  {assignedCreativePartners.length > 0 && (
                     <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                       <CpAgreementsTable
                         agreements={cpAgreementRows}
@@ -925,7 +957,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                         }}
                       />
                     </div>
-                  }
+                  )}
 
                   {/* Editor Assignment – only when the Post Production Team has editors */}
                   {projectEditors.length > 0 && (

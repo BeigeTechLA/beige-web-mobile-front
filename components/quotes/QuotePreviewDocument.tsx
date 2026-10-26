@@ -593,12 +593,11 @@ export default function QuotePreviewDocument({
     ? subtotal * (discountValue / 100)
     : discountValue;
   const discountedSubtotal = Math.max(subtotal - discountAmount, 0);
-  // Tax is hidden from quote previews for now.
-  // const taxRate = getQuoteNumber(quoteData.tax_rate) ?? 0;
-  // const taxType = getQuoteText(quoteData.tax_type, "Sales Tax") || "Sales Tax";
-  // const taxAmount = discountedSubtotal * (taxRate / 100);
-  // const amountAfterTax = discountedSubtotal + taxAmount;
-  const finalTotal = discountedSubtotal;
+  const taxRate = getQuoteNumber(quoteData.tax_rate) ?? 0;
+  const taxType = (getQuoteText(quoteData.tax_type, "Sales Tax") || "Sales Tax")
+    .replace(/\bTax\s*\(4%\)/gi, "Card Payment Charges (4%)");
+  const taxAmount = discountedSubtotal * (taxRate / 100);
+  const finalTotal = discountedSubtotal + taxAmount;
   const additionalPaymentDetails = hidePaymentSummary
     ? null
     : getQuoteAdditionalPaymentDetails(quoteData, {
@@ -766,11 +765,10 @@ export default function QuotePreviewDocument({
                 <span className="font-semibold">{formatQuoteCurrency(discountedSubtotal)}</span>
               </div>
             ) : null}
-            {/* Tax row hidden while tax is disabled.
-            <div className="flex items-center justify-between gap-6">
-              <span>{taxType} ({taxRate}%)</span>
+            {taxAmount > 0 ? <div className="flex items-center justify-between gap-6">
+              <span>{taxType}</span>
               <span className="font-semibold">{formatQuoteCurrency(taxAmount)}</span>
-            </div> */}
+            </div> : null}
             {additionalPaymentDetails &&
             (!hidePriceHistory || additionalPaymentDetails.previouslyPaidAmount > 0) ? (
               <>

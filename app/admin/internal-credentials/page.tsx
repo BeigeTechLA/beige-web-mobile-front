@@ -63,7 +63,7 @@ const STRENGTH_STYLES: Record<ReturnType<typeof calculatePasswordStrength>, stri
 
 export default function InternalCredentialsPage() {
   const { allowed, isLoading } = useRequireModulePermission(
-    "users",
+    "admin_users_all_users",
     "create",
     "/admin/roles-permissions",
   );
@@ -231,7 +231,12 @@ function InternalCredentialsPageContent() {
       setPasswordVisible(false);
       setPasswordWasGenerated(false);
     } else {
-      toast.error(result?.error || result?.message || "Failed to create credential");
+      const message = result?.error || result?.message || "Failed to create credential";
+      const conflicts = Array.isArray(result?.conflicts) ? result.conflicts : [];
+      if (conflicts.length) {
+        setErrors(Object.fromEntries(conflicts.map((field: string) => [field, message])));
+      }
+      toast.error(message);
     }
 
     setLoading(false);

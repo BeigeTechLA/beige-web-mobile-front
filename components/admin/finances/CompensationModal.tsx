@@ -278,6 +278,12 @@ export default function CompensationModal({
   };
 
   const getSelectedCreatorIds = () => selectedCreators.map(Number).filter(Boolean);
+  const getSelectedPendingCreatorIds = () => compensationList
+    .filter((creator) => selectedCreators.includes(creator.id) && creator.approvalStatus === "pending_approval")
+    .map((creator) => Number(creator.id))
+    .filter(Boolean);
+
+  const selectedPendingCreatorIds = getSelectedPendingCreatorIds();
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-end font-sans backdrop-blur-sm animate-in fade-in duration-200 p-4 lg:p-0 ${isDark ? "bg-[#101010CC]" : "bg-black/40"}`}>
@@ -587,15 +593,15 @@ export default function CompensationModal({
         {hasPendingApproval && canEditActions && (
           <div className={`sticky bottom-0 inset-x-0 z-10 mt-auto flex flex-col gap-3 p-5 lg:p-9 ${isDark ? "bg-[#0C0C0C]" : "border-t border-[#E3E3E3] bg-white"}`}>
             <button
-                onClick={() => onApproveClick(getSelectedCreatorIds())}
-                disabled={!canEditActions}
+                onClick={() => onApproveClick(selectedPendingCreatorIds)}
+                disabled={!canEditActions || selectedPendingCreatorIds.length === 0}
                 className="h-12 rounded-lg lg:hidden flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50">
                 <CheckCircle2 size={16} /> Approve All
               </button>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
               <button
-                onClick={() => onApproveClick(getSelectedCreatorIds())}
-                disabled={!canEditActions}
+                onClick={() => onApproveClick(selectedPendingCreatorIds)}
+                disabled={!canEditActions || selectedPendingCreatorIds.length === 0}
                 className="h-12 rounded-lg hidden lg:flex items-center justify-center gap-1.5 bg-[#10B981] hover:bg-[#10B981]/90 text-white font-semibold text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50">
                 <CheckCircle2 size={16} /> Approve All
               </button>
@@ -606,8 +612,8 @@ export default function CompensationModal({
                 <Edit3 size={16} /> Modify
               </button>
               <button
-                onClick={() => onRejectClick(getSelectedCreatorIds())}
-                disabled={!canEditActions}
+                onClick={() => onRejectClick(selectedPendingCreatorIds)}
+                disabled={!canEditActions || selectedPendingCreatorIds.length === 0}
                 className="h-12 rounded-lg flex items-center justify-center gap-1.5 bg-[#EF4444] hover:bg-[#EF4444]/90 text-white font-semibold text-sm disabled:cursor-not-allowed disabled:opacity-50">
                 <XCircle size={16} /> Reject All
               </button>

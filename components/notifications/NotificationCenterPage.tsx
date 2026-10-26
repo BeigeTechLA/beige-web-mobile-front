@@ -1,0 +1,448 @@
+"use client";
+
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Archive, BellOff, CalendarDays, Camera, DollarSign, File, MessageSquare, Search } from "lucide-react";
+import { useTheme } from "next-themes";
+import { toast } from "sonner";
+
+import Topbar from "@/components/admin/Topbar";
+import NotificationHeaderActions from "@/components/admin/notifications/NotificationHeaderActions";
+import NotificationDetailsModal from "@/components/admin/notifications/NotificationDetailsModal";
+import { type AdminNotification, type NotificationCategory } from "@/components/admin/notifications/notificationData";
+import { formatNotification, getNotificationDestination, getNotificationReferenceLinks, notificationCenterApi, notificationPortalPaths, notifyNotificationsChanged, NOTIFICATIONS_UPDATED_EVENT, type NotificationCounts, type NotificationPortal } from "@/lib/notificationCenterApi";
+
+const tabs = ["All", "Unread", "Mentions", "Payments", "Projects", "Files"] as const;
+type NotificationTab = (typeof tabs)[number];
+
+const categoryIcon = (category: NotificationCategory) => {
+  switch (category) {
+    case "Files":
+      return <File size={15} />;
+    case "Payments":
+      return <DollarSign size={15} />;
+    case "Messages":
+      return <MessageSquare size={15} />;
+    case "Shoots":
+      return <Camera size={15} />;
+    case "Meetings":
+      return <CalendarDays size={15} />;
+    default:
+      return <File size={15} />;
+  }
+};
+
+const NotificationListSkeleton = ({ isDark }: { isDark: boolean }) => {
+  const strong = isDark ? "bg-white/12" : "bg-zinc-200";
+  const soft = isDark ? "bg-white/8" : "bg-zinc-100";
+
+  return (
+    <div role="status" aria-label="Loading notifications">
+      <span className="sr-only">Loading notifications</span>
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div
+          key={index}
+          aria-hidden="true"
+          className={`flex flex-col gap-4 border-b border-l-4 border-l-[#E8D1AB] px-4 py-6 last:border-b-0 sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-b-[#303030] bg-[#1C1C1C]" : "border-b-[#EEEEEE] bg-white"}`}
+        >
+          <div className="flex min-w-0 flex-1 gap-3">
+            <div className={`h-10 w-10 shrink-0 animate-pulse rounded-full ${strong}`} />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className={`h-4 w-40 max-w-[70%] animate-pulse rounded-full ${strong}`} />
+              <div className={`h-3 w-52 max-w-[85%] animate-pulse rounded-full ${soft}`} />
+              <div className={`mt-4 h-7 w-24 animate-pulse rounded-md ${soft}`} />
+            </div>
+          </div>
+          <div className="flex items-end justify-between gap-4 sm:flex-col">
+            <div className={`h-3 w-16 animate-pulse rounded-full ${soft}`} />
+            <div className="flex gap-2">
+              <div className={`h-9 w-16 animate-pulse rounded-lg ${soft}`} />
+              <div className={`h-9 w-28 animate-pulse rounded-lg ${strong}`} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+type NotificationCenterPageProps = {
+  portal: NotificationPortal;
+  variant?: "page" | "modal";
+  onNavigate?: () => void; // lets the popup close itself when we navigate away
+};
+
+export default function NotificationCenterPage({ portal, variant = "page", onNavigate }: NotificationCenterPageProps) {
+  const isModal = variant === "modal";
+  const pathname = usePathname();
+  const router = useRouter();
+  const notificationsPath = notificationPortalPaths[portal];
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [counts, setCounts] = useState<NotificationCounts>({ all: 0, unread: 0, mentions: 0, payments: 0, projects: 0, files: 0, messages: 0, meetings: 0, archived: 0 });
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadedKey, setLoadedKey] = useState("");
+  const [error, setError] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<NotificationTab>("All");
+  const viewKey = `${showArchived ? "archived" : activeTab}:${debouncedSearch}`;
+  const [selectedNotification, setSelectedNotification] = useState<AdminNotification | null>(null);
+  const requestSequence = useRef(0);
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+
+  const refresh = useCallback(async () => {
+    const requestId = ++requestSequence.current;
+    const currentKey = `${showArchived ? "archived" : activeTab}:${debouncedSearch}`;
+    setLoading(true);
+    try {
+      const status = showArchived ? "archived" : activeTab === "Unread" ? "unread" : "all";
+      const category = ["Mentions", "Payments", "Projects", "Files"].includes(activeTab) ? activeTab.toLowerCase() : undefined;
+      const [listResponse, countsResponse] = await Promise.all([
+        notificationCenterApi.list({ status, category, search: debouncedSearch || undefined, page: 1, limit: 50 }),
+        notificationCenterApi.counts(),
+      ]);
+      if (requestId !== requestSequence.current) return;
+      setNotifications(listResponse.data.items.map(formatNotification));
+      setLoadedKey(currentKey);
+      setCounts(countsResponse.data);
+      setPage(1);
+      setHasMore(listResponse.data.pagination.total_pages > 1);
+      setError("");
+    } catch (cause) {
+      if (requestId === requestSequence.current) {
+        setLoadedKey(currentKey);
+        setNotifications([]);
+        setError(cause instanceof Error ? cause.message : "Could not load notifications.");
+      }
+    } finally {
+      if (requestId === requestSequence.current) setLoading(false);
+    }
+  }, [activeTab, debouncedSearch, showArchived]);
+
+  useEffect(() => {
+    void refresh();
+    const onUpdate = () => { void refresh(); };
+    const onFocus = () => { void refresh(); };
+    const timer = window.setInterval(onUpdate, 30000);
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, onUpdate);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, onUpdate);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    if (isModal) return;
+    const params = new URLSearchParams(window.location.search);
+    const notificationId = Number(params.get("notificationId"));
+    if (!Number.isInteger(notificationId) || notificationId < 1) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    void (async () => {
+      try {
+        const response = await notificationCenterApi.get(notificationId);
+        await notificationCenterApi.markRead(notificationId);
+        notifyNotificationsChanged();
+        const item = formatNotification(response.data);
+        const destination = getNotificationDestination(item, portal);
+        if (destination) router.push(destination);
+        else setSelectedNotification({ ...item, unread: false });
+      } catch {
+        toast.error("Could not open this notification.");
+      }
+    })();
+  }, [router, portal, isModal]);
+
+  const isDark = !mounted || theme === "dark";
+  const tabCounts: Record<NotificationTab, number> = {
+    All: counts.all, Unread: counts.unread, Mentions: counts.mentions,
+    Payments: counts.payments, Projects: counts.projects, Files: counts.files,
+  };
+
+  const markOneRead = async (id: number) => {
+    await notificationCenterApi.markRead(id);
+    setNotifications((current) => current.map((item) => item.id === id ? { ...item, unread: false } : item));
+    setCounts((current) => ({ ...current, unread: Math.max(0, current.unread - 1) }));
+    notifyNotificationsChanged();
+  };
+
+  const handleAction = async (item: AdminNotification) => {
+    try {
+      if (item.unread) await markOneRead(item.id);
+      const destination = getNotificationDestination(item, portal);
+      if (destination) {
+        setSelectedNotification(null);
+        onNavigate?.();
+        router.push(destination);
+      } else {
+        setSelectedNotification({ ...item, unread: false });
+      }
+    } catch {
+      toast.error("Could not mark notification as read.");
+    }
+  };
+
+  const handleReferenceLink = async (item: AdminNotification, href: string) => {
+    try {
+      if (item.unread) await markOneRead(item.id);
+      onNavigate?.();
+      router.push(href);
+    } catch {
+      toast.error("Could not open this notification.");
+    }
+  };
+
+  const handleOpenDetails = async (item: AdminNotification) => {
+    setSelectedNotification(item);
+    if (item.unread && !showArchived) {
+      try {
+        await markOneRead(item.id);
+        setSelectedNotification({ ...item, unread: false });
+      } catch { toast.error("Could not mark notification as read."); }
+    }
+  };
+
+  const handleMarkUnread = async (item: AdminNotification) => {
+    try {
+      await notificationCenterApi.markUnread(item.id);
+      setNotifications((current) => current.map((notification) => notification.id === item.id ? { ...notification, unread: true } : notification));
+      setSelectedNotification({ ...item, unread: true });
+      notifyNotificationsChanged();
+    } catch { toast.error("Could not mark notification as unread."); }
+  };
+
+  const handleMuteSimilar = async (item: AdminNotification) => {
+    try {
+      const current = (await notificationCenterApi.preferences()).data.muted_categories || [];
+      const category = item.category.toLowerCase();
+      await notificationCenterApi.muteCategories([...new Set([...current, category])]);
+      toast.success(`Future ${item.category.toLowerCase()} browser push alerts muted. Inbox items will still appear.`);
+      setSelectedNotification(null);
+    } catch {
+      toast.error("Could not mute this category.");
+    }
+  };
+
+  const loadMore = async () => {
+    try {
+      const nextPage = page + 1;
+      const status = showArchived ? "archived" : activeTab === "Unread" ? "unread" : "all";
+      const category = ["Mentions", "Payments", "Projects", "Files"].includes(activeTab) ? activeTab.toLowerCase() : undefined;
+      const response = await notificationCenterApi.list({ status, category, search: debouncedSearch || undefined, page: nextPage, limit: 50 });
+      const items = response.data.items.map(formatNotification);
+      setNotifications((current) => [...current, ...items]);
+      setPage(nextPage);
+      setHasMore(nextPage < response.data.pagination.total_pages);
+    } catch { toast.error("Could not load more notifications."); }
+  };
+
+  const handleArchive = async (item: AdminNotification) => {
+    try {
+      if (showArchived) await notificationCenterApi.restore(item.id);
+      else await notificationCenterApi.archive(item.id);
+      setSelectedNotification(null);
+      notifyNotificationsChanged();
+    } catch { toast.error(showArchived ? "Could not restore notification." : "Could not archive notification."); }
+  };
+
+  return (
+    <>
+      {isModal ? (
+        <div className={`flex items-center justify-between border-b px-6 py-4 ${isDark ? "border-[#303030]" : "border-[#E4E4E4]"}`}>
+          <div className="flex items-center gap-3">
+            <h2 className={`text-lg font-semibold ${isDark ? "text-white" : "text-black"}`}>Notifications</h2>
+            {counts.unread > 0 ? (
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${isDark ? "bg-[#E8D1AB]/15 text-[#E8D1AB] border border-[#E8D1AB]/30" : "bg-[#F2E6CF] text-[#7B5B2D] border border-[#E8D1AB]"}`}>
+                {counts.unread} unread
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <Topbar
+          pathname={pathname}
+          title="Notifications"
+          actions={<NotificationHeaderActions portal={portal} showMarkAll={!showArchived} />}
+        />
+      )}
+
+      <div className={`border-b px-6 py-4 lg:px-10 ${isDark ? "border-[#3A332A] bg-[#2A241D]" : "border-[#E8D1AB] bg-[#F7F0E4]"}`}>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            {counts.unread > 0 ? (
+              <span className="h-2 w-2 rounded-full bg-[#E8D1AB] animate-pulse" />
+            ) : null}
+            <p className={`text-sm font-medium ${isDark ? "text-[#E8D1AB]" : "text-[#7B5B2D]"}`}>
+              {counts.unread} unread notification{counts.unread === 1 ? "" : "s"}
+            </p>
+          </div>
+          <div className="flex items-center gap-6 text-sm">
+            <button type="button" onClick={() => { setActiveTab("All"); setShowArchived((current) => !current); }} className={`flex items-center gap-2 ${isDark ? "text-white/80" : "text-black/70"}`}>
+              <Archive size={16} /> {showArchived ? "Inbox" : `Archive${counts.archived ? ` (${counts.archived})` : ""}`}
+            </button>
+            <button type="button" onClick={() => { onNavigate?.(); router.push(`${notificationsPath}/preferences`); }} className={`flex items-center gap-2 ${isDark ? "text-white/80" : "text-black/70"}`}>
+              <BellOff size={16} /> Push Preferences
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <main className={`${isModal ? "" : "min-h-screen"} px-4 py-6 lg:px-9 lg:py-8 ${isDark ? "bg-transparent" : "bg-[#F4F5F7]" }`} style={{ fontFamily: "var(--font-instrument-sans)" }}>
+        <div className={`relative flex h-12 items-center rounded-xl border ${isDark ? "border-[#3D3D3D] bg-[#202020]" : "border-[#E3E3E3] bg-white"}`}>
+          <Search size={18} className={`absolute left-4 ${isDark ? "text-white/35" : "text-black/35"}`} />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search Notifications..."
+            className={`h-full w-full bg-transparent pl-11 pr-4 text-sm outline-none ${isDark ? "text-white placeholder:text-white/35" : "text-black placeholder:text-black/35"}`}
+          />
+        </div>
+
+        <section className={`mt-5 overflow-hidden rounded-2xl border ${isDark ? "border-[#303030] bg-[#171717]" : "border-[#E4E4E4] bg-white"}`}>
+          {error ? <div role="alert" className="px-5 py-3 text-sm text-red-500">{error} <button type="button" onClick={() => void refresh()} className="underline">Retry</button></div> : null}
+          {showArchived ? <div className="border-b px-5 py-3 text-sm text-[#E8D1AB]">Archived notifications</div> : null}
+          {!showArchived ? <div className={`grid grid-cols-3 border-b px-3 sm:grid-cols-6 ${isDark ? "border-[#333333]" : "border-[#E5E5E5]"}`}>
+            {tabs.map((tab) => {
+              const active = activeTab === tab;
+              const isUnread = tab === "Unread";
+              const count = tabCounts[tab];
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`relative flex h-14 items-center justify-center gap-2 text-sm transition ${active ? (isDark ? "text-[#E8D1AB]" : "text-[#7B5B2D]") : (isDark ? "text-white/60" : "text-black/55")}`}
+                >
+                  {tab}
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    isUnread && count > 0
+                      ? active
+                        ? "bg-[#E8D1AB] text-black"
+                        : isDark
+                          ? "bg-[#E8D1AB]/20 text-[#E8D1AB]"
+                          : "bg-[#7B5B2D]/20 text-[#7B5B2D]"
+                      : active
+                        ? (isDark ? "bg-[#2A241D] text-[#E8D1AB]" : "bg-[#F2E6CF] text-[#7B5B2D]")
+                        : (isDark ? "bg-[#2A2A2A] text-white/85" : "bg-[#EEEEEE] text-black/70")
+                  }`}>
+                    {String(count).padStart(tab === "All" ? 1 : 2, "0")}
+                  </span>
+                  {active ? <span className="absolute bottom-0 left-[12%] right-[12%] h-[3px] rounded-full bg-[#E8D1AB]" /> : null}
+                </button>
+              );
+            })}
+          </div> : null}
+
+          <div>
+            {(loading && !loadedKey) || loadedKey !== viewKey ? <NotificationListSkeleton isDark={isDark} /> : notifications.length ? notifications.map((item) => (
+              <article
+                key={item.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => handleOpenDetails(item)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    handleOpenDetails(item);
+                  }
+                }}
+                className={`relative flex flex-col gap-4 border-b px-4 py-6 last:border-b-0 sm:flex-row sm:items-center sm:justify-between transition-colors ${
+                  item.unread
+                    ? isDark
+                      ? "border-[#303030] bg-[#221D16]"
+                      : "border-[#EEEEEE] bg-[#FAF6EE]"
+                    : isDark
+                      ? "border-[#303030] bg-[#1C1C1C]"
+                      : "border-[#EEEEEE] bg-white"
+                }`}
+                style={{ borderLeft: item.unread ? `4px solid ${item.accent}` : "4px solid transparent" }}
+              >
+                <div className="flex min-w-0 gap-3">
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${item.avatarClass}`}>{item.initials}</div>
+                  <div className="min-w-0">
+                    <h3 className={`text-sm ${item.unread ? "font-semibold" : "font-medium"} ${isDark ? "text-white" : "text-[#171717]"}`}>{item.title}</h3>
+                    <p className={`mt-1 text-xs ${isDark ? (item.unread ? "text-white/60" : "text-white/45") : (item.unread ? "text-black/60" : "text-black/45")}`}>{item.description}</p>
+                    {getNotificationReferenceLinks(item, portal).length ? <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                      {getNotificationReferenceLinks(item, portal).map((link) => <button
+                        key={link.href + link.label}
+                        type="button"
+                        onClick={(event) => { event.stopPropagation(); void handleReferenceLink(item, link.href); }}
+                        className={`text-xs underline underline-offset-2 hover:opacity-75 ${isDark ? "text-[#E8D1AB]" : "text-[#7B5B2D]"}`}
+                      >{link.label}</button>)}
+                    </div> : null}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs ${isDark ? "bg-[#343434] text-white/90" : "bg-[#EFEFEF] text-black/70"}`}>
+                        {categoryIcon(item.category)} {item.mention ? "Mentions" : item.category}
+                      </span>
+                      {/* Priority badge hidden for now. */}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 items-center justify-between gap-4 sm:block sm:text-right">
+                  <div className={`mb-4 flex items-center justify-end gap-2 text-xs ${isDark ? "text-white/55" : "text-black/45"}`}>
+                    {item.timeLabel}
+                    {item.unread ? (
+                      <span
+                        title="Unread"
+                        className="relative flex h-2 w-2"
+                      >
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#E8D1AB] opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-[#E8D1AB] shadow-[0_0_6px_rgba(232,209,171,0.8)]" />
+                      </span>
+                    ) : (
+                      <span className={`h-2 w-2 rounded-full ${isDark ? "bg-white/20" : "bg-black/15"}`} />
+                    )}
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <button type="button" onClick={(event) => { event.stopPropagation(); void handleArchive(item); }} className={`h-9 rounded-lg border px-3 text-xs ${isDark ? "border-white/20 text-white" : "border-black/20 text-black"}`}>
+                      {showArchived ? "Restore" : "Archive"}
+                    </button>
+                    {!showArchived ? <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void handleAction(item);
+                      }}
+                      className="h-9 rounded-lg bg-[#E8D1AB] px-4 text-xs font-medium text-black transition hover:bg-[#D9C19A]"
+                    >
+                      {getNotificationDestination(item, portal) ? item.actionLabel : "View details"}
+                    </button> : null}
+                  </div>
+                </div>
+              </article>
+            )) : (
+              <div className={`px-6 py-16 text-center text-sm ${isDark ? "text-white/45" : "text-black/45"}`}>No notifications found.</div>
+            )}
+          </div>
+          {hasMore ? <div className="border-t p-4 text-center"><button type="button" onClick={() => void loadMore()} className="rounded-lg bg-[#E8D1AB] px-4 py-2 text-xs text-black">Load more</button></div> : null}
+        </section>
+      </main>
+
+      <NotificationDetailsModal
+        open={Boolean(selectedNotification)}
+        notification={selectedNotification}
+        archived={showArchived}
+        onClose={() => setSelectedNotification(null)}
+        onPrimaryAction={(item) => { void handleAction(item); }}
+        onMarkUnread={(item) => { void handleMarkUnread(item); }}
+        onMuteSimilar={(item) => { void handleMuteSimilar(item); }}
+        hasDestination={selectedNotification ? Boolean(getNotificationDestination(selectedNotification, portal)) : false}
+        referenceLinks={selectedNotification ? getNotificationReferenceLinks(selectedNotification, portal) : []}
+        onReferenceNavigate={(item, href) => { void handleReferenceLink(item, href); }}
+      />
+    </>
+  );
+}

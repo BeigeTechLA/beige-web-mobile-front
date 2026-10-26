@@ -5,7 +5,10 @@ import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import Topbar from "@/components/admin/Topbar";
-import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
+import { agreementApi, AgreementDocument, type AgreementResponse } from "@/lib/api/agreements";
+import { AgreementSignatureModal } from "@/components/creator-profile/AgreementSignatureModal";
+import { AgreementSignatureEvidence } from "@/components/creator-profile/AgreementSignatureEvidence";
+import { formatAgreementDate } from "@/lib/utils/agreementDate";
 
 export default function GeneralAgreementPage() {
   const pathname = usePathname();
@@ -14,16 +17,13 @@ export default function GeneralAgreementPage() {
   const [agreement, setAgreement] = useState<AgreementDocument | null>(null);
   const [checked, setChecked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSignOpen, setIsSignOpen] = useState(false);
+  const [signatureResponse, setSignatureResponse] = useState<AgreementResponse | null>(null);
   const formatVersion = (value?: string | null) => {
     const version = String(value || "").trim();
     return /^v(?:ersion)?\b/i.test(version) ? version : `Version ${version || "—"}`;
   };
-  const formatDate = (value?: string | null) => {
-    if (!value) return "—";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "—";
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  };
+  const formatDate = formatAgreementDate;
 
   useEffect(() => {
     let active = true;
@@ -33,11 +33,17 @@ export default function GeneralAgreementPage() {
         if (requestedId > 0) {
           const response = await agreementApi.getCreatorAgreement(requestedId);
           if (response.data.agreement.agreement_type !== "general") throw new Error("This is not a general agreement");
-          if (active) setAgreement(response.data.agreement);
+          if (active) { setAgreement(response.data.agreement); setSignatureResponse(response.data.responses.find((item) => item.action === "accepted") || null); }
           return;
         }
         const response = await agreementApi.getCurrentGeneralAgreement();
-        if (active) setAgreement(response.data.agreement);
+        if (active) {
+          setAgreement(response.data.agreement);
+          if (response.data.agreement.status === "accepted") {
+            const detail = await agreementApi.getCreatorAgreement(response.data.agreement.agreement_document_id);
+            if (active) setSignatureResponse(detail.data.responses.find((item) => item.action === "accepted") || null);
+          }
+        }
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Unable to load general agreement");
       }
@@ -46,12 +52,14 @@ export default function GeneralAgreementPage() {
     return () => { active = false; };
   }, [searchParams]);
 
-  const accept = async () => {
+  const signAndAccept = async (signatureDataUrl: string, signerName: string) => {
     if (!agreement || !checked) return;
     try {
       setIsSubmitting(true);
-      await agreementApi.acceptGeneralAgreement(agreement.agreement_document_id);
+      await agreementApi.acceptGeneralAgreement(agreement.agreement_document_id, signerName, signatureDataUrl);
       setAgreement({ ...agreement, status: "accepted" });
+      setSignatureResponse({ agreement_response_id: 0, action: "accepted", signer_name: signerName, signature_data_url: signatureDataUrl, content_hash_at_response: "", responded_at: new Date().toISOString() });
+      setIsSignOpen(false);
       window.dispatchEvent(new Event("creator-general-agreement-accepted"));
       toast.success("General agreement accepted");
       router.push("/creator/dashboard");
@@ -80,16 +88,18 @@ export default function GeneralAgreementPage() {
                 </header>
                 <div className="max-w-none p-5 text-sm leading-6 text-white/80 lg:p-9 lg:text-base lg:leading-7 [&_p]:mb-4 [&_p:last-child]:mb-0 [&_section]:border-t [&_section]:border-[#51504E] [&_section]:pt-6 [&_section]:first:border-t-0 [&_section]:first:pt-0 [&_h1]:mb-4 [&_h1]:text-xl [&_h1]:font-medium [&_h1]:text-white [&_h2]:mb-4 [&_h2]:text-base [&_h2]:font-medium [&_h2]:text-[#E8D1AB] [&_a]:text-[#E8D1AB] [&_a]:underline [&_ol]:mb-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-6" dangerouslySetInnerHTML={{ __html: agreement.content_html }} />
               </article>
+              <AgreementSignatureEvidence response={signatureResponse} />
               <section className="rounded-2xl border border-[#3D3D3D] bg-[#171717] p-6">
                 {accepted ? <div className="flex items-center gap-2 font-medium text-[#16A34A]"><Check size={18} /> You have accepted this agreement.</div> : <>
                   <label className="flex cursor-pointer items-start gap-3 text-sm text-white/80"><input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#E8D1AB]" /> I have read and agree to the terms and conditions.</label>
-                  <button disabled={!checked || isSubmitting} onClick={accept} className="mt-5 rounded-lg bg-[#E8D1AB] px-6 py-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-50">{isSubmitting ? "Accepting..." : "Accept & Continue"}</button>
+                  <button disabled={!checked || isSubmitting} onClick={() => setIsSignOpen(true)} className="mt-5 rounded-lg bg-[#E8D1AB] px-6 py-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-50">Sign and Accept</button>
                 </>}
               </section>
             </>
           )}
         </div>
       </main>
+      {isSignOpen && agreement && <AgreementSignatureModal title={agreement.title} initialName={agreement.snapshot?.creative_partner?.name} isSubmitting={isSubmitting} onClose={() => setIsSignOpen(false)} onSubmit={signAndAccept} />}
     </>
   );
 }
