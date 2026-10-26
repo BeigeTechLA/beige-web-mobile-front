@@ -773,6 +773,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                       cpCompensationStatus={project?.cp_compensation_status as string | null}
                       onRequestAssignment={handleAssignmentRequest}
                       crewSizeNeeded={crewSizeNeeded}
+                      crewRoles={project?.crew_roles}
                     />
                   </div>
                   {Array.isArray(project?.payment_history) && project.payment_history.length > 0 ? (

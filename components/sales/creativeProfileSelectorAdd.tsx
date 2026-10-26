@@ -163,14 +163,14 @@ export const CreativeProfileSelectorAdd = ({
 }: {
   selectedIds?: number[],
   onChange?: (ids: number[]) => void,
-  onSelectionUpdate?: (counts: { videographer: number, photographer: number }) => void,
+  onSelectionUpdate?: (counts: { videographer: number, photographer: number, hybrid: number }) => void,
   onSelectedCreativesChange?: (creatives: CreativeWithDistance[]) => void,
   leadId?: number | string,
   projectId?: number | string,
   currentLocation?: string,
   currentLatitude?: number,
   currentLongitude?: number,
-  targets?: { videographer: number, photographer: number },
+  targets?: { videographer: number, photographer: number, hybrid?: number },
   disableCrewFetch?: boolean, // When true, suppresses the get-crew-for-lead API call
   statsSource?: "lead" | "client",
   isDark?: boolean,
@@ -432,8 +432,11 @@ export const CreativeProfileSelectorAdd = ({
       }
     });
 
-    const targetV = targets?.videographer || parseInt(stats?.fulfillment_stats?.videographer?.split('/')[1] || '0') || 0;
-    const targetP = targets?.photographer || parseInt(stats?.fulfillment_stats?.photographer?.split('/')[1] || '0') || 0;
+    const targetV = targets?.videographer ?? (parseInt(stats?.fulfillment_stats?.videographer?.split('/')[1] || '0') || 0);
+    const targetP = targets?.photographer ?? (parseInt(stats?.fulfillment_stats?.photographer?.split('/')[1] || '0') || 0);
+    const targetH = targets?.hybrid ?? 0;
+    const hybridCount = Math.min(bothCount, targetH);
+    bothCount -= hybridCount;
 
     for (let i = 0; i < bothCount; i++) {
       const deficitV = targetV - vCount;
@@ -452,7 +455,7 @@ export const CreativeProfileSelectorAdd = ({
       }
     }
 
-    return { videographer: vCount, photographer: pCount };
+    return { videographer: vCount, photographer: pCount, hybrid: hybridCount };
   }, [selectedIds, selectedRoles, targets, stats]);
 
   // Notify parent of count updates

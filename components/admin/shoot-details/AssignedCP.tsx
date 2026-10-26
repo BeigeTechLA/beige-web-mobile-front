@@ -18,6 +18,7 @@ import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
 import SelectCPCountModal, { type CPCounts } from "./SelectCPCountModal";
+import { getCPRequirements } from "@/lib/utils/cpRequirements";
 
 /**
  * Custom CSS to force the "Top-Stacking" behavior.
@@ -38,6 +39,7 @@ interface AssignedCPProps {
   cpCompensationStatus?: string | null;
   onRequestAssignment?: (continueAction: () => void) => void;
   crewSizeNeeded?: number;
+  crewRoles?: unknown;
 }
 
 interface CrewFile {
@@ -107,7 +109,8 @@ export default function AssignedCP({
   assignedCrew = [],
   cpCompensationStatus,
   onRequestAssignment,
-  crewSizeNeeded = 0
+  crewSizeNeeded = 0,
+  crewRoles,
 }: AssignedCPProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -136,6 +139,7 @@ export default function AssignedCP({
   }, [assignedCrew]);
 
   const hasCPs = crewMembers.length > 0;
+  const savedRequirements = getCPRequirements(crewRoles);
 
   // CPs still to assign (alert next to the title while short)
   const missingCPs = Math.max(0, (Number(crewSizeNeeded) || 0) - crewMembers.length);
@@ -158,25 +162,44 @@ export default function AssignedCP({
         : "All CPs have accepted and their compensation has been approved. Only a Super Admin can remove a CP."
       : "Remove CP";
 
-  // "Add CP" buttons -> open the "Select No of CPs" modal first
+  // Saved booking requirements already define the roles; legacy shoots need the modal.
   const handleOpenAssignment = () => {
     if (!canCreate) return;
-
-    setIsCountModalOpen(true);
+    if (savedRequirements) {
+      handleCountContinue(savedRequirements);
+    } else {
+      setIsCountModalOpen(true);
+    }
   };
 
   // Modal "Continue" -> /add-creatives (selected counts passed as query params,
   // e.g. ?photographer=2&videographer=1)
   const handleCountContinue = (counts: Partial<CPCounts>) => {
     const query = new URLSearchParams(
-      Object.entries(counts).map(([role, count]) => [role, String(count)])
+      Object.entries(counts)
+        .filter(([, count]) => Number(count) > 0)
+        .map(([role, count]) => [role, String(count)])
     ).toString();
     const basePath =
       isSalesAdmin && isSalesShootPage
         ? `/sales/shoots/${projectId}/add-creatives`
         : `/admin/shoots/${projectId}/add-creatives`;
 
-    const goToAddCreatives = () => router.push(query ? `${basePath}?${query}` : basePath);
+    const goToAddCreatives = async () => {
+      if (!savedRequirements) {
+        try {
+          await adminApi.updateProjectCrewRequirements(projectId, {
+            photographer: counts.photographer || 0,
+            videographer: counts.videographer || 0,
+            hybrid: counts.hybrid || 0,
+          });
+        } catch (error) {
+          toast.error("Failed to save CP requirements");
+          return;
+        }
+      }
+      router.push(query ? `${basePath}?${query}` : basePath);
+    };
     if (onRequestAssignment) {
       setIsCountModalOpen(false);
       onRequestAssignment(goToAddCreatives);

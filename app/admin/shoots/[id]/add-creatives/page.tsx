@@ -4,7 +4,7 @@ import React, { useCallback, useMemo, useState, useEffect, use } from "react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useRouter, usePathname } from "next/navigation";
-import { ArrowLeft, Camera, Send, Video } from "lucide-react";
+import { ArrowLeft, Camera, Send, Video, Clapperboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
 import { adminApi } from "@/lib/api";
@@ -14,6 +14,7 @@ import { type AddCpCompensationPayload, type PendingCompensationShoot } from "@/
 import { shootAgreementPlanKey, type ShootAgreementPlan } from "@/lib/shootAgreementPlan";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { formatCurrency } from "@/lib/utils";
+import { getCPRequirements } from "@/lib/utils/cpRequirements";
 
 type FulfillmentStats = {
   fulfillment_stats?: {
@@ -140,8 +141,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
   const [selectedCreativeIds, setSelectedCreativeIds] = useState<number[]>([]);
-  const [selectionCounts, setSelectionCounts] = useState({ videographer: 0, photographer: 0 });
-  const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
+  const [selectionCounts, setSelectionCounts] = useState({ videographer: 0, photographer: 0, hybrid: 0 });
+  const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0, hybrid: 0 });
   const [projectLocation, setProjectLocation] = useState<string>("");
   const [isAddCompOpen, setIsAddCompOpen] = useState(false);
   const [selectedCreatives, setSelectedCreatives] = useState<SelectedCreative[]>([]);
@@ -190,15 +191,19 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           const vReq = parseInt(mergedStats.fulfillment_stats?.videographer?.split('/')[1] || "0");
           const pReq = parseInt(mergedStats.fulfillment_stats?.photographer?.split('/')[1] || "0");
           const requested = new URLSearchParams(window.location.search);
-          const requestedCount = (role: "photographer" | "videographer", fallback: number) => {
+          const savedRoles = getCPRequirements(projectDetails.crew_roles);
+          const requestedCount = (role: "photographer" | "videographer" | "hybrid", fallback: number) => {
             const value = Number(requested.get(role));
             return Number.isInteger(value) && value > 0 && value <= 10 ? value : fallback;
           };
           setReqCounts({
-            videographer: requestedCount("videographer", vReq),
-            photographer: requestedCount("photographer", pReq),
+            videographer: requestedCount("videographer", savedRoles?.videographer ?? vReq),
+            photographer: requestedCount("photographer", savedRoles?.photographer ?? pReq),
+            hybrid: requestedCount("hybrid", savedRoles?.hybrid ?? 0),
           });
-          if (requested.has("photographer") && !requested.has("videographer")) setRoleType("photographer");
+          if (requested.has("hybrid") || (savedRoles?.hybrid && !savedRoles.videographer && !savedRoles.photographer)) setRoleType("hybrid");
+          else if ((requested.has("photographer") && !requested.has("videographer")) ||
+            (savedRoles?.photographer && !savedRoles.videographer)) setRoleType("photographer");
 
           // Also grab location for the crew search
           if (mergedStats.location) setProjectLocation(mergedStats.location);
@@ -352,7 +357,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
               <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
                 {[
                   { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer },
-                  { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer }
+                  { type: 'photographer', icon: Camera, label: 'Photographer(s)', count: selectionCounts.photographer },
+                  { type: 'hybrid', icon: Clapperboard, label: 'Hybrid Shooter(s)', count: selectionCounts.hybrid }
                 ].map((btn) => (
                   <div
                     key={btn.type}
@@ -476,7 +482,8 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           <div className="flex gap-2 w-full">
             {[
               { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer },
-              { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer }
+              { type: 'photographer', icon: Camera, label: 'Photographer(s)', count: selectionCounts.photographer },
+              { type: 'hybrid', icon: Clapperboard, label: 'Hybrid Shooter(s)', count: selectionCounts.hybrid }
             ].map((btn) => (
               <div
                 key={btn.type}

@@ -23,8 +23,7 @@ export type CPCounts = Record<CPRoleId, number>;
 export const DEFAULT_CP_ROLES: CPRoleOption[] = [
   { id: "photographer", label: "Photographer" },
   { id: "videographer", label: "Videographer" },
-  // The add-creatives search currently supports photographer and videographer roles only.
-  { id: "hybrid", label: "Hybrid Shooter (Photo + Video)", disabled: true },
+  { id: "hybrid", label: "Hybrid Shooter (Photo + Video)" },
 ];
 
 const EMPTY_COUNTS: CPCounts = { photographer: 0, videographer: 0, hybrid: 0 };
