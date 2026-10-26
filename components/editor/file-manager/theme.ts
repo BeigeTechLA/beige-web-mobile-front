@@ -8,14 +8,14 @@ export const fmTheme = (isDark: boolean) => ({
   /** Outer section shells */
   panel: isDark ? "bg-[#171717] border-[#3A3A3A]" : "bg-white border-[#E5E5E5]",
   /** Cards inside a panel */
-  card: isDark ? "bg-[#1C1C1C] border-white/5" : "bg-[#FAFAFA] border-[#ECECEC]",
-  cardHover: isDark ? "hover:border-[#E8D1AB]/40" : "hover:border-[#D9C7A0]",
+  card: isDark ? "bg-[#202020] border-[#202020]" : "bg-[#FAFAFA] border-[#ECECEC]",
+  cardHover: isDark ? "hover:border-[#E8D1AB]" : "hover:border-[#D9C7A0]",
   /** Boxes nested in cards (linked-to box, stats) */
   inset: isDark ? "bg-[#111111] border-white/10" : "bg-white border-[#E5E5E5]",
   divider: isDark ? "border-white/10" : "border-[#EEEEEE]",
   dashed: isDark ? "border-white/20" : "border-black/15",
   control: isDark
-    ? "bg-[#1C1C1C] border-white/10 text-white placeholder:text-white/40"
+    ? "bg-[#202020] border-white/20 text-white placeholder:text-[#727272]"
     : "bg-white border-[#E5E5E5] text-black placeholder:text-black/40",
   menu: isDark ? "border-[#3A3A3A] bg-[#171717] text-white" : "border-[#E5E5E5] bg-white text-[#222222]",
   menuItem: isDark ? "hover:bg-white/10" : "hover:bg-[#F8F4EA]",

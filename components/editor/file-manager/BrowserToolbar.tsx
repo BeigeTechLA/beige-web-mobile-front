@@ -22,8 +22,8 @@ export default function BrowserToolbar({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <SearchInput isDark={isDark} value={search} onChange={onSearch} className="sm:max-w-[320px]" />
+    <div className="flex flex-row items-center justify-between">
+      <SearchInput isDark={isDark} value={search} onChange={onSearch} className="max-w-sm" />
       <div className="flex flex-wrap items-center justify-end gap-2 lg:gap-3">
         {children}
         <ViewToggle isDark={isDark} value={view} onChange={onView} />
@@ -42,7 +42,7 @@ export function ItemsLayout({ isDark, view, children }: { isDark: boolean; view:
     );
   }
   if (view === "compact") {
-    return <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">{children}</div>;
+    return <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">{children}</div>;
   }
-  return <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 lg:gap-4">{children}</div>;
+  return <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 lg:gap-4">{children}</div>;
 }

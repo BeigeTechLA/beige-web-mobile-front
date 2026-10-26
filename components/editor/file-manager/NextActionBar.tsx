@@ -53,7 +53,7 @@ export default function NextActionBar({
                 type="button"
                 onClick={a.onClick}
                 disabled={a.disabled}
-                className={`inline-flex h-12 flex-1 md:flex-none items-center justify-center gap-2 rounded-lg px-6 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${a.variant === "secondary" ? t.secondaryBtn : t.primaryBtn}`}
+                className={`inline-flex h-12 flex-1 md:flex-none items-center justify-center gap-2 rounded-lg px-6 lg:px-10 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${a.variant === "secondary" ? t.secondaryBtn : t.primaryBtn}`}
               >
                 {a.label}
                 {a.icon && <a.icon size={16} />}

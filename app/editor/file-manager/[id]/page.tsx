@@ -269,13 +269,13 @@ export default function EditorFolderDetailsPage() {
   } else if (screen === "edits") {
     nextAction = pendingCount > 0
       ? {
-          message: `${pendingCount} edited file${pendingCount === 1 ? " is" : "s are"} ready to send for approval.`,
-          actions: [{ label: "View Folder", onClick: () => push("deliverables") }],
-        }
+        message: `${pendingCount} edited file${pendingCount === 1 ? " is" : "s are"} ready to send for approval.`,
+        actions: [{ label: "View Folder", onClick: () => push("deliverables") }],
+      }
       : {
-          message: "Download Files from Edits Folder Selected by Client which are Ready for Edits",
-          actions: [{ label: "View Folder", onClick: () => push("selected") }],
-        };
+        message: "Download Files from Edits Folder Selected by Client which are Ready for Edits",
+        actions: [{ label: "View Folder", onClick: () => push("selected") }],
+      };
   } else if (screen === "selected") {
     nextAction = {
       eyebrow: "Files Ready to Edit",
@@ -373,10 +373,10 @@ export default function EditorFolderDetailsPage() {
               )}
 
               {tab === "files" && (
-                <section className={`rounded-2xl border ${t.panel}`}>
-                  <div className={`border-b px-4 py-4 lg:px-5 ${t.divider}`}>
-                    <h2 className={`text-sm font-medium ${t.strong}`}>Files &amp; Versions</h2>
-                    <p className={`mt-0.5 text-xs ${t.faint}`}>Access follows existing File Manager permissions. Important project files cannot be deleted.</p>
+                <section className={`rounded-2xl border ${isDark ? "bg-[#0C0C0C] border-[#242422]" : "bg-white border-[#E5E5E5]"}`}>
+                  <div className={`border-b p-4 lg:p-5 ${isDark ? "border-[#242422]" : "border-[#E5E5E5]"}`}>
+                    <h2 className={`text-sm font-medium ${isDark ? "text-[#F0F0EF]" : "text-[#111111]"}`}>Files &amp; Versions</h2>
+                    <p className={`mt-0.5 text-xs lg:text-sm ${t.faint}`}>Access follows existing File Manager permissions. Important project files cannot be deleted.</p>
                   </div>
                   <div className="space-y-4 p-4 lg:p-5">
                     <BrowserToolbar isDark={isDark} search={search} onSearch={setSearch} view={view} onView={setView} />
@@ -420,7 +420,7 @@ export default function EditorFolderDetailsPage() {
 
           {/* ---- EDITS FOLDER ---- */}
           {screen === "edits" && (
-            <>
+            <section className={`rounded-2xl border ${isDark ? "bg-[#0C0C0C] border-[#242422]" : "bg-white border-[#E5E5E5]"}`}>
               <FolderInfoCard
                 isDark={isDark}
                 title={`Edits (${editsSubfolders.length} Folders)`}
@@ -459,7 +459,7 @@ export default function EditorFolderDetailsPage() {
                   ))}
                 </ItemsLayout>
               )}
-            </>
+            </section>
           )}
 
           {/* ---- SELECTED FOR EDITS ---- */}

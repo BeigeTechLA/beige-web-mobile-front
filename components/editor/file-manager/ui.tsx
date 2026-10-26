@@ -24,7 +24,7 @@ export function SearchInput({
   const t = fmTheme(isDark);
   return (
     <div className={`relative w-full ${className}`}>
-      <Search size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.faint}`} />
+      <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${t.faint}`} />
       <input
         type="text"
         value={value}
@@ -46,7 +46,7 @@ const VIEW_BUTTONS: [ViewMode, typeof Grid3X3, string][] = [
 
 export function ViewToggle({ isDark, value, onChange }: { isDark: boolean; value: ViewMode; onChange: (v: ViewMode) => void }) {
   return (
-    <div className={`flex shrink-0 items-center overflow-hidden rounded-lg border ${isDark ? "bg-[#1C1C1C] border-white/10" : "bg-white border-[#E5E5E5]"}`}>
+    <div className={`flex shrink-0 items-center overflow-hidden rounded-lg border ${isDark ? "bg-[#202020] border-white/20" : "bg-white border-[#E5E5E5]"}`}>
       {VIEW_BUTTONS.map(([mode, Icon, label]) => (
         <button
           key={mode}
@@ -55,11 +55,11 @@ export function ViewToggle({ isDark, value, onChange }: { isDark: boolean; value
           aria-label={label}
           title={label}
           aria-pressed={value === mode}
-          className={`px-3.5 lg:px-5 py-2.5 transition-colors ${value === mode
+          className={`p-2.5 lg:px-5 rounded-lg transition-colors ${value === mode
             ? "bg-[#E8D1AB] text-black"
-            : isDark ? "text-white/60 hover:text-white" : "text-[#666] hover:text-black"}`}
+            : isDark ? "text-white hover:text-white/80" : "text-[#666] hover:text-black"}`}
         >
-          <Icon size={16} />
+          <Icon size={20} strokeWidth={1.5} />
         </button>
       ))}
     </div>
@@ -102,7 +102,7 @@ export function SegmentedTabs<T extends string>({
 /* ---------- Pills / badges ---------- */
 export function LinkedPill({ small = false }: { small?: boolean }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full bg-[#D4FFE4] text-[#16A34A] font-medium ${small ? "px-3 py-2 text-xs" : "px-4 py-2.5 text-sm"}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full bg-[#D4FFE4] text-[#16A34A] font-medium ${small ? "px-3.5 py-2.5 text-xs" : "px-4 py-2.5 text-sm"}`}>
       <Link size={small ? 16 : 18} /> Linked
     </span>
   );
@@ -110,7 +110,7 @@ export function LinkedPill({ small = false }: { small?: boolean }) {
 
 export function TagPill({ isDark, label }: { isDark: boolean; label: string }) {
   return (
-    <span className={`rounded-full px-3 py-1.5 text-[11px] ${isDark ? "bg-[#111111] text-white" : "bg-white border border-[#E5E5E5] text-[#222]"}`}>{label}</span>
+    <span className={`rounded-full px-3.5 py-2.5 text-xs font-medium ${isDark ? "bg-[#171717] text-white" : "bg-white border border-[#E5E5E5] text-[#222]"}`}>{label}</span>
   );
 }
 
@@ -146,7 +146,7 @@ export function Callout({ label }: { label: string }) {
 export function InitialsAvatar({ person, size = "md" }: { person: Person; size?: "sm" | "md" }) {
   return (
     <span
-      className={`flex shrink-0 items-center justify-center rounded-full bg-[#CFE3FF] font-semibold text-[#1E3A5F] ${size === "sm" ? "h-7 w-7 text-[11px]" : "h-8 w-8 text-xs"}`}
+      className={`flex shrink-0 items-center justify-center rounded-full bg-[#C8E1FF] font-medium text-black ${size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-base"}`}
       title={person.name}
     >
       {person.initials}
