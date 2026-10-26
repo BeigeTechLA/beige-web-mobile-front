@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "next-themes";
 
-import Sidebar from "@/components/admin/Sidebar";
+import Sidebar from "@/components/editor/Sidebar";
 import { SidebarProvider, useSidebar } from '@/context/SidebarContext';
 import { useAppDispatch, useAppSelector } from '@/lib/redux/hooks';
 import WebPushRegistration from '@/components/chat/WebPushRegistration';
@@ -67,18 +67,12 @@ export default function EditorLayout({ children }: { children: React.ReactNode }
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isResolvingInitialRoute, setIsResolvingInitialRoute] = useState(true);
-  const shouldGateInitialAdminRoute = pathname === "/admin" || pathname === "/admin/dashboard";
 
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const userId = user?.id;
     if (!mounted) return;
-
-    if (!shouldGateInitialAdminRoute) {
-      setIsResolvingInitialRoute(false);
-      return;
-    }
 
     if (!userId) {
       setIsResolvingInitialRoute(false);
@@ -110,7 +104,7 @@ export default function EditorLayout({ children }: { children: React.ReactNode }
     return () => {
       isCancelled = true;
     };
-  }, [user?.id, mounted, dispatch, pathname, permissions, router, shouldGateInitialAdminRoute]);
+  }, [user?.id, mounted, dispatch, pathname, permissions, router]);
 
   useEffect(() => {
     if (!mounted || !permissions) return;
