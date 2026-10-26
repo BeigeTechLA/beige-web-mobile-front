@@ -23,6 +23,8 @@ export type PermissionUser = {
   subtitle: string;
   role_id: number | null;
   role: string;
+  userCreatedByName?: string | null;
+  userCreatedAt?: string | null;
   created: string;
   updated: string;
   status: PermissionStatus;
