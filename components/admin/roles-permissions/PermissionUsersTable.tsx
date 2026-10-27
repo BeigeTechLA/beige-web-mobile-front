@@ -604,7 +604,7 @@ export function PermissionUsersTable({
                 </SelectContent>
               </Select>
 
-              <Select value={salesRepStatusFilter} onValueChange={setSalesRepStatusFilter}>
+              {/* <Select value={salesRepStatusFilter} onValueChange={setSalesRepStatusFilter}>
                 <SelectTrigger className={`w-fit h-7 lg:h-9 min-w-[110px] rounded-full px-4 text-xs lg:text-sm transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
                   <SelectValue placeholder="Sales Rep" />
                 </SelectTrigger>
@@ -623,7 +623,7 @@ export function PermissionUsersTable({
                     }
                   }}>Inactive</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
 
               <Select value={monthFilter} onValueChange={setMonthFilter}>
                 <SelectTrigger className={`w-fit h-7 lg:h-9 min-w-[90px] rounded-full px-4 text-xs lg:text-sm transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
