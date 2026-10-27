@@ -3208,6 +3208,11 @@ export const adminApi = {
     }
   },
 
+  updateProjectCrewRequirements: async (id: string, crewRoles: Record<string, number>) => {
+    const response = await api.put(`admin/shoots/${id}/crew-requirements`, { crew_roles: crewRoles });
+    return response.data;
+  },
+
   getCrewMemberDetail: async (id: string) => {
     try {
       const response = await api.get(`admin/crew-member/${id}`);

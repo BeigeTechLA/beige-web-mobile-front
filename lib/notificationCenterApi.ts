@@ -210,38 +210,40 @@ export const getNotificationDestination = (item: AdminNotification, portal: Noti
 export const getNotificationReferenceLinks = (item: AdminNotification, portal: NotificationPortal) => {
   const payload = item.payload;
   const basePath = portal === "creator" ? "/creator/dashboard" : portal === "client" ? "/affiliate" : "/admin";
-  const links: { label: string; href: string }[] = [];
   const roomId = payloadValue(payload, "room_id", "chat_room_id", "roomId", "chatRoomId") || (item.referenceType === "chat_room" ? item.referenceId || "" : "");
-  if (roomId && item.category === "Messages") {
+  if (item.category === "Messages") {
+    if (!roomId) return [];
     const chatName = payloadValue(payload, "chat_name", "chat_room_name", "room_name");
-    links.push({
+    return [{
       label: chatName ? formatChatRoomDisplayName(chatName) : item.senderName ? `Chat with ${item.senderName}` : "View conversation",
       href: `${basePath}/messages?roomId=${encodeURIComponent(roomId)}`,
-    });
+    }];
   }
 
   const quoteId = payloadValue(payload, "sales_quote_id") || (item.referenceType === "sales_quote" ? item.referenceId || "" : "");
-  if (quoteId && item.category === "Proposals" && portal !== "creator") {
+  if (item.category === "Proposals") {
+    if (!quoteId || portal === "creator") return [];
     const quoteNumber = payloadValue(payload, "quote_number") || item.description.match(/\bBEIGE-\d+\b/i)?.[0] || quoteId;
-    links.push({ label: `Quote ${quoteNumber}`, href: `${basePath}/quotes/${encodeURIComponent(quoteId)}` });
+    return [{ label: `Quote ${quoteNumber}`, href: `${basePath}/quotes/${encodeURIComponent(quoteId)}` }];
   }
 
-  const bookingId = payloadValue(payload, "booking_id", "bookingId") || (item.referenceType === "booking" ? item.referenceId || "" : "");
-  if (bookingId) {
-    const href = portal === "creator" ? `${basePath}/request?bookingId=${encodeURIComponent(bookingId)}` : `${basePath}/shoots/${encodeURIComponent(bookingId)}`;
-    links.push({ label: `Shoot #${bookingId}`, href });
-  }
   const agreementId = payloadValue(payload, "agreement_document_id") || (item.referenceType === "agreement_document" ? item.referenceId || "" : "");
-  if (agreementId && item.category === "Agreements") {
+  if (item.category === "Agreements") {
+    if (!agreementId) return [];
     const href = getNotificationDestination(item, portal);
-    if (href) links.push({ label: `Agreement #${agreementId}`, href });
+    return href ? [{ label: `Agreement #${agreementId}`, href }] : [];
+  }
+  const bookingId = payloadValue(payload, "booking_id", "bookingId") || (item.referenceType === "booking" ? item.referenceId || "" : "");
+  if ((item.category === "Shoots" || item.category === "Projects") && bookingId) {
+    const href = getNotificationDestination(item, portal);
+    return href ? [{ label: `Shoot #${bookingId}`, href }] : [];
   }
   const leadId = payloadValue(payload, "lead_id") || (item.referenceType === "sales_lead" ? item.referenceId || "" : "");
-  if (leadId && item.category === "Leads" && portal === "admin") links.push({ label: `Lead #${leadId}`, href: `/sales/leads/${encodeURIComponent(leadId)}` });
+  if (leadId && item.category === "Leads" && portal === "admin") return [{ label: `Lead #${leadId}`, href: `/sales/leads/${encodeURIComponent(leadId)}` }];
   const disputeId = payloadValue(payload, "dispute_id") || (item.referenceType === "finance_dispute" ? item.referenceId || "" : "");
   if (disputeId && item.category === "Disputes") {
     const href = getNotificationDestination(item, portal);
-    if (href) links.push({ label: `Dispute #${disputeId}`, href });
+    return href ? [{ label: `Dispute #${disputeId}`, href }] : [];
   }
-  return links;
+  return [];
 };

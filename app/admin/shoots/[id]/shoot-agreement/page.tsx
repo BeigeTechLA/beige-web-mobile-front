@@ -359,12 +359,27 @@ export default function AdminAgreementDetailsPage() {
   }]);
   const removeSection = (id: string) => setSections((previous) => previous.filter((section) => section.id !== id));
 
+  const validateSections = (items: ClauseSection[]) => {
+    if (!items.length) {
+      toast.error("Add at least one agreement section with a title and content.");
+      return false;
+    }
+    const invalidIndex = items.findIndex((section) => !section.title.trim() || !section.content.trim());
+    if (invalidIndex !== -1) {
+      setSections((previous) => previous.map((section, index) => index === invalidIndex ? { ...section, isExpanded: true } : section));
+      toast.error(`Section ${invalidIndex + 1} needs a title and content.`);
+      return false;
+    }
+    return true;
+  };
+
   // Step Navigation Logic
   const handleNextStep = () => {
     if (currentStep === 1) {
       setCurrentStep(2);
       setActiveCpIndex(0);
     } else if (currentStep === 2) {
+      if (!validateSections(sections)) return;
       if (selectedMode === "individual" && activeCpIndex < cpList.length - 1) {
         const currentId = cpList[activeCpIndex].id;
         const nextId = cpList[activeCpIndex + 1].id;
@@ -467,6 +482,7 @@ export default function AdminAgreementDetailsPage() {
   };
 
   const saveDrafts = async () => {
+    if (!validateSections(sections)) return;
     if (pendingPlan) {
       toast.info("The agreement and compensation will be saved together when you send it.");
       return;
@@ -487,10 +503,7 @@ export default function AdminAgreementDetailsPage() {
     const agreementSections = selectedMode === "individual"
       ? cpList.map((cp) => sectionsByCreator[cp.id] || sections)
       : [sections];
-    if (agreementSections.some((items) => !items.length || items.some((section) => !section.title.trim() || !section.content.trim()))) {
-      toast.error("Add a title and content to every agreement section before sending.");
-      return;
-    }
+    for (const items of agreementSections) if (!validateSections(items)) return;
     try {
       setIsSending(true);
       if (pendingPlan) {

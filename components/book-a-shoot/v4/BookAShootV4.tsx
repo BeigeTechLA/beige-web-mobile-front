@@ -1863,6 +1863,12 @@ export const BookAShootV4 = () => {
       video_edit_types: bookingState.editsConfig.videoEditTypes,
       photo_edit_types: bookingState.editsConfig.photoEditTypes,
       crew_size: crewSize > 0 ? String(crewSize) : undefined,
+      crew_roles: crewSize > 0 ? {
+        photographer: Number(creativeTeam.photographer || 0),
+        videographer: Number(creativeTeam.videographer || 0),
+        hybrid: Number(creativeTeam.photoVideoCreator || 0),
+        cinematographer: Number(creativeTeam.cinematographer || 0),
+      } : undefined,
       matching_method: letBeigeChoose ? "ai_matchmaker" : "choose_own",
       selected_crew_ids: letBeigeChoose
         ? []
