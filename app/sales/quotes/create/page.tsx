@@ -66,6 +66,7 @@ import {
   formatQuoteItemDisplayName,
   getQuoteAdditionalPaymentDetails,
   getQuoteLineItemEditingTypeConfiguration,
+  getQuoteLineItemEditingTypeKey,
   getQuoteLineItemEditingTypeLabel,
   getQuoteNumber,
 } from "@/lib/quoteDetail";
@@ -75,7 +76,6 @@ import {
   normalizeQuoteEditorView,
   readQuoteEditorEditReason,
   readQuoteEditorOpsReviewConfirmed,
-  readQuoteEditorNavigationCache,
 } from "@/lib/quoteEdit";
 import {
   buildQuoteDraftPayload,
@@ -951,7 +951,25 @@ const appendShootTypeOption = (
 const getQuoteHydrationKey = (
   quoteId: string,
   quote: SalesQuoteDetailData | null,
-) => `${quoteId}:${quote?.updated_at ?? quote?.created_at ?? "base"}`;
+) => {
+  const lineItemSignature = quote
+    ? extractQuoteLineItems(quote)
+        .map((item) =>
+          JSON.stringify([
+            item.line_item_id,
+            item.item_name,
+            item.quantity,
+            item.estimated_pricing,
+            item.unit_rate,
+            item.configuration,
+            item.configuration_json,
+          ]),
+        )
+        .join("~")
+    : "";
+
+  return `${quoteId}:${quote?.updated_at ?? quote?.created_at ?? "base"}:${quote?.video_shoot_type ?? ""}:${lineItemSignature}`;
+};
 
 const mapAiEditingTypeOptions = (
   data: unknown,
@@ -1405,7 +1423,8 @@ function CreateQuotePageContent() {
   const [quoteReviewBaseline, setQuoteReviewBaseline] =
     React.useState<SalesQuoteDetailData | null>(null);
   const [reviewChangeReason, setReviewChangeReason] = React.useState("");
-  const [isLoadingQuoteToEdit, setIsLoadingQuoteToEdit] = React.useState(false);
+  const [isLoadingQuoteToEdit, setIsLoadingQuoteToEdit] = React.useState(Boolean(editQuoteId));
+  const [quoteLoadError, setQuoteLoadError] = React.useState<string | null>(null);
   const [isHydratingQuoteToEdit, setIsHydratingQuoteToEdit] =
     React.useState(false);
   const [isCatalogLoaded, setIsCatalogLoaded] = React.useState(false);
@@ -1601,6 +1620,7 @@ function CreateQuotePageContent() {
         catalogItemId?: string | number | null;
         catalog_item_id?: string | number | null;
       }> = services,
+      isActive: () => boolean = () => true,
     ) => {
       const hasVideo =
         ids.some((id) =>
@@ -1656,6 +1676,8 @@ function CreateQuotePageContent() {
             : Promise.resolve(null),
         ]);
 
+        if (!isActive()) return { video: [], photo: [] };
+
         const nextVideoShootTypes =
           hasVideo &&
             videoResponse &&
@@ -1699,7 +1721,7 @@ function CreateQuotePageContent() {
       } catch (error) {
         console.error("Failed to fetch shoot types", error);
       } finally {
-        setLoadingShootTypes(false);
+        if (isActive()) setLoadingShootTypes(false);
       }
 
       return { video: [], photo: [] };
@@ -1716,6 +1738,7 @@ function CreateQuotePageContent() {
         catalogItemId?: string | number | null;
         catalog_item_id?: string | number | null;
       }> = services,
+      isActive: () => boolean = () => true,
     ) => {
       const hasEditingService = ids.some((id) =>
         isEditingServiceLabel(
@@ -1732,6 +1755,8 @@ function CreateQuotePageContent() {
       setLoadingEditingTypes(true);
       try {
         const response = await salesApi.getAiEditingTypes();
+        if (!isActive()) return [] as ShootTypeOption[];
+
         const nextEditingTypes =
           response && !response.error
             ? mapAiEditingTypeOptions(response.data, {
@@ -1761,20 +1786,30 @@ function CreateQuotePageContent() {
             return validSelections;
           }
 
-          return [mergedEditingTypes[0].id];
+          // Do not select an arbitrary first type while quote hydration is
+          // still resolving the saved editing selections.
+          return [];
         });
 
         return mergedEditingTypes;
       } catch (error) {
         console.error("Failed to fetch editing types", error);
       } finally {
-        setLoadingEditingTypes(false);
+        if (isActive()) setLoadingEditingTypes(false);
       }
 
       return [] as ShootTypeOption[];
     },
     [services],
   );
+
+  // Hydration changes services, so keep catalog callbacks out of its dependencies.
+  const fetchShootTypesRef = React.useRef(fetchShootTypes);
+  const fetchEditingTypesRef = React.useRef(fetchEditingTypes);
+  React.useEffect(() => {
+    fetchShootTypesRef.current = fetchShootTypes;
+    fetchEditingTypesRef.current = fetchEditingTypes;
+  }, [fetchShootTypes, fetchEditingTypes]);
 
   React.useEffect(() => {
     if (!editQuoteId) {
@@ -1787,12 +1822,14 @@ function CreateQuotePageContent() {
     }
 
     let isMounted = true;
-    const cachedQuoteToEdit = readQuoteEditorNavigationCache(editQuoteId);
+    // Hydrate once from the requested quote. A navigation snapshot can
+    // be incomplete and must not expose an editable form before this response.
     hydratedQuoteIdRef.current = null;
     hydratingQuoteIdRef.current = null;
-    setQuoteToEdit(cachedQuoteToEdit);
-    setQuoteReviewBaseline(cachedQuoteToEdit);
-    setIsLoadingQuoteToEdit(!cachedQuoteToEdit);
+    setQuoteToEdit(null);
+    setQuoteReviewBaseline(null);
+    setQuoteLoadError(null);
+    setIsLoadingQuoteToEdit(true);
 
     const fetchQuoteToEdit = async () => {
       try {
@@ -1816,7 +1853,7 @@ function CreateQuotePageContent() {
         }
 
         setQuoteToEdit(quoteDetail);
-        setQuoteReviewBaseline((currentBaseline) => currentBaseline ?? quoteDetail);
+        setQuoteReviewBaseline(quoteDetail);
       } catch (error) {
         console.error("Failed to load quote for edit", error);
 
@@ -1826,11 +1863,9 @@ function CreateQuotePageContent() {
 
         setQuoteToEdit(null);
         setQuoteReviewBaseline(null);
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to load quote details",
-        );
+        const message = error instanceof Error ? error.message : "Failed to load quote details";
+        setQuoteLoadError(message);
+        toast.error(message);
       } finally {
         if (isMounted) {
           setIsLoadingQuoteToEdit(false);
@@ -1939,20 +1974,18 @@ function CreateQuotePageContent() {
         setIsDropdownOpen(false);
         setSearchQuery("");
 
-        const availableShootTypes =
-          hydratedState.selectedServices.length > 0
-            ? await fetchShootTypes(
-              hydratedState.selectedServices,
-              hydratedState.services,
-            )
-            : { video: [], photo: [] };
-        let availableEditingTypes: ShootTypeOption[] = [];
-        if (hydratedState.selectedServices.length > 0) {
-          availableEditingTypes = await fetchEditingTypes(
+        const [availableShootTypes, availableEditingTypes] = await Promise.all([
+          fetchShootTypesRef.current(
             hydratedState.selectedServices,
             hydratedState.services,
-          );
-        }
+            () => isMounted,
+          ),
+          fetchEditingTypesRef.current(
+            hydratedState.selectedServices,
+            hydratedState.services,
+            () => isMounted,
+          ),
+        ]);
 
         if (!isMounted) {
           return;
@@ -1984,7 +2017,7 @@ function CreateQuotePageContent() {
           hydratedHasPhotoService ||
           hydratedHasEditingService;
         const parsedShootTypeLabels = parseStoredShootTypeLabels(
-          hydratedState.shootTypeLabel,
+          quoteToEdit.video_shoot_type?.trim() || hydratedState.shootTypeLabel,
         );
         const assignHydratedShootType = (
           kind: ShootTypeKind,
@@ -2062,14 +2095,24 @@ function CreateQuotePageContent() {
           const editingSelections = editingLineItems
             .map((lineItem) => {
               const config = getQuoteLineItemEditingTypeConfiguration(lineItem);
+              const editingTypeKey =
+                config?.editingTypeKey || getQuoteLineItemEditingTypeKey(lineItem);
+              const matchedOption = editingTypeKey
+                ? availableEditingTypes.find(
+                    (type) =>
+                      type.key.trim().toLowerCase() ===
+                      editingTypeKey.trim().toLowerCase(),
+                  )
+                : undefined;
               const label =
                 config?.editingTypeLabel ||
                 getQuoteLineItemEditingTypeLabel(lineItem) ||
+                matchedOption?.label ||
                 "";
               return {
                 label: label.trim(),
-                key: config?.editingTypeKey?.trim().toLowerCase() || "",
-                isCustom: config?.isCustomEditingType ?? true,
+                key: editingTypeKey?.trim().toLowerCase() || matchedOption?.key || "",
+                isCustom: config?.isCustomEditingType ?? matchedOption?.isCustom ?? true,
                 quantity: Number(lineItem.quantity ?? 1),
                 // Some quote responses include estimated_pricing: 0 as a
                 // placeholder while unit_rate still has the saved price.
@@ -2087,6 +2130,44 @@ function CreateQuotePageContent() {
               };
             })
             .filter((selection) => selection.label);
+
+          // Older quote versions may store several editing labels in one line.
+          // Restore those as separate catalog selections when every label maps.
+          const expandedEditingSelections = editingSelections.flatMap((selection) => {
+            const exactMatch = availableEditingTypes.find(
+              (type) =>
+                normalizeShootTypeLabelKey(type.label) ===
+                normalizeShootTypeLabelKey(selection.label),
+            );
+            if (exactMatch) {
+              return [{
+                ...selection,
+                label: exactMatch.label,
+                key: exactMatch.key,
+                isCustom: exactMatch.isCustom,
+              }];
+            }
+
+            const labels = selection.label.split(",").map((label) => label.trim()).filter(Boolean);
+            const matchedTypes = labels.map((label) =>
+              availableEditingTypes.find(
+                (type) =>
+                  normalizeShootTypeLabelKey(type.label) ===
+                  normalizeShootTypeLabelKey(label),
+              ),
+            );
+            if (labels.length < 2 || matchedTypes.some((type) => !type)) {
+              return [selection];
+            }
+
+            return matchedTypes.map((type) => ({
+              ...selection,
+              label: type!.label,
+              key: type!.key,
+              isCustom: type!.isCustom,
+            }));
+          });
+          editingSelections.splice(0, editingSelections.length, ...expandedEditingSelections);
 
           const fallbackEditingLabel =
             parsedShootTypeLabels.editing || hydratedState.shootTypeLabel;
@@ -2208,13 +2289,15 @@ function CreateQuotePageContent() {
           }
         }
 
-        setView(requestedEditView);
         hydratedQuoteIdRef.current = hydrationKey;
       } catch (error) {
-        console.error("Failed to hydrate quote editor", error);
-        toast.error("Failed to preload quote details");
+        if (isMounted) {
+          console.error("Failed to hydrate quote editor", error);
+          setQuoteLoadError("Failed to preload quote details");
+          toast.error("Failed to preload quote details");
+        }
       } finally {
-        if (hydratingQuoteIdRef.current === hydrationKey) {
+        if (isMounted && hydratingQuoteIdRef.current === hydrationKey) {
           hydratingQuoteIdRef.current = null;
         }
 
@@ -2228,25 +2311,20 @@ function CreateQuotePageContent() {
 
     return () => {
       isMounted = false;
+      if (hydratingQuoteIdRef.current === hydrationKey) {
+        hydratingQuoteIdRef.current = null;
+      }
     };
   }, [
     editQuoteId,
-    fetchEditingTypes,
-    fetchShootTypes,
     isCatalogLoaded,
     quoteToEdit,
-    requestedEditView,
   ]);
 
   React.useEffect(() => {
-    if (
-      !editQuoteId ||
-      !hydratedQuoteIdRef.current?.startsWith(`${editQuoteId}:`)
-    ) {
-      return;
+    if (editQuoteId) {
+      setView(requestedEditView);
     }
-
-    setView(requestedEditView);
   }, [editQuoteId, requestedEditView]);
 
   const getServiceDurationCap = React.useCallback(() => bookingDurationHours, [bookingDurationHours]);
@@ -5218,7 +5296,13 @@ function CreateQuotePageContent() {
     [isEditMode],
   );
 
-  if (isEditMode && !quoteToEdit && (isLoadingQuoteToEdit || isHydratingQuoteToEdit)) {
+  const isQuoteEditorReady = Boolean(
+    quoteToEdit &&
+    isCatalogLoaded &&
+    hydratedQuoteIdRef.current === getQuoteHydrationKey(editQuoteId || "", quoteToEdit),
+  );
+
+  if (isEditMode && (quoteLoadError || isLoadingQuoteToEdit || isHydratingQuoteToEdit || !isQuoteEditorReady)) {
     return (
       <div
         className={`quote-editor-theme min-h-screen ${isDark
@@ -5246,8 +5330,14 @@ function CreateQuotePageContent() {
         <div className="px-4 pb-12 pt-6 lg:px-9 lg:pt-8">
           <div className="flex min-h-[420px] items-center justify-center rounded-[18px] border border-[#3D3D3D] bg-[#171717]">
             <div className="flex items-center gap-3 text-sm text-white/70">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#E8D1AB] border-t-transparent" />
-              Loading quote details...
+              {quoteLoadError ? (
+                <span role="alert">{quoteLoadError}. Please reload to try again.</span>
+              ) : (
+                <>
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#E8D1AB] border-t-transparent" />
+                  Loading quote details...
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -6415,6 +6505,7 @@ function CreateQuotePageContent() {
                                       return (
                                         <div key={type.id} className="relative">
                                           <button
+                                            aria-pressed={selectedEditingTypes.includes(type.id)}
                                             onClick={() =>
                                               setSelectedEditingTypes((prev) => {
                                                 if (prev.includes(type.id)) {

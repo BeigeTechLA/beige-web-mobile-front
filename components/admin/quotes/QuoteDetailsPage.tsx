@@ -51,6 +51,7 @@ import {
   formatQuoteCurrency,
   formatQuoteDate,
   getQuoteDisplayShootTypeLabel,
+  getQuoteDisplayShootTypeLabelForService,
   getQuoteNumber,
   getQuoteSalesperson,
   getQuoteText,
@@ -2243,7 +2244,9 @@ export default function QuoteDetailsPage({
       });
 
       const selectedVersionNumberForEdit = getRawVersionNumber(selectedVersionMeta);
-      if (selectedVersionNumberForEdit != null) {
+      // Service editing should use the live quote data, matching full quote
+      // editing. Historical version line items can be stale for editing types.
+      if (targetView !== "services" && selectedVersionNumberForEdit != null) {
         query.set("editVersion", String(selectedVersionNumberForEdit));
       }
 
@@ -2882,7 +2885,10 @@ export default function QuoteDetailsPage({
                     <ServiceLineCard
                       key={item.id}
                       item={item}
-                      shootType={shootType}
+                      shootType={getQuoteDisplayShootTypeLabelForService(
+                        quote,
+                        item.name,
+                      )}
                     />
                   ))}
                 </div>

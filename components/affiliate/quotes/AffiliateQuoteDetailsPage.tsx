@@ -32,6 +32,7 @@ import {
   formatQuoteCurrency,
   formatQuoteDate,
   getQuoteDisplayShootTypeLabel,
+  getQuoteDisplayShootTypeLabelForService,
   getQuoteNumber,
   getQuoteSalesperson,
   getQuoteText,
@@ -760,7 +761,14 @@ export default function AffiliateQuoteDetailsPage({
               {serviceItems.length > 0 ? (
                 <div className="space-y-4">
                   {serviceItems.map((item) => (
-                    <ServiceLineCard key={item.id} item={item} shootType={shootType} />
+                    <ServiceLineCard
+                      key={item.id}
+                      item={item}
+                      shootType={getQuoteDisplayShootTypeLabelForService(
+                        quote,
+                        item.name,
+                      )}
+                    />
                   ))}
                 </div>
               ) : (
