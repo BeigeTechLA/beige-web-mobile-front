@@ -2280,12 +2280,19 @@ function CreateQuotePageContent() {
                 key: config?.editingTypeKey?.trim().toLowerCase() || "",
                 isCustom: config?.isCustomEditingType ?? true,
                 quantity: Number(lineItem.quantity ?? 1),
-                estimatedPrice: Number(
-                  lineItem.estimated_pricing ??
-                  lineItem.unit_rate ??
-                  lineItem.unit_price ??
-                  0
-                ),
+                // Some quote responses include estimated_pricing: 0 as a
+                // placeholder while unit_rate still has the saved price.
+                // Prefer the first positive persisted price so reopening and
+                // saving an edit does not overwrite it with zero.
+                estimatedPrice: [
+                  lineItem.estimated_pricing,
+                  lineItem.unit_rate,
+                  lineItem.unit_price,
+                  lineItem.price,
+                  Number(lineItem.quantity ?? 1) > 0
+                    ? Number(lineItem.line_total ?? 0) / Number(lineItem.quantity ?? 1)
+                    : 0,
+                ].map(Number).find((price) => Number.isFinite(price) && price > 0) ?? 0,
               };
             })
             .filter((selection) => selection.label);
@@ -2293,11 +2300,56 @@ function CreateQuotePageContent() {
           const fallbackEditingLabel =
             parsedShootTypeLabels.editing || hydratedState.shootTypeLabel;
           if (editingSelections.length === 0 && fallbackEditingLabel.trim()) {
-            editingSelections.push({
-              label: fallbackEditingLabel.trim(),
-              key: "",
-              isCustom: true,
-            });
+            const fallbackLabels = fallbackEditingLabel
+              .split(",")
+              .map((label) => label.trim())
+              .filter(Boolean);
+            const matchedFallbackTypes = fallbackLabels.map((label) =>
+              availableEditingTypes.find(
+                (type) =>
+                  normalizeShootTypeLabelKey(type.label) ===
+                  normalizeShootTypeLabelKey(label),
+              ),
+            );
+            const editingServiceId = hydratedState.selectedServices.find((serviceId) =>
+              isEditingServiceLabel(
+                hydratedState.services.find((service) => service.id === serviceId)?.label || "",
+              ),
+            );
+            const fallbackPrice = editingLineItems
+              .map((lineItem) => [
+                lineItem.estimated_pricing,
+                lineItem.unit_rate,
+                lineItem.unit_price,
+                lineItem.price,
+              ].map(Number).find((price) => Number.isFinite(price) && price > 0))
+              .find((price) => price !== undefined) ??
+              hydratedState.serviceConfigs[editingServiceId || ""]?.estimatedPrice ??
+              0;
+
+            if (
+              fallbackLabels.length > 1 &&
+              matchedFallbackTypes.every((type) => Boolean(type))
+            ) {
+              matchedFallbackTypes.forEach((type) => {
+                if (!type) return;
+                editingSelections.push({
+                  label: type.label,
+                  key: type.key,
+                  isCustom: type.isCustom,
+                  quantity: 1,
+                  estimatedPrice: fallbackPrice,
+                });
+              });
+            } else {
+              editingSelections.push({
+                label: fallbackEditingLabel.trim(),
+                key: "",
+                isCustom: true,
+                quantity: 1,
+                estimatedPrice: fallbackPrice,
+              });
+            }
           }
 
           if (editingSelections.length > 0) {
