@@ -20,3 +20,19 @@ export function getCPRequirements(value: unknown): CPRequirements | null {
   })) as CPRequirements;
   return Object.values(counts).some(Boolean) ? counts : null;
 }
+
+export function getRequiredCPCount(crewRoles: unknown, crewSizeNeeded?: unknown): number {
+  const roles = getCPRequirements(crewRoles);
+  if (roles) return Object.values(roles).reduce((sum, count) => sum + count, 0);
+  const total = Number(crewSizeNeeded);
+  return Number.isInteger(total) && total > 0 ? total : 0;
+}
+
+export function getCPCompensationReference(shootAmount: number, requiredCount: number) {
+  const budget = Number((Math.max(0, shootAmount) * 0.25).toFixed(2));
+  return {
+    budget,
+    perCreator: Number.isInteger(requiredCount) && requiredCount > 0
+      ? Number((budget / requiredCount).toFixed(2)) : 0,
+  };
+}

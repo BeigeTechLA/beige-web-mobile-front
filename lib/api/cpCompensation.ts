@@ -131,6 +131,7 @@ export type PendingCompensationShoot = {
   content_type?: string | null;
   event_date?: string | null;
   shoot_amount: number;
+  required_cp_count?: number;
   margin_percent?: number | null;
   customer?: {
     name?: string | null;

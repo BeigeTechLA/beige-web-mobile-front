@@ -79,7 +79,7 @@ export function SendAgreementModal({
               ? `One common agreement will be sent to ${cpNamesText}. Each CP must review and accept the agreement individually.`
               : `Separate agreements will be sent to ${cpNamesText}. Each CP will receive their own agreement and must accept it before their assignment is confirmed.`}
           </p>
-          {assignAndSubmit && <p className={`text-sm ${isDark ? "text-white/70" : "text-black/70"}`}>This will submit their compensation details to Finance for approval.</p>}
+          {assignAndSubmit && <p className={`text-sm ${isDark ? "text-white/70" : "text-black/70"}`}>Compensation offers are saved with these invitations. Each CP's compensation appears in Finance for approval only after they accept an available position.</p>}
           {/* CP List Box */}
           <div className={`border rounded-xl p-3.5 space-y-3 ${isDark ? "bg-[#0E0E0D] border-[#1E1E1C] " : "bg-[#D7D7D7]/80 border-[#D7D7D7]"}`}>
             {
@@ -158,7 +158,7 @@ export function SendAgreementModal({
             disabled={isSubmitting}
             className="flex-1 w-full h-12 px-5 rounded-lg text-sm font-semibold bg-[#E8D1AB] text-black hover:bg-[#D5C5A8] transition-all"
           >
-            {isSubmitting ? "Sending..." : assignAndSubmit ? "Send Agreement & Submit to Finance" : "Save and Send"}
+            {isSubmitting ? "Sending..." : assignAndSubmit ? "Send Agreements & Invitations" : "Save and Send"}
           </Button>
         </DialogFooter>
       </DialogContent>

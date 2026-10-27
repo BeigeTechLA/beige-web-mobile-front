@@ -142,7 +142,8 @@ export default function AssignedCP({
   const savedRequirements = getCPRequirements(crewRoles);
 
   // CPs still to assign (alert next to the title while short)
-  const missingCPs = Math.max(0, (Number(crewSizeNeeded) || 0) - crewMembers.length);
+  const acceptedCPCount = crewMembers.filter((member) => normalizeStatus(member.acceptance_status) === "accepted").length;
+  const missingCPs = Math.max(0, (Number(crewSizeNeeded) || 0) - acceptedCPCount);
   const isShortOfCPs = missingCPs > 0;
   const missingCPsLabel = `${missingCPs} CP${missingCPs === 1 ? "" : "s"} Need${missingCPs === 1 ? "s" : ""} to be Assigned`;
   const userTypeId = Number(user?.user_type_id ?? user?.userTypeId);

@@ -8,6 +8,7 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { cpCompensationApi, normalizeCpRoleLabel, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 import AdvancePaymentModal from "./AdvancePaymentModal";
 import { useRouter } from "next/navigation";
+import { getCPCompensationReference } from "@/lib/utils/cpRequirements";
 
 interface AddCompensationModalProps {
   isOpen: boolean;
@@ -303,9 +304,9 @@ export default function AddCompensationModal({
   const syncCreatorFormsForCompensationMethod = useCallback(() => {
     if (!currentShoot) return;
 
-    const defaultPerCreator = currentShoot.creators.length
-      ? toMoney((Number(currentShoot.shoot_amount || 0) * 0.25) / currentShoot.creators.length)
-      : 0;
+    const defaultPerCreator = getCPCompensationReference(
+      Number(currentShoot.shoot_amount || 0), Number(currentShoot.required_cp_count || 0)
+    ).perCreator;
 
     setCreatorForms((prev) => currentShoot.creators.reduce<Record<string, CreatorFormState>>((acc, creator) => {
       const id = String(creator.creator_id);
@@ -391,9 +392,9 @@ export default function AddCompensationModal({
       return;
     }
 
-    const defaultPerCreator = currentShoot.creators.length
-      ? toMoney((Number(currentShoot.shoot_amount || 0) * 0.25) / currentShoot.creators.length)
-      : 0;
+    const defaultPerCreator = getCPCompensationReference(
+      Number(currentShoot.shoot_amount || 0), Number(currentShoot.required_cp_count || 0)
+    ).perCreator;
 
     setSelectedCreators(currentShoot.creators.map((creator) => String(creator.creator_id)));
     setCreatorForms(
@@ -433,7 +434,10 @@ export default function AddCompensationModal({
     return getCreatorBreakdownForForm(form, form.rateType).total;
   };
 
-  const totalCompensation = selectedCreators.reduce((sum, creatorId) => sum + getCreatorTotal(creatorId), 0);
+  const requiredCPCount = Number(currentShoot?.required_cp_count || 0);
+  const compensationReference = getCPCompensationReference(shootAmount, requiredCPCount);
+  // This is a planning reference. Invitations are offers, not committed payouts.
+  const totalCompensation = compensationReference.budget;
   const compensationPercentage = shootAmount > 0 ? (totalCompensation / shootAmount) * 100 : 0;
   const marginAmount = shootAmount - totalCompensation;
   const marginPercentage = shootAmount > 0 ? (marginAmount / shootAmount) * 100 : 0;
@@ -615,6 +619,7 @@ export default function AddCompensationModal({
 
   const handleFormSubmit = async () => {
     if (!currentShoot) return;
+    if (compensationMethod === "equal" && requiredCPCount < 1) return;
 
     const creators = await Promise.all(selectedCreators.map(async (creatorId) => {
       const form = creatorForms[creatorId] || {
@@ -811,7 +816,7 @@ export default function AddCompensationModal({
                 </div>
 
                 <div className="min-w-0">
-                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Total Compensation</p>
+                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>CP Budget Reference</p>
                   <p className="text-lg lg:text-xl font-bold leading-tight truncate" style={{ color: percentMeta.color }}>
                     {formatCurrency(totalCompensation)}
                   </p>
@@ -821,7 +826,7 @@ export default function AddCompensationModal({
                 </div>
 
                 <div className="min-w-0">
-                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Estimated Margin</p>
+                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Reference Margin</p>
                   <p className="text-lg lg:text-xl font-bold leading-tight truncate" style={{ color: marginAmount >= 0 ? "#10B981" : "#EF4444" }}>
                     {formatCurrency(marginAmount)}
                   </p>
@@ -831,7 +836,7 @@ export default function AddCompensationModal({
                 </div>
 
                 <div className="min-w-0 w-full">
-                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Profitability Estimation</p>
+                  <p className={`text-xs lg:text-[13px] leading-tight ${isDark ? "text-white" : "text-black"}`}>Budget Reference</p>
                   <div className="flex gap-1">
                     <div className={`w-full h-1.5 rounded-full mt-3 overflow-hidden ${isDark ? "bg-black/40" : "bg-[#3D3D3D]/20"}`}>
                       <div
@@ -842,10 +847,18 @@ export default function AddCompensationModal({
                     <TrendingUp style={{ color: percentMeta.color }} />
                   </div>
                   <p className={`text-xs lg:text-[13px] leading-tight mt-1.5 ${isDark ? "text-white/70" : "text-black/60"}`}>
-                    {percentMeta.label}
+                    25% CP budget
                   </p>
                 </div>
               </div>
+
+              <p className={`text-sm leading-relaxed rounded-lg border p-4 ${isDark ? "border-white/15 text-white/75" : "border-black/15 text-black/70"}`}>
+                {compensationMethod === "equal"
+                  ? requiredCPCount > 0
+                    ? `You can invite more CPs than required. Each offer is ${formatCurrency(compensationReference.budget)} ÷ ${requiredCPCount} required CP${requiredCPCount === 1 ? "" : "s"} = ${formatCurrency(compensationReference.perCreator)} per CP, regardless of how many you invite. Positions are filled in acceptance order, subject to the required roles. Remaining requests close when the positions are filled.`
+                    : "Set the shoot's CP requirements before using Equal Split, or choose Manual to enter your own amounts."
+                  : "Enter your own compensation amount for each CP. The shoot amount and 25% CP budget above are reference figures and stay unchanged when you edit offers. Finance will show only CPs who accept. Positions are filled in acceptance order, subject to the required roles."}
+              </p>
 
               <div className="flex flex-col gap-3 lg:gap-5">
                 <label className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Select Creative Partner</label>
@@ -1178,7 +1191,7 @@ export default function AddCompensationModal({
             </button>
             {!onPrepareAgreement && <button
               type="button"
-              disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0}
+              disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0 || (compensationMethod === "equal" && requiredCPCount < 1)}
               onClick={handleFormSubmit}
               className="h-12 rounded-lg flex items-center justify-center bg-[#10B981] hover:bg-[#10B981]/90 text-black font-semibold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
             >
@@ -1186,7 +1199,7 @@ export default function AddCompensationModal({
             </button>}
             {showAgreementAction && <button
               type="button"
-              disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0 || (!onPrepareAgreement && !canOpenExistingAgreement)}
+              disabled={isSubmitting || !selectedShootId || selectedCreators.length === 0 || (compensationMethod === "equal" && requiredCPCount < 1) || (!onPrepareAgreement && !canOpenExistingAgreement)}
               onClick={onPrepareAgreement ? handleFormSubmit : () => router.push(`/admin/shoots/${selectedShootId}/shoot-agreement`)}
               title="Create a shoot agreement"
               className="h-12 rounded-lg flex items-center justify-center bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black font-semibold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"

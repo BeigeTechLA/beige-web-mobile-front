@@ -13,6 +13,7 @@ import { salesApi } from "@/lib/api";
 import { useTheme } from "next-themes";
 import AddCompensationModal from "@/components/admin/finances/AddCompensationModal";
 import { cpCompensationApi, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
+import { getRequiredCPCount } from "@/lib/utils/cpRequirements";
 
 type SelectedCreative = {
   id: number;
@@ -268,6 +269,7 @@ export default function SelectCreativesPage() {
 
     return {
       booking_id: bookingId,
+      required_cp_count: getRequiredCPCount(booking?.crew_roles, booking?.crew_size_needed),
       shoot_name: asText(booking?.project_name ?? leadRecord.project_name, `Shoot #${bookingId}`),
       shoot_type: asNullableText(booking?.shoot_type || booking?.event_type),
       content_type: asNullableText(booking?.content_type),

@@ -14,7 +14,7 @@ import { type AddCpCompensationPayload, type PendingCompensationShoot } from "@/
 import { shootAgreementPlanKey, type ShootAgreementPlan } from "@/lib/shootAgreementPlan";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { formatCurrency } from "@/lib/utils";
-import { getCPRequirements } from "@/lib/utils/cpRequirements";
+import { getCPRequirements, getRequiredCPCount } from "@/lib/utils/cpRequirements";
 
 type FulfillmentStats = {
   fulfillment_stats?: {
@@ -260,6 +260,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       content_type: asNullableText(statsRecord.content_type),
       event_date: asNullableText(statsRecord.event_date),
       shoot_amount: shootAmount,
+      required_cp_count: getRequiredCPCount(statsRecord.crew_roles, statsRecord.crew_size_needed),
       margin_percent: statsRecord.margin_percent == null ? null : toNumber(statsRecord.margin_percent, 0),
       customer: {
         name: asNullableText(statsRecord.customer_name),
