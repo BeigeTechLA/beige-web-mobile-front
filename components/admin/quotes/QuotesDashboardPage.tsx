@@ -422,6 +422,15 @@ const getInitials = (value: string) => {
   return parts.map((part) => part[0]?.toUpperCase() ?? "").join("");
 };
 
+const formatRoleLabel = (role?: string) =>
+  (role ?? "")
+    .trim()
+    .toLowerCase()
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
 const parseDateValue = (value: string) => {
   if (!value) {
     return null;
@@ -1812,7 +1821,7 @@ export default function QuotesDashboardPage({
                           <span>{salesperson.name}</span>
                           {salesperson.role ? (
                             <span className={`mt-1 text-xs ${isDark ? "text-white/45" : "text-black/45"}`}>
-                              {salesperson.role}
+                              {formatRoleLabel(salesperson.role)}
                             </span>
                           ) : null}
                         </div>
