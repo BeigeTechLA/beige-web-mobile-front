@@ -5,6 +5,7 @@ export type NormalizedQuoteLineItemSection = "service" | "addon" | "logistics" |
 
 export type NormalizedQuoteLineItem = {
   id: string;
+  catalogItemId?: string;
   name: string;
   section: NormalizedQuoteLineItemSection;
   quantity: number;
@@ -13,6 +14,7 @@ export type NormalizedQuoteLineItem = {
   unitRate: number;
   amount: number;
   subtitle?: string;
+  editingTypeKey?: string;
 };
 
 export type QuoteAdditionalPaymentDetails = {
@@ -546,12 +548,18 @@ export const getQuoteDisplayShootTypeLabel = (
 ) => {
   const rawShootTypeLabel = getQuoteText(quote?.video_shoot_type);
   const parsedShootTypeLabels = parseStoredShootTypeLabels(rawShootTypeLabel);
-  const editingConfiguration = quote
+  const editingTypeLabels = quote
     ? extractQuoteLineItems(quote)
         .map((item) => getQuoteLineItemEditingTypeConfiguration(item))
-        .find((item): item is QuoteLineItemEditingTypeConfiguration => Boolean(item)) || null
-    : "";
-  const editingTypeLabel = editingConfiguration?.editingTypeLabel || "";
+        .map((item) => item?.editingTypeLabel || "")
+        .filter(Boolean)
+        .filter((label, index, labels) =>
+          labels.findIndex(
+            (candidate) => normalizeShootTypeLabelKey(candidate) === normalizeShootTypeLabelKey(label)
+          ) === index
+        )
+    : [];
+  const editingTypeLabel = editingTypeLabels.join(", ");
 
   if (!editingTypeLabel) {
     return rawShootTypeLabel;
@@ -601,12 +609,16 @@ export const normalizeQuoteLineItems = (
       }
     }
 
-    const editingTypeLabel = getQuoteLineItemEditingTypeLabel(item);
+    const editingTypeConfiguration = getQuoteLineItemEditingTypeConfiguration(item);
+    const editingTypeLabel = editingTypeConfiguration?.editingTypeLabel || "";
     const directSubtitle = getQuoteText(item.subtitle);
     const resolvedName = resolveQuoteLineItemDisplayName(item);
 
     return {
       id: String(item.line_item_id ?? item.catalog_item_id ?? item.item_id ?? item.id ?? index),
+      ...(item.catalog_item_id !== null && item.catalog_item_id !== undefined
+        ? { catalogItemId: String(item.catalog_item_id) }
+        : {}),
       name: formatQuoteItemDisplayName(resolvedName),
       section,
       quantity,
@@ -615,6 +627,9 @@ export const normalizeQuoteLineItems = (
       unitRate,
       amount,
       subtitle: editingTypeLabel ? `(${editingTypeLabel})` : directSubtitle || undefined,
+      ...(editingTypeConfiguration?.editingTypeKey
+        ? { editingTypeKey: editingTypeConfiguration.editingTypeKey }
+        : {}),
     };
   });
 

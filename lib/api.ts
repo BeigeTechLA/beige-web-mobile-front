@@ -122,6 +122,7 @@ export type AdminUserRoleRecord = {
   email: string;
   role_id: number | null;
   role_name: string | null;
+  user_created_by_name?: string | null;
   created_at: string | null;
   updated_at?: string | null;
   is_active: number;
@@ -247,6 +248,7 @@ export type UserRoleDetailsResponse = {
     email: string;
     user_type: number | null;
     user_type_name: string | null;
+    phone_number?: string | null;
     is_internal_member?: number;
     is_active: number;
     status_label: 'Active' | 'In-Active';
@@ -4229,6 +4231,27 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to delete user permission',
+      };
+    }
+  },
+
+  updateInternalUserProfile: async (
+    userId: number | string,
+    payload: { name: string; email: string; phone_number: string },
+  ) => {
+    try {
+      const response = await api.put(`admin/users/${userId}/profile`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Update Internal User Profile Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        status: error.response?.status,
+        code: error.response?.data?.code,
+        conflicts: error.response?.data?.conflicts,
+        error:
+          error.response?.data?.message || error.message || 'Failed to update user profile',
       };
     }
   },

@@ -1928,7 +1928,10 @@ function CreateQuotePageContent() {
             })
             : [];
         const mergedEditingTypes = editingTypeOptionsRef.current
-          .filter((type) => type.isCustom)
+          .filter(
+            (type) =>
+              type.isCustom || type.id.startsWith("edit_editing_shoot_type_"),
+          )
           .reduce(
             (mergedOptions, customType) =>
               appendShootTypeOption(mergedOptions, customType),
@@ -1963,6 +1966,15 @@ function CreateQuotePageContent() {
     },
     [services],
   );
+
+  // Hydration must not be cancelled when these callbacks change identity
+  // (they change whenever hydration itself calls setServices).
+  const fetchShootTypesRef = React.useRef(fetchShootTypes);
+  const fetchEditingTypesRef = React.useRef(fetchEditingTypes);
+  React.useEffect(() => {
+    fetchShootTypesRef.current = fetchShootTypes;
+    fetchEditingTypesRef.current = fetchEditingTypes;
+  }, [fetchShootTypes, fetchEditingTypes]);
 
   React.useEffect(() => {
     if (!editQuoteId) {
@@ -2138,14 +2150,14 @@ function CreateQuotePageContent() {
 
         const availableShootTypes =
           hydratedState.selectedServices.length > 0
-            ? await fetchShootTypes(
+            ? await fetchShootTypesRef.current(
               hydratedState.selectedServices,
               hydratedState.services,
             )
             : { video: [], photo: [] };
         let availableEditingTypes: ShootTypeOption[] = [];
         if (hydratedState.selectedServices.length > 0) {
-          availableEditingTypes = await fetchEditingTypes(
+          availableEditingTypes = await fetchEditingTypesRef.current(
             hydratedState.selectedServices,
             hydratedState.services,
           );
@@ -2376,8 +2388,6 @@ function CreateQuotePageContent() {
     };
   }, [
     editQuoteId,
-    fetchEditingTypes,
-    fetchShootTypes,
     isCatalogLoaded,
     quoteToEdit,
     requestedEditView,

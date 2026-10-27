@@ -9,6 +9,7 @@ import { RoleUpdatedSuccessModal } from "@/components/admin/roles-permissions/Ro
 import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
 import ActionSuccessModal from "@/components/admin/ActionSuccessModal";
 import { OpenRecordsReassignModal } from "@/components/admin/roles-permissions/OpenRecordsReassignModal";
+import { EditUserProfileModal } from "@/components/admin/roles-permissions/EditUserProfileModal";
 import {
   adminApi,
   type AdminRoleRecord,
@@ -190,6 +191,9 @@ export default function AdminRoleEditDetailsRoute() {
   const [roleName, setRoleName] = useState("Role");
   const [roleDescription, setRoleDescription] = useState("");
   const [userName, setUserName] = useState("User");
+  const [userEmail, setUserEmail] = useState("");
+  const [userPhone, setUserPhone] = useState("");
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [status, setStatus] = useState("Active");
   const [createdAt, setCreatedAt] = useState("-");
   const [updatedAt, setUpdatedAt] = useState("-");
@@ -298,6 +302,8 @@ export default function AdminRoleEditDetailsRoute() {
             ? normalizeUserPermissionsPayload(data.role_permissions || {})
             : removeRolesPermissionsFromMap(normalizeUserPermissionsPayload(data.role_permissions || {}));
           setUserName(data.user.name || "User");
+          setUserEmail(data.user.email || "");
+          setUserPhone(data.user.phone_number || "");
           setCurrentRoleId(data.role?.role_id ? String(data.role.role_id) : "");
           setCurrentRoleLabel(data.display_role || data.role?.name || "Unassigned");
           setPermissionScope(nextScope);
@@ -602,8 +608,23 @@ export default function AdminRoleEditDetailsRoute() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDelete = async () => {
-    if (mode === "role") {
+  const handleProfileSaved = (profile: {
+    name: string;
+    email: string;
+    phone_number: string;
+  }) => {
+    setUserName(profile.name);
+    setUserEmail(profile.email);
+    setUserPhone(profile.phone_number);
+    setUpdatedAt(formatDateTime(new Date().toISOString()));
+    setIsProfileModalOpen(false);
+
+    setSuccessTitle("Profile Updated Successfully");
+    setSuccessDescription("The user's name, email and phone number have been updated successfully.");
+    setIsSuccessModalOpen(true);
+  };
+
+  const handleDelete = async () => {    if (mode === "role") {
       await handleDeleteRole();
       return;
     }
@@ -688,6 +709,7 @@ export default function AdminRoleEditDetailsRoute() {
         onRowsChange={setRows}
         onOpenModal={() => setIsUpdateModalOpen(true)}
         onPrimaryAction={mode === "role" ? handlePrimaryAction : handleUpdateUserPermissions}
+        onEditProfile={mode === "user" ? () => setIsProfileModalOpen(true) : undefined}
         mode={mode}
         canEditPage={canEditPage}
         setIsUpdateModalOpen={setIsUpdateModalOpen}
@@ -754,6 +776,18 @@ export default function AdminRoleEditDetailsRoute() {
         subtext={`${userName} has been deleted successfully.`}
         buttonText="Done"
       />
+
+      {mode === "user" && userId ? (
+        <EditUserProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          userId={userId}
+          initialName={userName}
+          initialEmail={userEmail}
+          initialPhone={userPhone}
+          onSaved={handleProfileSaved}
+        />
+      ) : null}
     </PermissionGuard>
   );
 }

@@ -90,6 +90,8 @@ const mapUserToPermissionUser = (
   subtitle: user.email,
   role_id: user.role_id,
   role: user.role_name || "Unassigned",
+  userCreatedByName: user.user_created_by_name ?? null,
+  userCreatedAt: user.created_at ?? null,
   created: formatDateTime(user.created_at),
   updated: formatDateTime(user.updated_at),
   status: user.status_label,

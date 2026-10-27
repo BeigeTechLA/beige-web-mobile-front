@@ -22,6 +22,7 @@ type RoleEditDetailsPageProps = {
   onRowsChange?: React.Dispatch<React.SetStateAction<PermissionMatrixRow[]>>;
   onOpenModal?: () => void;
   onPrimaryAction?: () => void;
+  onEditProfile?: () => void;
   mode: string;
   canEditPage: boolean;
   setIsUpdateModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -49,6 +50,7 @@ export function RoleEditDetailsPage({
   onRowsChange,
   onOpenModal,
   onPrimaryAction,
+  onEditProfile,
   mode,
   canEditPage,
   setIsUpdateModalOpen
@@ -79,10 +81,25 @@ export function RoleEditDetailsPage({
   return (
     // <div className={`min-h-screen transition-colors duration-300 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F4F5F7] text-[#101010]"}`}>
     <div className="overflow-hidden p-4 pb-30 lg:p-6 lg:px-10 lg:py-9 space-y-4 lg:space-y-8 no-scrollbar" style={{ fontFamily: 'var(--font-instrument-sans)' }}>
-      <Button onClick={() => router.back()} className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 mb-5 p-0`}>
+    <div className="mb-5 flex items-center justify-between">
+      <Button onClick={() => router.back()} className={`${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"} transition-colors flex items-center gap-2 p-0`}>
         <ArrowLeft size={24} />
         <span className="text-sm font-medium">Back</span>
       </Button>
+        {mode === "user" && onEditProfile ? (
+          <button
+            type="button"
+            onClick={onEditProfile}
+            disabled={isLoading || !canEditPage}
+            className={`inline-flex h-12 items-center justify-center rounded-lg border px-5 text-[15px] font-semibold transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${isDark
+              ? "border-white/10 bg-[#171717] text-white hover:bg-white/5"
+              : "border-[#E3E3E3] bg-white text-[#101010] hover:bg-black/5"
+              }`}
+          >
+            Edit Profile
+          </button>
+        ) : null}
+      </div>
 
       <div className="w-full flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="w-full flex justify-between ">
@@ -106,9 +123,11 @@ export function RoleEditDetailsPage({
               ) : null}
             </div>
           </div>
-          <span className={`inline-flex h-8 items-center justify-center rounded-full px-4 text-xs lg:text-sm font-medium ${status.toLowerCase() === "active" ? (isDark ? "bg-[#D4F9DB] text-[#1EAD52]" : "bg-[#EAF8EE] text-[#1EAD52]") : (isDark ? "bg-[#2D1E1E] text-[#EA5455]" : "bg-[#FEECEC] text-[#EA5455]")}`}>
-            {status}
-          </span>
+          <div className="flex shrink-0 flex-col items-end gap-3">
+            <span className={`inline-flex h-8 items-center justify-center rounded-full px-4 text-xs lg:text-sm font-medium ${status.toLowerCase() === "active" ? (isDark ? "bg-[#D4F9DB] text-[#1EAD52]" : "bg-[#EAF8EE] text-[#1EAD52]") : (isDark ? "bg-[#2D1E1E] text-[#EA5455]" : "bg-[#FEECEC] text-[#EA5455]")}`}>
+              {status}
+            </span>
+          </div>
         </div>
       </div>
 

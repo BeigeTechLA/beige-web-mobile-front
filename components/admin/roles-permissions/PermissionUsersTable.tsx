@@ -162,6 +162,8 @@ const mapApiUserToPermissionUser = (
   subtitle: user.email,
   role_id: user.role_id,
   role: user.role_name || "Unassigned",
+  userCreatedByName: user.user_created_by_name ?? null,
+  userCreatedAt: user.created_at ?? null,
   created: user.created_at || "",
   updated: user.updated_at || user.created_at || "",
   status: user.status_label,
@@ -1255,9 +1257,34 @@ export function PermissionUsersTable({
             <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-3.5">
               {isLoadingHistory ? (
                 <div className={`py-10 text-center text-sm ${isDark ? "text-white/50" : "text-[#32323280]"}`}>Loading history...</div>
-              ) : selectedUserHistoryGroups.length > 0 || selectedUserReassignmentEvents.length > 0 ? (
+              ) : historyUser.userCreatedByName || selectedUserHistoryGroups.length > 0 || selectedUserReassignmentEvents.length > 0 ? (
                 <>
-                {selectedUserHistoryGroups.map(({ deleted, restored }) => {
+                  {historyUser.userCreatedByName ? (
+                    <div className={`relative rounded-[14px] border p-4 ${isDark ? "border-white/[0.07] bg-[#1a1a1a]" : "border-[#E3E3E3] bg-[#FAFAFA]"}`}>
+                      <div className="relative z-10 flex items-start gap-[13px]">
+                        <div className="relative z-10 flex w-[46px] shrink-0 flex-col items-center self-stretch">
+                          <div className={`flex h-[46px] w-[46px] shrink-0 items-center justify-center overflow-hidden rounded-[11px] text-sm font-bold tracking-[0.3px] ${historyUser.badgeTone}`}>
+                            {historyUser.badge}
+                          </div>
+                        </div>
+                        <div className="relative z-10 min-w-0 flex-1 pt-px">
+                          <p className={`text-[13.5px] font-medium leading-[1.5] ${isDark ? "text-white/90" : "text-[#101010]"}`}>
+                            {historyUser.name} was added by{" "}
+                            <span className="text-[#C9A96E]">{historyUser.userCreatedByName}</span>
+                          </p>
+                          {historyUser.userCreatedAt ? (
+                            <p className={`mt-1 text-[11.5px] ${isDark ? "text-white/32" : "text-[#32323266]"}`}>
+                              {formatDateParts(historyUser.userCreatedAt).date}
+                              <span className="mx-1 opacity-50">•</span>
+                              {formatDateParts(historyUser.userCreatedAt).time || "N/A"}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {selectedUserHistoryGroups.map(({ deleted, restored }) => {
                   const deletedTime = formatDateParts(deleted.created_at || "");
                   const restoredTime = restored ? formatDateParts(restored.created_at || "") : null;
                   const deletedBy = deleted.performed_by_name || "Admin";

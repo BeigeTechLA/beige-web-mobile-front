@@ -33,6 +33,8 @@ export type QuoteReviewComparableItem = {
   label: string;
   name: string;
   subtitle?: string;
+  catalogItemId?: string;
+  editingTypeKey?: string;
   section: "service" | "addon" | "logistics" | "custom";
   amount: number;
 };
@@ -79,12 +81,24 @@ const buildReviewItemKey = (
   section: string,
   name: string,
   subtitle?: string | null,
-) =>
-  [
+  catalogItemId?: string | null,
+  editingTypeKey?: string | null,
+) => {
+  if (editingTypeKey) {
+    return [
+      normalizeReviewKeyPart(section),
+      normalizeReviewKeyPart(catalogItemId || ""),
+      "editing",
+      normalizeReviewKeyPart(editingTypeKey),
+    ].join("|");
+  }
+
+  return [
     normalizeReviewKeyPart(section),
     normalizeReviewKeyPart(name),
     normalizeReviewKeyPart(subtitle || ""),
   ].join("|");
+};
 
 const formatReviewDisplayLabel = (name: string, subtitle?: string | null) =>
   subtitle ? `${name} - ${subtitle.replace(/^\(|\)$/g, "")}` : name;
@@ -269,6 +283,10 @@ export const buildCurrentDraftReviewItems = ({
       typeof item.configuration?.editing_type_label === "string"
         ? item.configuration.editing_type_label.trim()
         : "";
+    const editingTypeKey =
+      typeof item.configuration?.editing_type_key === "string"
+        ? item.configuration.editing_type_key.trim()
+        : "";
     const subtitle = rawSubtitle ? `(${rawSubtitle})` : undefined;
     const section =
       item.section_type === "addon" ||
@@ -303,10 +321,20 @@ export const buildCurrentDraftReviewItems = ({
 
     return {
       id: `${section}-${item.catalog_item_id || item.item_name || index}`,
-      key: buildReviewItemKey(section, name, subtitle),
+      key: buildReviewItemKey(
+        section,
+        name,
+        subtitle,
+        item.catalog_item_id ? String(item.catalog_item_id) : null,
+        editingTypeKey,
+      ),
       label: formatReviewDisplayLabel(name, subtitle),
       name,
       subtitle,
+      ...(item.catalog_item_id
+        ? { catalogItemId: String(item.catalog_item_id) }
+        : {}),
+      ...(editingTypeKey ? { editingTypeKey } : {}),
       section,
       amount,
     };
@@ -350,10 +378,18 @@ export const buildQuoteReviewChangesData = ({
   const originalItemMap = buildReviewItemGroups(
     originalLineItems.map((item) => ({
       id: item.id,
-      key: buildReviewItemKey(item.section, item.name, item.subtitle),
+      key: buildReviewItemKey(
+        item.section,
+        item.name,
+        item.subtitle,
+        item.catalogItemId,
+        item.editingTypeKey,
+      ),
       label: formatReviewDisplayLabel(item.name, item.subtitle),
       name: item.name,
       subtitle: item.subtitle,
+      catalogItemId: item.catalogItemId,
+      editingTypeKey: item.editingTypeKey,
       section: item.section,
       amount: Number(item.amount || 0),
     })),
