@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckSquare, Download, MoveRight, Trash2, X } from "lucide-react";
+import { CheckSquare, Download, Loader2, MoveRight, Trash2, X } from "lucide-react";
 
 type Props = {
   selectedCount: number;
@@ -8,6 +8,7 @@ type Props = {
   isDark: boolean;
   canDelete: boolean;
   canMove: boolean;
+  isDownloading?: boolean;
   onSelectAll: () => void;
   onClear: () => void;
   onMove: () => void;
@@ -17,7 +18,7 @@ type Props = {
 
 export default function FileSelectionToolbar({
   selectedCount, folderCount, isDark, canDelete, canMove,
-  onSelectAll, onClear, onMove, onDownload, onDelete,
+  isDownloading = false, onSelectAll, onClear, onMove, onDownload, onDelete,
 }: Props) {
   const allSelected = folderCount > 0 && selectedCount >= folderCount;
   const buttonBase = "inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40";
@@ -52,10 +53,11 @@ export default function FileSelectionToolbar({
                 <MoveRight size={17} /> Move
               </button>
             )}
-            <button type="button" onClick={onDownload} disabled={!selectedCount || selectedCount > 100}
-              title={selectedCount > 100 ? "Download supports up to 100 selected files at a time" : "Download selected files"}
+            <button type="button" onClick={onDownload} disabled={!selectedCount || isDownloading}
+              title={selectedCount > 100 ? "Select all files in this folder to download them together as a ZIP" : "Download selected files"}
               className={`${buttonBase} ${isDark ? "border border-white/15 bg-white/10 text-white hover:bg-white/15" : "border border-black/10 bg-black/5 text-black hover:bg-black/10"}`}>
-              <Download size={17} /> Download
+              {isDownloading ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
+              {isDownloading ? "Preparing ZIP..." : "Download"}
             </button>
             <button type="button" onClick={onDelete} disabled={!selectedCount || !canDelete}
               className={`${buttonBase} bg-[#F04438] text-white hover:bg-[#d7372d]`}>

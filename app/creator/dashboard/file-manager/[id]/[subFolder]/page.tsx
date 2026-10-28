@@ -147,6 +147,7 @@ export default function CreatorFileManagerPhasePage() {
   const [cpDeleteLockDays, setCpDeleteLockDays] = useState(7);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
+  const [isPreparingDownload, setIsPreparingDownload] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareResource, setShareResource] = useState<{
@@ -552,15 +553,27 @@ export default function CreatorFileManagerPhasePage() {
   };
 
   const handleBatchDownload = async () => {
-    if (selectedFilePaths.length === 0) return;
+    if (selectedFilePaths.length === 0 || isPreparingDownload) return;
+    setIsPreparingDownload(true);
     try {
-      toast.info(`Preparing ${selectedFilePaths.length} files as a zip...`);
-      await fileManagerApi.downloadExternalSelectedFiles(selectedFilePaths, "selected-files.zip");
-      toast.success("Download started");
+      const allPaths = Array.from(new Set(viewState.files.map((file) => file.filepath || "").filter(Boolean)));
+      const selectedPaths = Array.from(new Set(selectedFilePaths));
+      const allFilesSelected = allPaths.length === selectedPaths.length && allPaths.every((path) => selectedPaths.includes(path));
+      if (selectedPaths.length > 100 && allFilesSelected) {
+        await fileManagerApi.downloadExternalFolderAsZip(projectId, `${slugToWorkspaceName(phaseSlug)}.zip`, {
+          phase: isCommonEventWorkspace ? undefined : phaseSlug === "post-production" ? "post" : "pre",
+          path: isCommonEventWorkspace ? rootFolderPath : undefined,
+        });
+      } else {
+        if (selectedPaths.length > 100) throw new Error("For more than 100 files, select all files in this folder to download one ZIP.");
+        await fileManagerApi.downloadExternalSelectedFiles(selectedPaths, "selected-files.zip");
+      }
       setSelectedFilePaths([]);
       setIsSelectionMode(false);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to download selected files");
+    } finally {
+      setIsPreparingDownload(false);
     }
   };
 
@@ -1494,7 +1507,7 @@ export default function CreatorFileManagerPhasePage() {
                     : "text-black/70 hover:text-black"
                     }`}
                   onClick={() => {
-                    const allVisible = visibleFiles
+                    const allVisible = viewState.files
                       .map((file) => file.filepath || "")
                       .filter(Boolean);
                     setSelectedFilePaths(Array.from(new Set(allVisible)));
@@ -1519,9 +1532,10 @@ export default function CreatorFileManagerPhasePage() {
                     : "border border-black/10 bg-black/5 text-black hover:bg-black/10"
                     }`}
                   onClick={handleBatchDownload}
+                  disabled={isPreparingDownload}
                 >
-                  <DownloadIcon size={16} className="lg:size-[18px]" />
-                  <span className="hidden lg:inline">Download</span>
+                  {isPreparingDownload ? <Loader2 size={16} className="animate-spin lg:size-[18px]" /> : <DownloadIcon size={16} className="lg:size-[18px]" />}
+                  <span className="hidden lg:inline">{isPreparingDownload ? "Preparing ZIP..." : "Download"}</span>
                 </Button>
                 {canDeleteSelectedFiles && (
                   <Button

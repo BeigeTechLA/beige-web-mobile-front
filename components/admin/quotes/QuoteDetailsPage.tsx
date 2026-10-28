@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowUpToLine,
   Camera,
+  Copy,
   DollarSign,
   Eye,
   Loader2,
@@ -1871,6 +1872,12 @@ export default function QuoteDetailsPage({
     void handlePaymentTransactionAction();
   }, [handlePaymentTransactionAction, quote, searchParams]);
 
+  const handleCopyValue = useCallback((value: string | undefined | null, label: string) => {
+    if (!value || value === "N/A") return;
+    navigator.clipboard.writeText(value);
+    toast.success(`${label} copied to clipboard`);
+  }, []);
+
   const breadcrumbOverrides = useMemo(
     () => ({
       quotes: "Quote",
@@ -2546,27 +2553,51 @@ export default function QuoteDetailsPage({
                 ) : null}
 
                 <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 text-xs lg:text-sm transition-colors ${isDark ? "text-[#9B9BA1]" : "text-[#000000]/70"}`}>
-                  <span>
-                    Email ID :{" "}
-                    <a
-                      href={`mailto:${clientEmail}`}
-                      title="Email ID"
-                      className="break-all text-white transition-colors hover:opacity-80"
-                    >
-                      {clientEmail}
-                    </a>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>
+                      Email ID :{" "}
+                      <a
+                        href={`mailto:${clientEmail}`}
+                        title="Email ID"
+                        className="break-all text-white transition-colors hover:opacity-80"
+                      >
+                        {clientEmail}
+                      </a>
+                    </span>
+                    {clientEmail !== "N/A" && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyValue(clientEmail, "Email")}
+                        title="Copy email"
+                        className={`shrink-0 rounded-md p-1 transition-all active:scale-95 ${isDark ? "text-[#8F8F95] hover:bg-white/10 hover:text-white" : "text-[#000000]/50 hover:bg-black/5 hover:text-black"}`}
+                      >
+                        <Copy size={13} />
+                      </button>
+                    )}
                   </span>
                   <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
 
-                  <span>
-                    Phone Number :{" "}
-                    <a
-                      href={`tel:${String(clientPhone).replace(/[^\d+]/g, "")}`}
-                      title="Phone Number"
-                      className="break-all text-white transition-colors hover:opacity-80"
-                    >
-                      {clientPhone}
-                    </a>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>
+                      Phone Number :{" "}
+                      <a
+                        href={`tel:${String(clientPhone).replace(/[^\d+]/g, "")}`}
+                        title="Phone Number"
+                        className="break-all text-white transition-colors hover:opacity-80"
+                      >
+                        {clientPhone}
+                      </a>
+                    </span>
+                    {clientPhone !== "N/A" && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyValue(clientPhone, "Phone number")}
+                        title="Copy phone number"
+                        className={`shrink-0 rounded-md p-1 transition-all active:scale-95 ${isDark ? "text-[#8F8F95] hover:bg-white/10 hover:text-white" : "text-[#000000]/50 hover:bg-black/5 hover:text-black"}`}
+                      >
+                        <Copy size={13} />
+                      </button>
+                    )}
                   </span>
                   <span className={`hidden lg:inline transition-colors ${isDark ? "text-[#4B4B4F]" : "text-[#565656]/70"}`}>|</span>
 

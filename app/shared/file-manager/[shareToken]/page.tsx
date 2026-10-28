@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderOpen, Download, Lock, Mail, ShieldCheck, FileText, ArrowLeft,
   ChevronRight, Eye, X, Check, FileImage, FileVideo, FileArchive,
-  FileSpreadsheet, Presentation, Home, KeyRound, CheckCircle2, EyeOff,
+  FileSpreadsheet, Presentation, Home, KeyRound, CheckCircle2, EyeOff, Loader2,
   FileX2, UploadCloud
 } from "lucide-react";
 import { toast } from "sonner";
@@ -564,17 +564,34 @@ export default function SharedFileManagerPage() {
     if (!selectedFilePaths.length) return;
     try {
       setBulkDownloading(true);
-      for (const path of selectedFilePaths) {
+      if (selectedFilePaths.length > 1) {
+        await fileManagerApi.downloadSharedFolderAsZip(
+          shareToken,
+          accessToken,
+          selectedFilePaths.map((path) => resolveFilePath(path)),
+          { phase: currentPhase, path: currentPath }
+        );
+      } else {
+        const path = selectedFilePaths[0];
         const file = files.find((item) => item.path === path);
         await downloadBlobInPage(path, String(file?.name || "file"));
       }
       setSelectedFilePaths([]);
-      toast.success(`Downloaded ${selectedFilePaths.length} file(s)`);
+      if (selectedFilePaths.length === 1) toast.success("File download started");
     } catch (error: unknown) {
       showFileAccessError(error, "Failed to download selected files");
     } finally {
       setBulkDownloading(false);
     }
+  };
+
+  const selectAllCurrentFolderFiles = () => {
+    const allPaths = files.map((file) => String(file.path || "")).filter(Boolean);
+    if (allPaths.length && allPaths.every((path) => selectedFilePaths.includes(path))) {
+      setSelectedFilePaths([]);
+      return;
+    }
+    setSelectedFilePaths(allPaths);
   };
 
   const openPreview = async (file: SharedFile) => {
@@ -1146,6 +1163,15 @@ export default function SharedFileManagerPage() {
                     {files.length > FILES_PAGE_SIZE && (
                       <span className="text-xs text-white/35">{getVisibleFileStatus()}</span>
                     )}
+                    {files.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={selectAllCurrentFolderFiles}
+                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white/65 transition-colors hover:border-[#E5D5B8]/40 hover:text-white"
+                      >
+                        {files.length === selectedFilePaths.length ? "Clear selection" : `Select all ${files.length.toLocaleString()}`}
+                      </button>
+                    )}
                   </div>
                   {files.length ? (
                     <>
@@ -1285,8 +1311,8 @@ export default function SharedFileManagerPage() {
                   disabled={bulkDownloading}
                   className="h-9 rounded-xl bg-[#E5D5B8] px-4 text-sm font-semibold text-black hover:bg-[#dcb98a]"
                 >
-                  <Download className="mr-1.5 h-3.5 w-3.5" />
-                  {bulkDownloading ? "Downloading…" : "Download All"}
+                  {bulkDownloading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1.5 h-3.5 w-3.5" />}
+                  {bulkDownloading ? "Preparing ZIP…" : "Download All"}
                 </Button>
                 <button
                   onClick={() => setSelectedFilePaths([])}

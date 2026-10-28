@@ -38,11 +38,30 @@ const isPdf = (contentType?: string, fileName?: string) => {
   return /\.pdf$/i.test(fileName || "");
 };
 
+const isText = (contentType?: string, fileName?: string) => {
+  if (contentType === "text/plain") return true;
+  return /\.txt$/i.test(fileName || "");
+};
+
+const isOffice = (contentType?: string, fileName?: string) => {
+  if (
+    contentType &&
+    /(msword|wordprocessingml|ms-excel|spreadsheetml|ms-powerpoint|presentationml)/i.test(contentType)
+  ) {
+    return true;
+  }
+  return /\.(docx?|xlsx?|pptx?)$/i.test(fileName || "");
+};
+
 const getFileTypeLabel = (contentType?: string, fileName?: string) => {
   if (isImage(contentType, fileName)) return "Image";
   if (isVideo(contentType, fileName)) return "Video";
 if (isAudio(contentType, fileName)) return "Audio";
-  if (isPdf(contentType, fileName)) return "PDF";
+    if (isPdf(contentType, fileName)) return "PDF";
+  if (isText(contentType, fileName)) return "Text";
+  if (/\.docx?$/i.test(fileName || "")) return "Word";
+  if (/\.xlsx?$/i.test(fileName || "")) return "Excel";
+  if (/\.pptx?$/i.test(fileName || "")) return "PowerPoint";
   const extension = String(fileName || "").split(".").pop();
   return extension && extension !== fileName ? extension.toUpperCase() : "File";
 };
@@ -254,6 +273,38 @@ export default function FileViewerModal({
   const [replyingTo, setReplyingTo] = useState<FileCommentItem | null>(null);
   const [selectedTimestamp, setSelectedTimestamp] = useState<number | null>(null);
   const videoFile = useMemo(() => isVideo(contentType, fileName), [contentType, fileName]);
+
+  const [textContent, setTextContent] = useState("");
+  const [loadingText, setLoadingText] = useState(false);
+  const [textError, setTextError] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !fileUrl || !isText(contentType, fileName)) return;
+
+    const controller = new AbortController();
+    setLoadingText(true);
+    setTextError(false);
+    setTextContent("");
+
+    fetch(fileUrl, { signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load text file");
+        return res.text();
+      })
+      .then((text) => {
+        // cap very large files so the modal stays responsive
+        const MAX_CHARS = 200_000;
+        setTextContent(text.length > MAX_CHARS ? `${text.slice(0, MAX_CHARS)}\n\n… (truncated, download to see the full file)` : text);
+      })
+      .catch((error: unknown) => {
+        if ((error as { name?: string })?.name !== "AbortError") setTextError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingText(false);
+      });
+
+    return () => controller.abort();
+  }, [isOpen, fileUrl, contentType, fileName]);
 
   const canComment = useMemo(() => Boolean(fileMetaId && currentUserId), [fileMetaId, currentUserId]);
 
@@ -469,6 +520,25 @@ export default function FileViewerModal({
                     src={fileUrl}
                     title={fileName || "PDF preview"}
                     className={`h-[360px] w-full rounded-xl border ${isDark ? "border-transparent bg-white" : "border-black/10 bg-white"}`}
+                  />
+                ) : isText(contentType, fileName) ? (
+                  <div className={`h-[360px] w-full overflow-auto rounded-xl border p-4 ${isDark ? "border-white/10 bg-[#0e0e0e]" : "border-black/10 bg-white"}`}>
+                    {loadingText ? (
+                      <div className={`flex h-full items-center justify-center gap-2 text-sm ${secondaryTextClass}`}>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading text...
+                      </div>
+                    ) : textError ? (
+                      <p className={`text-sm ${secondaryTextClass}`}>Could not load text preview. Try downloading the file.</p>
+                    ) : (
+                      <pre className={`whitespace-pre-wrap break-words font-mono text-xs leading-5 ${textContrastClass}`}>{textContent}</pre>
+                    )}
+                  </div>
+                ) : isOffice(contentType, fileName) ? (
+                  <iframe
+                    src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`}
+                    title={fileName || "Document preview"}
+                    className="h-[360px] w-full rounded-xl border border-black/10 bg-white"
                   />
                 ) : (
                   <div className={`flex flex-col items-center justify-center gap-3 py-10 text-center text-sm ${secondaryTextClass}`}>

@@ -196,6 +196,7 @@ export default function SubFolderDetailsPage() {
   const [selectedFile, setSelectedFile] = useState<any | null>(null);
   const [visibleFileCount, setVisibleFileCount] = useState(FILES_PAGE_SIZE);
   const [selectedFilePaths, setSelectedFilePaths] = useState<string[]>([]);
+  const [isPreparingDownload, setIsPreparingDownload] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   useEffect(() => {
     setSelectedFilePaths([]);
@@ -504,15 +505,27 @@ export default function SubFolderDetailsPage() {
   };
 
   const handleBatchDownload = async () => {
-    if (selectedFilePaths.length === 0) return;
+    if (selectedFilePaths.length === 0 || isPreparingDownload) return;
+    setIsPreparingDownload(true);
     try {
-      toast.info(`Preparing ${selectedFilePaths.length} files as a zip...`);
-      await fileManagerApi.downloadExternalSelectedFiles(selectedFilePaths, "selected-files.zip");
-      toast.success("Download started");
+      const allPaths = Array.from(new Set(folderFiles.map((file) => file.filepath || "").filter(Boolean)));
+      const selectedPaths = Array.from(new Set(selectedFilePaths));
+      const allFilesSelected = allPaths.length === selectedPaths.length && allPaths.every((path) => selectedPaths.includes(path));
+      if (selectedPaths.length > 100 && allFilesSelected) {
+        await fileManagerApi.downloadExternalFolderAsZip(projectId, `${folderTitle || "folder"}.zip`, {
+          phase: currentPhase,
+          path: folderPath,
+        });
+      } else {
+        if (selectedPaths.length > 100) throw new Error("For more than 100 files, select all files in this folder to download one ZIP.");
+        await fileManagerApi.downloadExternalSelectedFiles(selectedPaths, "selected-files.zip");
+      }
       setSelectedFilePaths([]);
       setIsSelectionMode(false);
     } catch (err: any) {
       toast.error(err?.message || "Failed to download selected files");
+    } finally {
+      setIsPreparingDownload(false);
     }
   };
 
@@ -1383,6 +1396,7 @@ export default function SubFolderDetailsPage() {
             isDark={isDark}
             canDelete={Boolean(canDelete)}
             canMove={isSuperAdmin && !isCommonEventWorkspace}
+            isDownloading={isPreparingDownload}
             onSelectAll={selectAllFolderFiles}
             onClear={() => { setSelectedFilePaths([]); setIsSelectionMode(false); }}
             onMove={() => setMoveSourcePaths(selectedFilePaths)}
