@@ -119,12 +119,14 @@ interface AvgPayoutMarginCountProps {
   data?: Averages | null;
   loading?: boolean;
   title?: string;
+  dimmed?: boolean;
 }
 
 export default function AvgPayoutMarginCount({
   data = null,
   loading = false,
   title = 'Avg - Payout/Margin/Count',
+  dimmed = false,
 }: AvgPayoutMarginCountProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -192,14 +194,15 @@ export default function AvgPayoutMarginCount({
   const paintOrder: AvgMetricId[] = ['payout', 'cps', 'margin'];
 
   return (
-    <div ref={cardRef} className={`transition-colors duration-300 border rounded-2xl w-full overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+    <div ref={cardRef} className={`relative transition-colors duration-300 border rounded-2xl w-full h-full flex flex-col overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+      <div aria-hidden="true" className={`pointer-events-none absolute inset-0 z-20 transition-opacity duration-300 ${dimmed ? 'opacity-100' : 'opacity-0'} ${isDark ? 'bg-black/55' : 'bg-slate-900/35'}`} />
       {/* Header */}
       <div className={`flex items-center px-5 py-5 lg:py-6 ${isDark ? "bg-[#0A0A0A]" : "bg-[#F4F5F7]"}`}>
         <p className="text-sm lg:text-base">{title}</p>
       </div>
 
       {/* Body */}
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-8 md:gap-10 items-center px-5 sm:px-8 pt-12 pb-8 lg:pb-10">
+      <div className="grid flex-1 grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-8 md:gap-10 items-center px-5 sm:px-8 pt-12 pb-8 lg:pb-10">
         {/* Circle cluster */}
         <div
           className="relative mx-auto"

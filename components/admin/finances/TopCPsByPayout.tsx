@@ -30,6 +30,9 @@ const formatCompactUSD = (n: number) =>
     maximumFractionDigits: 1,
   }).format(n);
 
+const capitalizeFirstLetter = (value: string) =>
+  value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
+
 /* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
@@ -177,7 +180,7 @@ export default function TopCPsByPayout({
               {/* Name, amount and bar */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-end justify-between gap-3 mb-1.5">
-                  <span className="text-sm lg:text-base font-medium truncate">{cp.name}</span>
+                  <span className="text-sm lg:text-base font-medium truncate">{capitalizeFirstLetter(cp.name)}</span>
                   <span className={`text-sm lg:text-base font-semibold shrink-0 ${amountColor}`}>
                     {formatCompactUSD(cp.payout)}
                   </span>
@@ -202,15 +205,15 @@ export default function TopCPsByPayout({
                 className={`w-[68px] shrink-0 text-right text-xs ${isDark ? 'text-[#7C7777]' : 'text-zinc-500'}`}
                 title="Margin"
               >
-                {cp.margin.toFixed(1)}% mg
+                {cp.margin.toFixed(1)}%
               </span>
 
               {/* Open / close arrow: ↗ closed, ↘ open */}
               <button
                 type="button"
-                aria-label={selectedId === cp.id ? `Close ${cp.name} payout history` : `Open ${cp.name} payout history`}
+                aria-label={selectedId === cp.id ? `Close ${capitalizeFirstLetter(cp.name)} payout history` : `Open ${capitalizeFirstLetter(cp.name)} payout history`}
                 aria-expanded={selectedId === cp.id}
-                onClick={() => onSelectCP?.(selectedId === cp.id ? null : { id: cp.id, name: cp.name, payout: cp.payout })}
+                onClick={() => onSelectCP?.(selectedId === cp.id ? null : { id: cp.id, name: capitalizeFirstLetter(cp.name), payout: cp.payout })}
                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
                   isDark ? 'bg-[#2C2C2B] text-white hover:bg-[#3A3A39]' : 'bg-[#E8E8E8] text-[#171717] hover:bg-[#DADADA]'
                 }`}

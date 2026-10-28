@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, EllipsisVertical, Loader2, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import { getInitials } from "@/lib/utils";
@@ -85,9 +85,25 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
   const [rows, setRows] = useState<PayoutRow[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const previousBucketId = useRef(bucketId);
   const itemsPerPage = 10;
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const bucketChanged = previousBucketId.current !== bucketId;
+    previousBucketId.current = bucketId;
+    if (!open || !bucketChanged || !panelRef.current) return;
+
+    panelRef.current.animate(
+      [
+        { transform: "translateY(-2rem)", opacity: 0 },
+        { transform: "translateY(0)", opacity: 1 },
+      ],
+      { duration: 300, easing: "ease-out" },
+    );
+  }, [bucketId, open]);
 
   // Navi bucket khule tyare reset
   useEffect(() => {
@@ -168,6 +184,7 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
       <div className="min-h-0 overflow-hidden">
         {/* top → bottom */}
         <section
+          ref={panelRef}
           className={`w-full overflow-hidden rounded-2xl border transition-all duration-500 ease-out ${open ? "translate-y-0 opacity-100" : "-translate-y-8 opacity-0"} ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-[#E3E3E3] bg-white"}`}
         >
           {/* Header */}

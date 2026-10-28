@@ -204,6 +204,8 @@ export default function DisputesSummary({ data = null, loading = false, startDat
 
   // Which metric row is expanded
   const [expandedId, setExpandedId] = useState<DisputeMetricId | null>(null);
+  const historyPanelRef = useRef<HTMLDivElement>(null);
+  const expandedRowRef = useRef<HTMLLIElement>(null);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -223,6 +225,25 @@ export default function DisputesSummary({ data = null, loading = false, startDat
   const statusParam = metricStatuses
     ? matchingMetricStatuses?.length ? matchingMetricStatuses.join(',') : '__no_matching_status__'
     : selectedApiStatus;
+
+  useEffect(() => {
+    if (!expandedId || !historyPanelRef.current) return;
+    historyPanelRef.current.animate(
+      [
+        { transform: 'translateY(-2rem)', opacity: 0 },
+        { transform: 'translateY(0)', opacity: 1 },
+      ],
+      { duration: 300, easing: 'ease-out' },
+    );
+  }, [expandedId]);
+
+  useEffect(() => {
+    if (!expandedId) return;
+    const timer = window.setTimeout(() => {
+      expandedRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [expandedId, currentPage, disputesLoading]);
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(search.trim()), 350);
@@ -273,7 +294,7 @@ export default function DisputesSummary({ data = null, loading = false, startDat
   }, [expandedId, currentPage, debouncedSearch, statusParam, typeFilter, dateFrom, dateTo]);
 
   return (
-    <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full p-5 ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+    <div data-tooltip-bounds className={`[overflow-anchor:none] transition-colors duration-300 border rounded-2xl w-full p-5 ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
       <ul className="space-y-5 lg:space-y-6">
         {metrics.map((m) => {
           const color = isDark ? COLORS[m.id].dark : COLORS[m.id].light;
@@ -281,7 +302,8 @@ export default function DisputesSummary({ data = null, loading = false, startDat
           return (
             <li
               key={m.id}
-              className={`transition-opacity duration-300 ${expandedId !== null && expandedId !== m.id ? 'opacity-40' : 'opacity-100'}`}
+              ref={expandedId === m.id ? expandedRowRef : undefined}
+              className={`scroll-mt-4 transition-opacity duration-300 ${expandedId !== null && expandedId !== m.id ? 'opacity-40' : 'opacity-100'}`}
             >
               <div className="flex items-center gap-1.5 mb-3">
                 <span className="text-xs lg:text-sm font-medium">{m.label}</span>
@@ -344,7 +366,7 @@ export default function DisputesSummary({ data = null, loading = false, startDat
               </div>
 
               {expandedId === m.id && (
-                <div className="mt-4">
+                <div ref={historyPanelRef} className="mt-4">
                   <DisputeHistoryPanel
                     items={disputes}
                     showResolvedDate={expandedId === 'resolved'}

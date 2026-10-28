@@ -43,6 +43,7 @@ export default function FinanceAnalyticsPage() {
   const [selectedClient, setSelectedClient] = useState<SelectedShootCP | null>(null);
   const [selectedBucket, setSelectedBucket] = useState<SelectedPayoutBucket | null>(null);
   const [selectedPayoutCP, setSelectedPayoutCP] = useState<SelectedPayoutCP | null>(null);
+  const [outstandingHistoryOpen, setOutstandingHistoryOpen] = useState(false);
 
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -194,11 +195,12 @@ export default function FinanceAnalyticsPage() {
               <p className="font-medium text-sm lg:text-base">Creative Partner Analysis</p>
             </div>
 
-            <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] gap-3 lg:gap-6">
-              <div className="min-w-0">
+            <div className="grid min-w-0 grid-cols-1 items-stretch lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] gap-3 lg:gap-6">
+              <div className="min-w-0 h-full flex">
                 <CPPayoutTimeline
                   data={analytics?.creative_partners.payout_timeline ?? null}
                   loading={loading}
+                  dimmed={!!selectedOverdueCP}
                   selectedId={selectedBucket?.id ?? null}
                   onSelectBucket={(bucket) => {
                     setSelectedBucket(bucket);
@@ -206,10 +208,11 @@ export default function FinanceAnalyticsPage() {
                   }}
                 />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 h-full">
                 <TopOverdueCPs
                   data={analytics?.creative_partners.top_overdue ?? null}
                   loading={loading}
+                  dimmed={!!selectedBucket}
                   selectedId={selectedOverdueCP?.id ?? null}
                   onSelectCP={(cp) => {
                     setSelectedOverdueCP(cp);
@@ -256,8 +259,8 @@ export default function FinanceAnalyticsPage() {
               />
             </div>
 
-            <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3 lg:gap-6">
-              <div className="min-w-0">
+            <div className="grid min-w-0 grid-cols-1 items-stretch lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3 lg:gap-6">
+              <div className="min-w-0 h-full flex">
                 <TopCPsByPayout
                   data={analytics?.creative_partners.top_by_payout ?? null}
                   loading={loading}
@@ -265,7 +268,7 @@ export default function FinanceAnalyticsPage() {
                   onSelectCP={setSelectedPayoutCP}
                 />
               </div>
-              <div className="min-w-0"><AvgPayoutMarginCount data={analytics?.creative_partners.averages ?? null} loading={loading} /></div>
+              <div className="min-w-0 h-full"><AvgPayoutMarginCount data={analytics?.creative_partners.averages ?? null} loading={loading} dimmed={!!selectedPayoutCP} /></div>
             </div>
 
             <PartnerPayoutHistoryPanel
@@ -280,15 +283,30 @@ export default function FinanceAnalyticsPage() {
 
           </div>
 
+              <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full space-y-3 lg:space-y-6 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+            {/* Header */}
+            <div className="flex items-center gap-2">
+              <div className="w-[3px] h-6 bg-[#E5D5B8]" />
+              <p className="font-medium text-sm lg:text-base">Disputes Analytics</p>
+            </div>
+
+            <DisputesSummary data={analytics?.disputes ?? null} loading={loading} startDate={startDate ? format(startDate, "yyyy-MM-dd") : null} endDate={endDate ? format(endDate, "yyyy-MM-dd") : null} />
+            <TopDisputeReasons data={analytics?.disputes.top_reasons ?? null} loading={loading} />
+          </div>
+
           <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full space-y-3 lg:space-y-6 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
             {/* Header */}
             <div className="flex items-center gap-2">
               <div className="w-[3px] h-6 bg-[#E5D5B8]" />
               <p className="font-medium text-sm lg:text-base">Client Analytics</p>
             </div>
+             <div className="grid min-w-0 grid-cols-1 items-stretch lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] gap-3 lg:gap-6">
+              <div className="min-w-0 h-full"><ClientPaymentOverview data={analytics?.clients.payment_overview ?? null} loading={loading} dimmed={outstandingHistoryOpen} /></div>
+              <OutstandingPayment data={analytics?.clients.outstanding ?? null} loading={loading} startDate={startDate ? format(startDate, "yyyy-MM-dd") : null} endDate={endDate ? format(endDate, "yyyy-MM-dd") : null} onHistoryOpenChange={setOutstandingHistoryOpen} />
+            </div>
 
-            <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3 lg:gap-6">
-              <div className="min-w-0"><TopClients
+            <div className="grid min-w-0 grid-cols-1 items-stretch lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3 lg:gap-6">
+              <div className="min-w-0 h-full"><TopClients
                 shootsData={analytics?.clients.top_by_shoots ?? null}
                 spendData={analytics?.clients.top_by_spend ?? null}
                 loading={loading}
@@ -303,8 +321,9 @@ export default function FinanceAnalyticsPage() {
                   data={analytics?.clients ?? null}
                   revenueSeries={analytics?.revenue.series ?? null}
                   loading={loading}
+                  dimmed={!!selectedClient}
                 />
-                <ShootDistribution data={analytics?.clients.top_by_shoots ?? null} loading={loading} />
+                <ShootDistribution data={analytics?.clients.top_by_shoots ?? null} loading={loading} dimmed={!!selectedClient} />
               </div>
             </div>
             <PartnerShootHistoryPanel
@@ -315,22 +334,6 @@ export default function FinanceAnalyticsPage() {
               startDate={startDate ? format(startDate, "yyyy-MM-dd") : null}
               endDate={endDate ? format(endDate, "yyyy-MM-dd") : null}
             />
-
-            <div className="grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] gap-3 lg:gap-6">
-              <div className="min-w-0"><ClientPaymentOverview data={analytics?.clients.payment_overview ?? null} loading={loading} /></div>
-              <OutstandingPayment data={analytics?.clients.outstanding ?? null} loading={loading} startDate={startDate ? format(startDate, "yyyy-MM-dd") : null} endDate={endDate ? format(endDate, "yyyy-MM-dd") : null} />
-            </div>
-          </div>
-
-          <div className={`transition-colors duration-300 border rounded-2xl p-5 w-full space-y-3 lg:space-y-6 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
-            {/* Header */}
-            <div className="flex items-center gap-2">
-              <div className="w-[3px] h-6 bg-[#E5D5B8]" />
-              <p className="font-medium text-sm lg:text-base">Disputes Analytics</p>
-            </div>
-
-            <DisputesSummary data={analytics?.disputes ?? null} loading={loading} startDate={startDate ? format(startDate, "yyyy-MM-dd") : null} endDate={endDate ? format(endDate, "yyyy-MM-dd") : null} />
-            <TopDisputeReasons data={analytics?.disputes.top_reasons ?? null} loading={loading} />
           </div>
         </>
 

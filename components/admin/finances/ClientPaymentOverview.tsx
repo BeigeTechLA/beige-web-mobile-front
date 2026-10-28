@@ -141,6 +141,7 @@ interface ClientPaymentOverviewProps {
   loading?: boolean;
   title?: string;
   infoText?: string;
+  dimmed?: boolean;
 }
 
 export default function ClientPaymentOverview({
@@ -148,6 +149,7 @@ export default function ClientPaymentOverview({
   loading = false,
   title = 'Client Payment Overview',
   infoText = 'Breakdown of client payments by status: paid, partially paid, and pending.',
+  dimmed = false,
 }: ClientPaymentOverviewProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -194,7 +196,8 @@ export default function ClientPaymentOverview({
   const mutedText = isDark ? 'text-white/80' : 'text-zinc-500';
 
   return (
-    <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+    <div data-tooltip-bounds className={`relative transition-colors duration-300 border rounded-2xl w-full h-full flex flex-col overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+      <div aria-hidden="true" className={`pointer-events-none absolute inset-0 z-20 transition-opacity duration-300 ${dimmed ? 'opacity-100' : 'opacity-0'} ${isDark ? 'bg-black/55' : 'bg-slate-900/35'}`} />
       {/* Header */}
       <div className={`shrink-0 flex items-center gap-1.5 px-5 py-5 lg:py-6 ${isDark ? "bg-[#090909]" : "bg-[#F4F5F7]"}`}>
         <p className="text-sm lg:text-base">{title}</p>
@@ -207,7 +210,7 @@ export default function ClientPaymentOverview({
           />
       </div>
 
-      <div className="px-5 pt-8 pb-6">
+      <div className="flex-1 px-5 pt-8 pb-6">
         {/* Donut */}
         <div className="relative w-full max-w-[230px] aspect-square mx-auto">
           {/* Soft dark disc behind the ring */}
