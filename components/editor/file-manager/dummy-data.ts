@@ -1,4 +1,4 @@
-import type { FileItem, FolderItem, Person, ShootFolderSummary } from "./types";
+import type { ActivityEntry, FileItem, FolderItem, Person, ShootFolderSummary } from "./types";
 
 /* Dummy data for the editor folder-details flow (swap for API data later). */
 
@@ -73,3 +73,23 @@ export const SELECTED_FILES: FileItem[] = Array.from({ length: 200 }, (_, i) => 
 
 /** The logged-in editor (uploads are attributed to them) */
 export const CURRENT_EDITOR: Person = { name: "Zara Khan", initials: "ZK" };
+
+/** Reviewer who sends revision feedback */
+export const REVIEWER: Person = { name: "Maya Chen", initials: "MC" };
+
+/** Files sent back per revision cycle (capped by how many were submitted) */
+export const REVISION_BATCH_SIZE = 25;
+
+/** Feedback attached to files sent back for revision */
+export const REVISION_FEEDBACK = [
+  "Lift the shadows on the face slightly and warm up the skin tones.",
+  "Crop tighter on the product – the logo should sit on the left third.",
+  "Reduce the grain and match the colour grade of the hero shot.",
+];
+
+/** Activity that happened before the editor opened the folder */
+export const SEED_ACTIVITY: ActivityEntry[] = [
+  { id: "a-assigned", title: "Shoot Assigned for Edits", at: "2026-10-16T16:10:00" },
+  { id: "a-raw", title: "Raw File Available", at: "2026-10-16T16:12:00" },
+  { id: "a-selection", title: "Client Selection Received", at: "2026-10-16T16:15:00" },
+];

@@ -14,5 +14,7 @@ export { default as EmptyUploadState } from "./EmptyUploadState";
 export { default as FileCard, FilePreview, FILE_STATUS } from "./FileCard";
 export { default as FilePreviewDrawer } from "./FilePreviewDrawer";
 export { default as SubmitForApprovalModal } from "./SubmitForApprovalModal";
-export { default as SuccessModal, SuccessBurst } from "./SuccessModal";
 export { default as BrowserToolbar, ItemsLayout } from "./BrowserToolbar";
+export { default as ActivityTimeline } from "./ActivityTimeline";
+export { default as ProjectTimelineDrawer } from "./ProjectTimelineDrawer";
+export { default as FileSection } from "./FileSection";

@@ -37,13 +37,13 @@ import {
   SELECTED_FILES,
   StatusTag,
   SubmitForApprovalModal,
-  SuccessModal,
   type EditingStep,
   type FileItem,
   type FolderItem,
   type NextAction,
   type ViewMode,
 } from "@/components/editor/file-manager"; // adjust path
+import SuccessModal from "@/components/admin/finances/SuccessModal";
 
 /**
  * Editor – Folder details (dummy data, no API calls).
@@ -314,9 +314,9 @@ export default function EditorFolderDetailsPage() {
     <button
       type="button"
       onClick={() => uploadRef.current?.click()}
-      className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#E8D3AE] px-4 text-xs font-semibold text-[#171717] transition-colors hover:bg-[#EEDCBC]"
+      className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#E8D1AB] px-4 text-sm font-semibold text-black transition-colors hover:bg-[#EEDCBC]"
     >
-      <Upload size={14} /> Upload Files
+      <Upload size={16} /> Upload Files
     </button>
   );
 
@@ -420,7 +420,7 @@ export default function EditorFolderDetailsPage() {
 
           {/* ---- EDITS FOLDER ---- */}
           {screen === "edits" && (
-            <section className={`rounded-2xl border ${isDark ? "bg-[#0C0C0C] border-[#242422]" : "bg-white border-[#E5E5E5]"}`}>
+            <section className={`rounded-2xl border ${isDark ? "bg-[#171717] border-[#242422]" : "bg-white border-[#E5E5E5]"}`}>
               <FolderInfoCard
                 isDark={isDark}
                 title={`Edits (${editsSubfolders.length} Folders)`}
@@ -428,43 +428,45 @@ export default function EditorFolderDetailsPage() {
                 linkedTo={shoot.projectName}
                 linkedOn={shoot.linkedOn}
               />
-              <BrowserToolbar isDark={isDark} search={search} onSearch={setSearch} view={view} onView={setView}>
-                <Select value={folderFilter} onValueChange={(v) => setFolderFilter(v as typeof folderFilter)}>
-                  <SelectTrigger className={`h-10 w-[150px] rounded-lg text-xs lg:text-sm focus:ring-0 ${t.control}`}>
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent className={isDark ? "bg-[#111111] border-[#333333] text-white" : "bg-white border-[#E5E5E5] text-black"}>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="action">Needs Action</SelectItem>
-                    <SelectItem value="none">No Action</SelectItem>
-                  </SelectContent>
-                </Select>
-              </BrowserToolbar>
-              {filteredEdits.length === 0 ? (
-                <p className={`py-12 text-center text-sm ${t.faint}`}>No folders match these filters.</p>
-              ) : (
-                <ItemsLayout isDark={isDark} view={view}>
-                  {filteredEdits.map((f) => (
-                    <FolderCard
-                      key={f.id}
-                      isDark={isDark}
-                      folder={f}
-                      view={view}
-                      onOpen={() => openEditsFolder(f)}
-                      actions={[
-                        { label: "Open", onSelect: () => openEditsFolder(f) },
-                        { label: "Download", icon: Download, onSelect: () => toast.success(`Preparing ${f.name}.zip`) },
-                      ]}
-                    />
-                  ))}
-                </ItemsLayout>
-              )}
+              <div className="p-4 lg:p-5 space-y-4 lg:space-y-5">
+                <BrowserToolbar isDark={isDark} search={search} onSearch={setSearch} view={view} onView={setView}>
+                  <Select value={folderFilter} onValueChange={(v) => setFolderFilter(v as typeof folderFilter)}>
+                    <SelectTrigger className={`h-10 w-[150px] rounded-lg text-xs lg:text-sm focus:ring-0 ${t.control}`}>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent className={isDark ? "bg-[#111111] border-[#333333] text-white" : "bg-white border-[#E5E5E5] text-black"}>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="action">Needs Action</SelectItem>
+                      <SelectItem value="none">No Action</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </BrowserToolbar>
+                {filteredEdits.length === 0 ? (
+                  <p className={`py-12 text-center text-sm ${t.faint}`}>No folders match these filters.</p>
+                ) : (
+                  <ItemsLayout isDark={isDark} view={view}>
+                    {filteredEdits.map((f) => (
+                      <FolderCard
+                        key={f.id}
+                        isDark={isDark}
+                        folder={f}
+                        view={view}
+                        onOpen={() => openEditsFolder(f)}
+                        actions={[
+                          { label: "Open", onSelect: () => openEditsFolder(f) },
+                          { label: "Download", icon: Download, onSelect: () => toast.success(`Preparing ${f.name}.zip`) },
+                        ]}
+                      />
+                    ))}
+                  </ItemsLayout>
+                )}
+              </div>
             </section>
           )}
 
           {/* ---- SELECTED FOR EDITS ---- */}
           {screen === "selected" && (
-            <>
+            <section className={`rounded-2xl border ${isDark ? "bg-[#171717] border-[#242422]" : "bg-white border-[#E5E5E5]"}`}>
               <FolderInfoCard
                 isDark={isDark}
                 title={`Selected for Edits (${sourceFiles.length} Files)`}
@@ -472,51 +474,53 @@ export default function EditorFolderDetailsPage() {
                 linkedTo={shoot.projectName}
                 linkedOn={shoot.linkedOn}
               />
-              <BrowserToolbar isDark={isDark} search={search} onSearch={(v) => { setSearch(v); setVisibleCount(PAGE_CHUNK); }} view={view} onView={setView}>
-                {selectAllControl(allSourceSelected, toggleSelectAll, filteredSource.length === 0)}
-                {selectedIds.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => downloadFiles(sourceFiles.filter((f) => selectedIds.has(f.id)))}
-                    className={`inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-xs ${t.control}`}
-                  >
-                    <Download size={14} /> Download ({selectedIds.size})
-                  </button>
-                )}
-              </BrowserToolbar>
-              {filteredSource.length === 0 ? (
-                <p className={`py-12 text-center text-sm ${t.faint}`}>No files match “{search}”.</p>
-              ) : (
-                <>
-                  <ItemsLayout isDark={isDark} view={view}>
-                    {filteredSource.slice(0, visibleCount).map((f) => (
-                      <FileCard
-                        key={f.id}
-                        isDark={isDark}
-                        file={f}
-                        view={view}
-                        selectable
-                        selected={selectedIds.has(f.id)}
-                        onToggleSelect={(v) => toggleOne(f.id, v)}
-                        onOpen={() => setPreviewId(f.id)}
-                        onDownload={() => downloadFiles([f])}
-                      />
-                    ))}
-                  </ItemsLayout>
-                  {visibleCount < filteredSource.length && (
-                    <div className="flex justify-center">
-                      <button
-                        type="button"
-                        onClick={() => setVisibleCount((c) => c + PAGE_CHUNK)}
-                        className={`h-10 rounded-lg px-5 text-xs font-semibold transition-colors ${t.ghostBtn}`}
-                      >
-                        Show more ({filteredSource.length - visibleCount} remaining)
-                      </button>
-                    </div>
+              <div className="p-4 lg:p-5 space-y-4 lg:space-y-5">
+                <BrowserToolbar isDark={isDark} search={search} onSearch={(v) => { setSearch(v); setVisibleCount(PAGE_CHUNK); }} view={view} onView={setView}>
+                  {selectAllControl(allSourceSelected, toggleSelectAll, filteredSource.length === 0)}
+                  {selectedIds.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => downloadFiles(sourceFiles.filter((f) => selectedIds.has(f.id)))}
+                      className={`inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-xs ${t.control}`}
+                    >
+                      <Download size={14} /> Download ({selectedIds.size})
+                    </button>
                   )}
-                </>
-              )}
-            </>
+                </BrowserToolbar>
+                {filteredSource.length === 0 ? (
+                  <p className={`py-12 text-center text-sm ${t.faint}`}>No files match “{search}”.</p>
+                ) : (
+                  <>
+                    <ItemsLayout isDark={isDark} view={view}>
+                      {filteredSource.slice(0, visibleCount).map((f) => (
+                        <FileCard
+                          key={f.id}
+                          isDark={isDark}
+                          file={f}
+                          view={view}
+                          selectable
+                          selected={selectedIds.has(f.id)}
+                          onToggleSelect={(v) => toggleOne(f.id, v)}
+                          onOpen={() => setPreviewId(f.id)}
+                          onDownload={() => downloadFiles([f])}
+                        />
+                      ))}
+                    </ItemsLayout>
+                    {visibleCount < filteredSource.length && (
+                      <div className="flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setVisibleCount((c) => c + PAGE_CHUNK)}
+                          className={`h-10 rounded-lg px-5 text-xs font-semibold transition-colors ${t.ghostBtn}`}
+                        >
+                          Show more ({filteredSource.length - visibleCount} remaining)
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </section>
           )}
 
           {/* ---- EDITED DELIVERABLES ---- */}
@@ -529,41 +533,46 @@ export default function EditorFolderDetailsPage() {
                 uploaded={uploadedCount}
                 status={deliverableStatus}
               />
-              <FolderInfoCard
-                isDark={isDark}
-                title={uploadedCount ? `Edited Deliverables (${uploadedCount} Items Uploaded)` : "Edited Deliverables (0 Files)"}
-                badge={uploadedCount > 0
-                  ? pendingCount > 0
-                    ? <StatusTag label="● In Progress" tone="blue" />
-                    : <StatusTag label="Submitted for Approval" tone="pink" />
-                  : undefined}
-                linkedTo={shoot.projectName}
-                linkedOn={shoot.linkedOn}
-              />
-              <BrowserToolbar isDark={isDark} search={search} onSearch={setSearch} view={view} onView={setView}>
-                {uploadedCount > 0 && uploadButton}
-              </BrowserToolbar>
-              {uploadedCount === 0 ? (
-                <EmptyUploadState isDark={isDark} onFiles={handleUpload} />
-              ) : filteredDeliverables.length === 0 ? (
-                <p className={`py-12 text-center text-sm ${t.faint}`}>No files match “{search}”.</p>
-              ) : (
-                <ItemsLayout isDark={isDark} view={view}>
-                  {filteredDeliverables.map((f) => (
-                    <FileCard
-                      key={f.id}
-                      isDark={isDark}
-                      file={f}
-                      view={view}
-                      onOpen={() => setPreviewId(f.id)}
-                      onDownload={() => downloadFiles([f])}
-                      extraActions={f.status === "ready_for_approval"
-                        ? [{ label: "Remove", danger: true, onSelect: () => setDeliverables((d) => d.filter((x) => x.id !== f.id)) }]
-                        : []}
-                    />
-                  ))}
-                </ItemsLayout>
-              )}
+
+              <section className={`rounded-2xl border ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"}`}>
+                <FolderInfoCard
+                  isDark={isDark}
+                  title={uploadedCount ? `Edited Deliverables (${uploadedCount} Items Uploaded)` : "Edited Deliverables (0 Files)"}
+                  badge={uploadedCount > 0
+                    ? pendingCount > 0
+                      ? <StatusTag label="● In Progress" tone="blue" />
+                      : <StatusTag label="Submitted for Approval" tone="pink" />
+                    : undefined}
+                  linkedTo={shoot.projectName}
+                  linkedOn={shoot.linkedOn}
+                />
+                <div className="p-4 lg:p-5 space-y-4 lg:space-y-5">
+                  <BrowserToolbar isDark={isDark} search={search} onSearch={setSearch} view={view} onView={setView}>
+                    {uploadedCount > 0 && uploadButton}
+                  </BrowserToolbar>
+                  {uploadedCount === 0 ? (
+                    <EmptyUploadState isDark={isDark} onFiles={handleUpload} />
+                  ) : filteredDeliverables.length === 0 ? (
+                    <p className={`py-12 text-center text-sm ${t.faint}`}>No files match “{search}”.</p>
+                  ) : (
+                    <ItemsLayout isDark={isDark} view={view}>
+                      {filteredDeliverables.map((f) => (
+                        <FileCard
+                          key={f.id}
+                          isDark={isDark}
+                          file={f}
+                          view={view}
+                          onOpen={() => setPreviewId(f.id)}
+                          onDownload={() => downloadFiles([f])}
+                          extraActions={f.status === "ready_for_approval"
+                            ? [{ label: "Remove", danger: true, onSelect: () => setDeliverables((d) => d.filter((x) => x.id !== f.id)) }]
+                            : []}
+                        />
+                      ))}
+                    </ItemsLayout>
+                  )}
+                </div>
+              </section>
             </>
           )}
         </div>
@@ -594,16 +603,14 @@ export default function EditorFolderDetailsPage() {
       />
 
       <SuccessModal
-        open={!!success}
-        isDark={isDark}
-        title={success ? `${success.count} Edited ${success.count === 1 ? success.noun.replace(/s$/, "") : success.noun} Submitted for Review` : ""}
-        message={`Your edited ${success?.noun.toLowerCase() ?? "files"} have been successfully submitted to the internal team for review. You’ll be notified once the review is complete.`}
-        actionLabel="Review Files"
-        onAction={() => {
+        isOpen={!!success}
+        onSubmit={() => {
           setSuccess(null);
           goToTab("review");
         }}
-        onClose={() => setSuccess(null)}
+        title={success ? `${success.count} Edited ${success.count === 1 ? success.noun.replace(/s$/, "") : success.noun} Submitted for Review` : ""}
+        subtext={`Your edited ${success?.noun.toLowerCase() ?? "files"} have been successfully submitted to the internal team for review. You’ll be notified once the review is complete.`}
+        buttonText="Review Files"
       />
     </>
   );

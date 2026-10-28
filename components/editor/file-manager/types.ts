@@ -77,7 +77,12 @@ export interface FolderItem {
 
 export type FileKind = "image" | "video" | "other";
 
-export type FileStatus = "selected_for_edits" | "ready_for_approval" | "submitted_for_approval";
+export type FileStatus =
+  | "selected_for_edits"
+  | "ready_for_approval"
+  | "submitted_for_approval" // shown as "Waiting for Approval"
+  | "revision_requested"
+  | "approved";
 
 export interface FileComment {
   id: string;
@@ -104,4 +109,14 @@ export interface FileItem {
   uploadedAt: string; // ISO
   updatedAt: string; // ISO
   comments: FileComment[];
+}
+
+export type TagTone = "purple" | "pink" | "blue" | "red" | "green";
+
+export interface ActivityEntry {
+  id: string;
+  title: string;
+  at: string; // ISO
+  /** Optional status pill after the title ("Waiting for Approval") */
+  tag?: { label: string; tone: TagTone };
 }

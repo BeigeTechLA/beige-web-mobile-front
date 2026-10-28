@@ -27,17 +27,17 @@ export default function DeliverableProgress({
   ];
 
   return (
-    <section className={`rounded-2xl border p-4 lg:p-5 ${t.panel}`}>
+    <section className={`rounded-2xl border p-4 lg:p-5 space-y-4 lg:space-y-5 ${isDark ? "bg-[#0C0C0C] border-[#252523]" : "bg-white border-[#E5E5E5]"}`}>
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className={`text-[10px] font-medium uppercase tracking-wider ${t.gold}`}>Deliverable Progress</p>
-          <p className={`mt-1 text-sm font-medium ${t.strong}`}>{label}</p>
+          <p className={`text-[10px] lg:text-xs font-medium uppercase tracking-wider ${t.gold}`}>Deliverable Progress</p>
+          <p className={`mt-0.5 text-sm lg:text-base font-semibold ${t.strong}`}>{label}</p>
         </div>
-        <p className={`text-xl lg:text-2xl ${t.gold}`}>{pct}%</p>
+        <p className={`text-xl lg:text-3xl font-medium ${t.gold}`}>{pct}%</p>
       </div>
 
       <div
-        className={`mt-3 h-2 overflow-hidden rounded-full ${isDark ? "bg-white/10" : "bg-black/10"}`}
+        className={`h-2 overflow-hidden rounded-full ${isDark ? "bg-[#313131]" : "bg-black/10"}`}
         role="progressbar"
         aria-valuenow={pct}
         aria-valuemin={0}
@@ -47,10 +47,10 @@ export default function DeliverableProgress({
         <div className="h-full rounded-full bg-[#E8D1AB] transition-[width] duration-500" style={{ width: `${pct}%` }} />
       </div>
 
-      <dl className="mt-4 grid grid-cols-2 gap-y-3 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-y-3 sm:grid-cols-4">
         {stats.map((s, i) => (
-          <div key={s.label} className={`px-0 sm:px-3 ${i > 0 ? `sm:border-l ${t.divider}` : "sm:pl-0"}`}>
-            <dt className={`text-[10px] uppercase tracking-wider ${t.faint}`}>{s.label}</dt>
+          <div key={s.label} className={`px-0 lg:px-3 ${i > 0 ? `lg:border-l ${t.divider}` : "lg:pl-0"}`}>
+            <dt className={`text-[10px] lg:text-xs uppercase tracking-wider ${isDark ? "text-[#939393]":"text-black/70"}`}>{s.label}</dt>
             <dd className={`mt-0.5 text-xs lg:text-sm ${t.strong}`}>{s.value}</dd>
           </div>
         ))}

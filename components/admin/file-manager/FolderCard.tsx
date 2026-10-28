@@ -149,8 +149,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({
             </div>
             <div className="min-w-0">
               <h3
-                className={`font-semibold text-sm leading-tight truncate transition-colors ${isDark ? "text-white" : "text-black"
-                  }`}
+                className={`font-semibold text-sm leading-tight truncate transition-colors ${isDark ? "text-white" : "text-black"}`}
                 title={title}
               >
                 {title}

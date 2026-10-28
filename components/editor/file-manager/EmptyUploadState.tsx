@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { FileImage, Folder, Search, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import { fmTheme } from "./theme";
+import Image from "next/image";
 
 /** "Upload your Edited Files" empty state. Doubles as a drop zone when `onFiles` is set. */
 export default function EmptyUploadState({
@@ -39,14 +40,17 @@ export default function EmptyUploadState({
         ? "border-[#E8D1AB] bg-[#E8D1AB]/5"
         : isDark ? "border-transparent" : "border-transparent"}`}
     >
-      {/* folder + photo + magnifier illustration */}
-      <div className="relative h-24 w-28" aria-hidden="true">
-        <FileImage size={46} strokeWidth={1} className={`absolute left-9 top-0 rotate-12 ${isDark ? "text-[#E8D1AB]/70" : "text-[#9C7B45]/70"}`} />
-        <Folder size={72} strokeWidth={1} className={`absolute left-0 top-5 ${isDark ? "fill-[#1C1C1C] text-[#E8D1AB]/70" : "fill-white text-[#9C7B45]/70"}`} />
-        <Search size={40} strokeWidth={1.2} className={`absolute bottom-0 right-0 ${isDark ? "text-[#E8D1AB]" : "text-[#9C7B45]"}`} />
-      </div>
-      <p className={`mt-6 text-base lg:text-lg font-medium ${t.strong}`}>{title}</p>
-      <p className={`mt-1 text-xs lg:text-sm ${t.faint}`}>{subtitle}</p>
+      <Image
+        src="/images/file-manager-empty-state.png"
+        alt="No file uploaded"
+        width={184}
+        height={164}
+        // className="mb-6 h-auto w-[150px] lg:w-[184px]"
+        className={`h-auto w-[130px] lg:w-[184px] ${isDark ? "" : "invert brightness-100 hue-rotate-180"}`}
+        priority
+      />
+      <p className={`mt-5 text-base lg:text-2xl font-medium ${t.strong}`}>{title}</p>
+      <p className={`mt-1 text-sm lg:text-base ${isDark ? "text-[#848484]":"text-black/70"}`}>{subtitle}</p>
       {onUploadClick && (
         <button
           type="button"

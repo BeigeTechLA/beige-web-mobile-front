@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Check, Grid3X3, LayoutGrid, Link, List, MoreVertical, Search } from "lucide-react";
 import { fmTheme } from "./theme";
-import type { Person, ViewMode } from "./types";
+import type { Person, TagTone, ViewMode } from "./types";
 
 /* Small building blocks shared by every editor file-manager screen. */
 
@@ -115,9 +115,9 @@ export function TagPill({ isDark, label }: { isDark: boolean; label: string }) {
 }
 
 /** Green-outline "Latest" / "V1 Latest" badge */
-export function LatestBadge({ version }: { version?: string }) {
+export function LatestBadge({ version, cornerType = "rounded-full" }: { version?: string; cornerType?: string }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-md border border-[#1F7A43] bg-[#0F2A1A] px-1.5 py-0.5 text-[10px] text-[#3DD27A]">
+    <span className={`inline-flex items-center gap-1 border border-white/10 bg-white/5 px-1.5 py-0.5 lg:px-3 lg:py-1 text-xs lg:text-sm text-[#05DF72] ${cornerType}`}>
       {version && <span className="text-white/80">{version}</span>}
       Latest
     </span>
@@ -127,17 +127,19 @@ export function LatestBadge({ version }: { version?: string }) {
 /** Small purple/pink status pill ("File Selected For Edits", "Ready for Approval") */
 export function StatusTag({ label, tone = "purple" }: { label: string; tone?: "purple" | "pink" | "blue" }) {
   const cls = {
-    purple: "border-[#5B3A8C] bg-[#24183A] text-[#C9A2FF]",
+    purple: "border-[#AD46FF]/20 bg-[#AD46FF]/10 text-[#C27AFF]",
     pink: "border-[#8C3A7A] bg-[#3A1833] text-[#F29BDD]",
     blue: "border-[#3A4F8C] bg-[#18213A] text-[#9FB6FF]",
+    red: "border-[#7A2A2E] bg-[#3A1517] text-[#FF7A7A]",
+    green: "border-[#1F7A43] bg-[#0F2A1A] text-[#3DD27A]",
   }[tone];
-  return <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] ${cls}`}>{label}</span>;
+  return <span className={`flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 lg:px-3 lg:py-1 text-[10px] lg:text-xs font-medium ${cls}`}>{label}</span>;
 }
 
 /** Orange call-out with a small pointer ("Edits Needed") */
 export function Callout({ label }: { label: string }) {
   return (
-    <span className="relative ml-1 inline-flex items-center rounded-[4px] bg-[#9A4A1B] px-2 py-0.5 text-[10px] font-medium text-[#FFE2CC] before:absolute before:-left-1 before:top-1/2 before:-translate-y-1/2 before:border-y-4 before:border-r-4 before:border-y-transparent before:border-r-[#9A4A1B] before:content-['']">
+    <span className="relative ml-1 inline-flex items-center rounded-xs bg-[#A86420] px-2.5 py-1.5 text-[10px] font-medium text-[#FFE2CC] before:absolute before:-left-1 before:top-1/2 before:-translate-y-1/2 before:border-y-4 before:border-r-4 before:border-y-transparent before:border-r-[#A86420] before:content-['']">
       {label}
     </span>
   );

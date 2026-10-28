@@ -25,7 +25,7 @@ export default function FolderHeader({
   const dueLabel = shoot.dueInDays <= 0 ? "Edits Due Today" : `Edits Due in ${shoot.dueInDays} Day${shoot.dueInDays === 1 ? "" : "s"}`;
 
   return (
-    <div>
+    <div className="space-y-3 lg:space-y-5">
       <button
         type="button"
         onClick={onBack}

@@ -26,8 +26,8 @@ export default function FolderCard({
     <div className="flex min-w-0 flex-wrap items-center gap-1">
       <p className={`truncate text-sm font-semibold ${t.strong}`}>{folder.name}</p>
       {folder.info && (
-        <span title={folder.info} className={`${t.faint} cursor-help`} aria-label={folder.info}>
-          <Info size={12} />
+        <span title={folder.info} className={`cursor-help ${isDark?"text-black":"text-white"}`} aria-label={folder.info}>
+          <Info size={14} fill="#E8D1AB" strokeWidth={1.5} />
         </span>
       )}
       {folder.callout && <Callout label={folder.callout} />}
