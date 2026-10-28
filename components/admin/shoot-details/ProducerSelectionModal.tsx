@@ -35,6 +35,26 @@ export const AVAILABILITY: Record<ProducerAvailability, { label: string; dot: st
 export const initials = (name: string) =>
   name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('');
 
+// Special cases for role names that can't be split on underscores/spaces
+const ROLE_LABEL_OVERRIDES: Record<string, string> = {
+  superadmin: 'Super Admin',
+};
+
+// "super_admin" -> "Super Admin", "production-manager" -> "Production Manager",
+// "Post Production Manager" stays as is
+export const formatRoleLabel = (role?: string | null) => {
+  const raw = String(role || '').trim();
+  if (!raw) return 'Producer';
+  const override = ROLE_LABEL_OVERRIDES[raw.toLowerCase().replace(/[\s_-]+/g, '')];
+  if (override) return override;
+  return raw
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 /* Component */
 
 export interface ProducerSelectionModalProps {
@@ -228,8 +248,15 @@ export default function ProducerSelectionModal({
                         )}
                       </span>
                       <span className="block text-sm lg:text-base mt-1 truncate">
-                        <span className={muted}>{p.role}</span>
-                        {p.activeShoots != null && <span className={gold}>{p.activeShoots} active shoot{p.activeShoots === 1 ? '' : 's'}</span>}
+                        <span className={muted}>{formatRoleLabel(p.role)}</span>
+                        {p.activeShoots != null && (
+                          <>
+                            <span className={`mx-1.5 ${muted}`} aria-hidden="true">·</span>
+                            <span className={gold}>
+                              {p.activeShoots} Active Shoot{p.activeShoots === 1 ? '' : 's'}
+                            </span>
+                          </>
+                        )}
                       </span>
                       {/* Availability under the name on small phones */}
                       {av && <span className={`lg:hidden mt-1 flex items-center gap-1.5 text-xs ${isDark ? 'text-[#A8A8A6]' : 'text-zinc-600'}`}>

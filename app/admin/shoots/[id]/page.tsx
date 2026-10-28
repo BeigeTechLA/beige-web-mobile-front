@@ -198,8 +198,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     let cancelled = false;
     adminApi.getPostProductionTeamOptions().then((response) => {
       if (cancelled) return;
-      setProducerOptions((response?.success && Array.isArray(response.data) ? response.data : []).map((user: { id: number; name: string; email?: string; role_name?: string }) => ({
-        id: String(user.id), name: user.name, email: user.email, role: user.role_name || "Producer",
+      setProducerOptions((response?.success && Array.isArray(response.data) ? response.data : []).map((user: { id: number; name: string; email?: string; role_name?: string; assigned_shoots_count?: number }) => ({
+        id: String(user.id),name: user.name, email: user.email, role: user.role_name || "Producer",activeShoots: user.assigned_shoots_count ?? 0,
       })));
     });
     return () => { cancelled = true; };
