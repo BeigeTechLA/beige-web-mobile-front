@@ -560,6 +560,10 @@ export default function ShootHeader({
   const resolvedStatusLabel =
     project?.timeline_label ||
     timelineStageToHeaderLabel(resolveTimelineStage(project));
+  const COPY_BTN_STYLE = `shrink-0 flex items-center justify-center p-1 transition-all active:scale-90 ${
+    isDark ? "text-white/50 hover:text-[#E8D1AB]" : "text-gray-400 hover:text-black"
+  }`;
+
   const renderDescription = (text: string) => {
     if (!text) return <span>No description available.</span>;
 
@@ -626,6 +630,23 @@ export default function ShootHeader({
               >
                 {phoneValue}
               </a>
+              <button
+                type="button"
+                title="Copy phone number"
+                aria-label="Copy phone number"
+                onClick={() => void handleCopyValue(phoneValue, "Phone")}
+                className={COPY_BTN_STYLE}
+              >
+                {copiedField === "Phone" ? (
+                  <Check
+                    size={14}
+                    strokeWidth={3}
+                    className="text-[#E8D1AB] animate-in zoom-in-50 duration-200"
+                  />
+                ) : (
+                  <Copy size={14} />
+                )}
+              </button>
             </div>
           );
         } else if (emailMatch) {
@@ -642,6 +663,23 @@ export default function ShootHeader({
               >
                 {emailValue}
               </a>
+              <button
+                type="button"
+                title="Copy email"
+                aria-label="Copy email"
+                onClick={() => void handleCopyValue(emailValue, "Email")}
+                className={COPY_BTN_STYLE}
+              >
+                {copiedField === "Email" ? (
+                  <Check
+                    size={14}
+                    strokeWidth={3}
+                    className="text-[#E8D1AB] animate-in zoom-in-50 duration-200"
+                  />
+                ) : (
+                  <Copy size={14} />
+                )}
+              </button>
             </div>
           );
         } else if (line.trim()) {
@@ -653,10 +691,6 @@ export default function ShootHeader({
 
     return elements;
   };
-
-  const COPY_BTN_STYLE = `shrink-0 flex items-center justify-center p-1 transition-all active:scale-90 ${
-    isDark ? "text-white/50 hover:text-[#E8D1AB]" : "text-gray-400 hover:text-black"
-  }`;
 
   const handleViewClientDetails = () => {
     if (resolvedClientId) {
@@ -1221,6 +1255,23 @@ export default function ShootHeader({
                       >
                         {guestEmail}
                     </a>
+                    <button
+                      type="button"
+                      title="Copy email"
+                      aria-label="Copy email"
+                      onClick={() => void handleCopyValue(guestEmail, "Email")}
+                      className={COPY_BTN_STYLE}
+                    >
+                      {copiedField === "Email" ? (
+                        <Check
+                          size={14}
+                          strokeWidth={3}
+                          className="text-[#E8D1AB] animate-in zoom-in-50 duration-200"
+                        />
+                      ) : (
+                        <Copy size={14} />
+                      )}
+                    </button>
                     {!isSalesView ? (
                       <button
                         type="button"

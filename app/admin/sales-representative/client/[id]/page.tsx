@@ -475,6 +475,12 @@ export default function LeadDetailPage() {
     }
   };
 
+  const handleCopyValue = async (value: string | undefined | null, label: string) => {
+    if (!value || value === "N/A" || value === "No email") return;
+    await copyToClipboard(value);
+    toast.success(`${label} copied to clipboard`);
+  };
+
   const [removeAssignedCrew] = useRemoveAssignedCrewMutation();
 
   const handleRemoveCP = async (cpId: number) => {
@@ -596,26 +602,50 @@ export default function LeadDetailPage() {
                   </div>
                 </div>
                 <div className={`flex flex-col lg:flex-row flex-wrap gap-3 lg:gap-y-4 lg:gap-x-8 text-sm ${isDark ? "text-[#AAA7A7]" : "text-[#666666]"}`}>
-                  <p>
-                    Email ID :{" "}
-                    <a
-                      href={`mailto:${lead?.guest_email || ""}`}
-                      title="Email ID"
-                      className={`${isDark ? "text-white" : "text-black"} transition-colors hover:opacity-80`}
-                    >
-                      {email}
-                    </a>
+                  <p className="inline-flex items-center gap-1.5">
+                    <span>
+                      Email ID :{" "}
+                      <a
+                        href={`mailto:${lead?.guest_email || ""}`}
+                        title="Email ID"
+                        className={`${isDark ? "text-white" : "text-black"} transition-colors hover:opacity-80`}
+                      >
+                        {email}
+                      </a>
+                    </span>
+                    {lead?.guest_email && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyValue(lead.guest_email, "Email")}
+                        title="Copy email"
+                        className={`shrink-0 rounded-md p-1 transition-all active:scale-95 ${isDark ? "text-[#AAA7A7] hover:bg-white/10 hover:text-white" : "text-[#666666] hover:bg-black/5 hover:text-black"}`}
+                      >
+                        <Copy size={13} />
+                      </button>
+                    )}
                   </p>
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
-                  <p>
-                    Phone Number :{" "}
-                    <a
-                      href={`tel:${String(phone).replace(/[^\d+]/g, "")}`}
-                      title="Phone Number"
-                      className={`${isDark ? "text-white" : "text-black"} transition-colors hover:opacity-80`}
-                    >
-                      {phone}
-                    </a>
+                  <p className="inline-flex items-center gap-1.5">
+                    <span>
+                      Phone Number :{" "}
+                      <a
+                        href={`tel:${String(phone).replace(/[^\d+]/g, "")}`}
+                        title="Phone Number"
+                        className={`${isDark ? "text-white" : "text-black"} transition-colors hover:opacity-80`}
+                      >
+                        {phone}
+                      </a>
+                    </span>
+                    {phone !== "N/A" && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyValue(phone, "Phone number")}
+                        title="Copy phone number"
+                        className={`shrink-0 rounded-md p-1 transition-all active:scale-95 ${isDark ? "text-[#AAA7A7] hover:bg-white/10 hover:text-white" : "text-[#666666] hover:bg-black/5 hover:text-black"}`}
+                      >
+                        <Copy size={13} />
+                      </button>
+                    )}
                   </p>
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
                   <p>

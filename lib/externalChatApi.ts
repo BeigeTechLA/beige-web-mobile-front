@@ -416,6 +416,11 @@ export const externalChatApi = {
     return this.extractRoom(response);
   },
 
+  async renameRoom(roomId: string, name: string) {
+    const response = await apiClient.patch<RoomResponse>(`external-chat/room/${encodeURIComponent(roomId)}/name`, { name });
+    return this.extractRoom(response);
+  },
+
   async markRoomAsRead(roomId: string, sender?: ExternalChatUser | null) {
     const response = await apiClient.patch<SendMessageResponse>(`external-chat/room/${roomId}/mark-read`, {
       sender,

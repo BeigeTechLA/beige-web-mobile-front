@@ -166,6 +166,12 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
     toast.success(`Copied ${fullCode} to clipboard`);
   };
 
+  const handleCopyValue = (value: string | undefined | null, label: string) => {
+    if (!value || value === "N/A") return;
+    navigator.clipboard.writeText(value);
+    toast.success(`${label} copied to clipboard`);
+  };
+
   const filteredShoots = useMemo(() => {
     if (!shootsData?.projects) return [];
     const pool = activeTab === "Paid" ? shootsData.projects.paid : shootsData.projects.unpaid_or_draft;
@@ -294,7 +300,18 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
               </div>
               <div className="space-y-1 min-w-0 flex-1">
                 <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-[#666]" : "text-gray-400"}`}>Email ID</p>
-                <p className={`${isDark ? "text-white" : "text-black"} text-base lg:text-lg font-semibold break-all`}>{client?.email}</p>
+                <div className="flex items-center gap-2 group">
+                  <p className={`${isDark ? "text-white" : "text-black"} text-base lg:text-lg font-semibold break-all`}>{client?.email}</p>
+                  {client?.email && (
+                    <button
+                      onClick={() => handleCopyValue(client?.email, "Email")}
+                      className={`shrink-0 p-1.5 rounded-lg transition-all active:scale-95 ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"}`}
+                      title="Click to copy"
+                    >
+                      <Copy size={14} className={`transition-colors ${isDark ? "text-[#444] group-hover:text-[#E5D5B8]" : "text-gray-400 group-hover:text-black"}`} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -306,7 +323,18 @@ const [generateAdminReset] = useGenerateUserResetLinkForAdminMutation();
               </div>
               <div className="space-y-1">
                 <p className={`text-[10px] uppercase font-bold tracking-widest ${isDark ? "text-[#666]" : "text-gray-400"}`}>Phone Number</p>
-                <p className={`${isDark ? "text-white" : "text-black"} text-base lg:text-lg font-semibold`}>{client?.phone_number || "N/A"}</p>
+                <div className="flex items-center gap-2 group">
+                  <p className={`${isDark ? "text-white" : "text-black"} text-base lg:text-lg font-semibold`}>{client?.phone_number || "N/A"}</p>
+                  {client?.phone_number && (
+                    <button
+                      onClick={() => handleCopyValue(client?.phone_number, "Phone number")}
+                      className={`shrink-0 p-1.5 rounded-lg transition-all active:scale-95 ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"}`}
+                      title="Click to copy"
+                    >
+                      <Copy size={14} className={`transition-colors ${isDark ? "text-[#444] group-hover:text-[#E5D5B8]" : "text-gray-400 group-hover:text-black"}`} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 

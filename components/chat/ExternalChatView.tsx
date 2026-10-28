@@ -42,6 +42,7 @@ import ManageParticipantsModal from "@/components/chat/ManageParticipantsModal";
 import EmptyChatState from "./EmptyChatState";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 type RoleVariant = "admin" | "sales" | "client" | "cp" | "pm";
 type RoomSortOrder = "latest" | "oldest";
@@ -122,6 +123,8 @@ const normalizeUser = (value: ExternalChatUser | string | number | null | undefi
     email: normalizedEmail,
     role: value.role,
     profileImage: value.profileImage,
+    client_id: (value as any).client_id ?? (value as any).clientId,
+    crew_member_id: (value as any).crew_member_id ?? (value as any).crewMemberId,
   };
 };
 
@@ -268,7 +271,9 @@ const getFirstName = (value?: string | null) =>
 const getRoomDisplayName = (room?: ExternalChatRoom | null) => {
   if (!room) return "Messages";
 
-  const roomName = String(room.name || "").trim();
+  const rawRoomName = String(room.name || "");
+  const roomName = rawRoomName.trim();
+  if (roomName && !/[_#]/.test(roomName)) return rawRoomName;
   const isDirectRoomName = /^direct[\s_]+/i.test(roomName);
   const directName = roomName.replace(/^direct[\s_]+/i, "").trim();
   if (isDirectRoomName && directName) return directName;
@@ -501,6 +506,32 @@ const getRoleLabel = (role?: string | null) => {
 
 const getMessageId = (message?: ExternalChatMessage | null) =>
   String(message?.id || message?._id || "");
+
+// Clients open by client_id, creators open by crew_member_id.
+// Pass several sources (message sender, participant list entry); the first one with the id wins.
+const pickProfileId = (sources: unknown[], keys: string[]) => {
+  for (const source of sources) {
+    const record = asRecord(source);
+    if (!record) continue;
+    for (const key of keys) {
+      const value = String(record[key] ?? "").trim();
+      if (value && !isBogusParticipantValue(value)) return value;
+    }
+  }
+  return null;
+};
+
+const getParticipantProfilePath = (role?: string | null, ...sources: unknown[]) => {
+  if (role === "client") {
+    const clientId = pickProfileId(sources, ["client_id", "clientId"]);
+    return clientId ? `/admin/users/clients/${clientId}` : null;
+  }
+  if (role === "cp") {
+    const crewMemberId = pickProfileId(sources, ["crew_member_id", "crewMemberId"]);
+    return crewMemberId ? `/admin/users/creative-partners/${crewMemberId}` : null;
+  }
+  return null;
+};
 
 const getMessageTimestamp = (message?: ExternalChatMessage | null) =>
   String(message?.createdAt || message?.updatedAt || "");
@@ -762,6 +793,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   ref
 ) => {
   const { user } = useAuth();
+  const router = useRouter();
   const storedUser = useMemo(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -812,6 +844,9 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
   const [roomListView, setRoomListView] = useState<"active" | "archived">("active");
   const [archiveChatPending, setArchiveChatPending] = useState(false);
   const [archivingChat, setArchivingChat] = useState(false);
+  const [isRenameRoomOpen, setIsRenameRoomOpen] = useState(false);
+  const [renameRoomName, setRenameRoomName] = useState("");
+  const [isRenamingRoom, setIsRenamingRoom] = useState(false);
   const [threadSearch, setThreadSearch] = useState("");
   const [isThreadSearchOpen, setIsThreadSearchOpen] = useState(false);
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
@@ -851,12 +886,14 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     [effectiveUser]
   );
   const isAdminView = role === "admin";
+  // Client and creative-partner logins must not be able to open profiles
+  const canOpenProfiles = isAdminView;
   const isSuperAdmin = useMemo(() => {
     const record = effectiveUser as Record<string, unknown>;
     const roleValue = String(record?.userRole ?? record?.role ?? "").trim().toLowerCase();
     return ["super_admin", "superadmin", "super-admin"].includes(roleValue);
   }, [effectiveUser]);
-  const { canCreate: canCreateMessages, canDelete: canDeleteMessages } = usePermissions("messages");
+  const { canCreate: canCreateMessages, canEdit: canEditMessages, canDelete: canDeleteMessages } = usePermissions("messages");
   const shouldUseDirectRoom = Boolean(directRoomMode && bookingId);
   const socketServerUrl = useMemo(() => {
     const apiEndpoint = String(process.env.NEXT_PUBLIC_API_ENDPOINT || "").trim();
@@ -1282,6 +1319,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
       ]);
       const refreshedRoom: ExternalChatRoom = {
         ...(roomWithClearedUnread || {}),
+
         client_id: participantData?.client || room?.client_snapshot || room?.client_id || null,
         client_ids: (participantData?.clients && participantData.clients.length ? participantData.clients : room?.client_ids) || [],
         cp_ids: (participantData?.cps && participantData.cps.length ? participantData.cps : room?.cp_ids) || [],
@@ -2208,12 +2246,50 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
     }
   };
 
+  const handleRenameRoom = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const currentRoom = selectedRoomRef.current || selectedRoom;
+    const roomId = getRoomId(currentRoom);
+    if (!currentRoom || !roomId || !renameRoomName.trim() || isRenamingRoom) return;
+
+    setIsRenamingRoom(true);
+    try {
+      const responseRoom = await externalChatApi.renameRoom(roomId, renameRoomName);
+      const nextRoom = {
+        ...currentRoom,
+        ...(responseRoom || {}),
+        name: typeof responseRoom?.name === "string" ? responseRoom.name : renameRoomName,
+      };
+      selectedRoomRef.current = nextRoom;
+      setSelectedRoom(nextRoom);
+      setRooms((current) => current.map((room) =>
+        getRoomId(room) === roomId ? { ...room, ...nextRoom } : room
+      ));
+      setIsRenameRoomOpen(false);
+      toast.success("Chat name updated");
+    } catch (error: any) {
+      toast.error(error?.data?.message || error?.message || "Failed to update chat name");
+    } finally {
+      setIsRenamingRoom(false);
+    }
+  };
+
   const appendEmojiToDraft = (emoji: string) => {
     setDraftMessage((current) => `${current}${emoji}`);
   };
 
   const handleComposerEmojiClick = (emojiData: EmojiClickData) => {
     appendEmojiToDraft(emojiData.emoji);
+  };
+
+  const openParticipantProfile = (profilePath: string) => {
+    const returnUrl = new URL(window.location.href);
+    const activeRoomId = getRoomId(selectedRoomRef.current);
+    if (activeRoomId) returnUrl.searchParams.set("roomId", activeRoomId);
+
+    const destination = new URL(profilePath, window.location.origin);
+    destination.searchParams.set("returnTo", `${returnUrl.pathname}${returnUrl.search}`);
+    router.push(`${destination.pathname}${destination.search}`);
   };
 
   const selectedRoomTitle = selectedRoom ? getRoomDisplayName(selectedRoom) : "Messages";
@@ -2590,6 +2666,20 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                               <RefreshCw className="h-4 w-4 shrink-0" />
                               <span className="truncate">Refresh conversation</span>
                             </button>
+                            {isAdminView && isSuperAdmin && canEditMessages ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRenameRoomName(selectedRoom?.name || "");
+                                  setIsRenameRoomOpen(true);
+                                  setIsHeaderMenuOpen(false);
+                                }}
+                                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${isDark ? "text-white/80 hover:bg-[#3D3D3D]" : "text-black/80 hover:bg-zinc-50"}`}
+                              >
+                                <Pencil className="h-4 w-4 shrink-0" />
+                                <span className="truncate">Rename chat</span>
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               onClick={() => {
@@ -2789,6 +2879,17 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                         const isOwn = sender?.id && chatUserId ? String(sender.id) === chatUserId : false;
                         const canDeleteMessage = !message.is_deleted && (isOwn || canDeleteMessages);
                         const isEditing = editingMessageId === messageId;
+                        const senderParticipant = participantList.find(
+                          (participant) =>
+                            (participant.id && sender?.id && String(participant.id) === String(sender.id)) ||
+                            (participant.email &&
+                              sender?.email &&
+                              String(participant.email).trim().toLowerCase() === String(sender.email).trim().toLowerCase())
+                        );
+                        const profilePath =
+                          canOpenProfiles && !isOwn && !isSystem
+                            ? getParticipantProfilePath(senderRole, sender, senderParticipant)
+                            : null;
                         const groupedReactions = Object.values(
                           (message.reactions || []).reduce(
                             (acc, reaction) => {
@@ -2867,9 +2968,23 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                 <div className="h-4 w-4 shrink-0" aria-hidden="true" />
                               ) : null}
                               {!isOwn ? (
-                                <div className={`flex h-8 w-8 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${isDark ? "bg-[#E8D1AB]/20 text-[#E8D1AB]" : "bg-zinc-100 text-zinc-800"}`}>
-                                  {getInitials(sender?.name)}
-                                </div>
+                                profilePath ? (
+                                  <button
+                                    type="button"
+                                    title={`View ${sender?.name || "profile"}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openParticipantProfile(profilePath);
+                                    }}
+                                    className={`flex h-8 w-8 lg:h-10 lg:w-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-xs font-semibold ${isDark ? "bg-[#E8D1AB]/20 text-[#E8D1AB]" : "bg-zinc-100 text-zinc-800"}`}
+                                  >
+                                    {getInitials(sender?.name)}
+                                  </button>
+                                ) : (
+                                  <div className={`flex h-8 w-8 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${isDark ? "bg-[#E8D1AB]/20 text-[#E8D1AB]" : "bg-zinc-100 text-zinc-800"}`}>
+                                    {getInitials(sender?.name)}
+                                  </div>
+                                )
                               ) : null}
 
                               <div className={`max-w-[85%] lg:max-w-[78%] min-w-0 ${isOwn ? "items-end" : "items-start"} flex flex-col`}>
@@ -2976,9 +3091,22 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                     : `rounded-bl-md ${isDark ? "bg-[#191919] text-white" : "bg-white border border-zinc-200 text-zinc-900"}`
                                     }`}>
                                     <div className="mb-1 flex flex-wrap items-center gap-1.5 lg:gap-2">
-                                      <p className={`text-[10px] uppercase tracking-[0.12em] font-medium truncate max-w-[120px] lg:max-w-none ${isDark ? "text-white/35" : "text-zinc-400"}`}>
-                                        {sender?.name || "Participant"}
-                                      </p>
+                                      {profilePath ? (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            openParticipantProfile(profilePath);
+                                          }}
+                                          className={`text-[10px] uppercase tracking-[0.12em] font-medium truncate max-w-[120px] lg:max-w-none cursor-pointer hover:underline ${isDark ? "text-white/35 hover:text-[#E8D1AB]" : "text-zinc-400 hover:text-black"}`}
+                                        >
+                                          {sender?.name || "Participant"}
+                                        </button>
+                                      ) : (
+                                        <p className={`text-[10px] uppercase tracking-[0.12em] font-medium truncate max-w-[120px] lg:max-w-none ${isDark ? "text-white/35" : "text-zinc-400"}`}>
+                                          {sender?.name || "Participant"}
+                                        </p>
+                                      )}
                                       <span className={`rounded-full border px-2 py-0.5 text-[10px] ${isDark ? "border-white/10 bg-[#3D3D3D] text-white/45" : "border-zinc-200 bg-zinc-50 text-zinc-600"}`}>
                                         {getRoleLabel(senderRole)}
                                       </span>
@@ -3302,6 +3430,55 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
           }}
           isDark={isDark}
         />
+      ) : null}
+
+      {isRenameRoomOpen && selectedRoom ? (
+        <div
+          className={`fixed inset-0 z-[80] flex items-center justify-center px-4 backdrop-blur-sm ${isDark ? "bg-black/60" : "bg-white/80"}`}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isRenamingRoom) setIsRenameRoomOpen(false);
+          }}
+        >
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rename-chat-title"
+            onSubmit={handleRenameRoom}
+            className={`w-full max-w-md rounded-2xl border p-5 shadow-2xl md:p-6 ${isDark ? "border-white/10 bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}
+          >
+            <h3 id="rename-chat-title" className={`text-lg font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>
+              Rename chat
+            </h3>
+            <label htmlFor="rename-chat-name" className={`mt-5 block text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+              Chat name
+            </label>
+            <Input
+              id="rename-chat-name"
+              value={renameRoomName}
+              onChange={(event) => setRenameRoomName(event.target.value)}
+              autoFocus
+              disabled={isRenamingRoom}
+              className={`mt-2 h-12 ${isDark ? "border-white/10 bg-transparent text-white" : "border-[#D6D6D6] bg-white text-[#101010]"}`}
+            />
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={isRenamingRoom}
+                onClick={() => setIsRenameRoomOpen(false)}
+                className={`h-10 rounded-lg border px-4 text-sm font-medium disabled:opacity-50 ${isDark ? "border-white/10 text-white hover:bg-white/5" : "border-[#D6D6D6] text-[#101010] hover:bg-black/5"}`}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isRenamingRoom || !renameRoomName.trim() || renameRoomName === selectedRoom.name}
+                className="h-10 rounded-lg bg-[#E8D1AB] px-5 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isRenamingRoom ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </form>
+        </div>
       ) : null}
 
       {messagePendingDelete ? (
