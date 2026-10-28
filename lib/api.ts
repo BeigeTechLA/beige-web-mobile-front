@@ -890,6 +890,9 @@ export interface SalesQuoteDetailData {
   tax_type?: string;
   tax_rate?: number | string;
   tax_amount?: number | string;
+  sales_tax_rate?: number | string;
+  card_payment_charge_enabled?: boolean | number;
+  card_payment_method?: string | null;
   sales_tax?: number | string;
   discount_type?: string;
   discount_value?: number | string;

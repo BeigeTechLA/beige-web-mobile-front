@@ -101,6 +101,8 @@ export type QuoteEditorHydrationState = {
   discountValue: number;
   taxRate: number;
   taxType: string;
+  cardPaymentChargeEnabled: boolean;
+  cardPaymentMethod: string;
   selectedServices: string[];
   services: QuoteEditorServiceItem[];
   serviceConfigs: Record<string, QuoteEditorServiceConfig>;
@@ -765,8 +767,12 @@ export const buildQuoteEditorHydrationState = ({
     discountEnabled: normalizedDiscountValue > 0,
     discountType: normalizedDiscountType,
     discountValue: normalizedDiscountValue,
-    taxRate: Math.max(0, storedTaxRate - (includesCardProcessingFee ? 4 : 0)),
+    taxRate: Math.max(0, getQuoteNumber(quote.sales_tax_rate) ?? (storedTaxRate - (includesCardProcessingFee ? 4 : 0))),
     taxType: configuredTaxType || "Sales Tax",
+    cardPaymentChargeEnabled: quote.card_payment_charge_enabled === undefined
+      ? includesCardProcessingFee
+      : Boolean(quote.card_payment_charge_enabled),
+    cardPaymentMethod: getQuoteText(quote.card_payment_method),
     selectedServices,
     services: mergedServices,
     serviceConfigs,
