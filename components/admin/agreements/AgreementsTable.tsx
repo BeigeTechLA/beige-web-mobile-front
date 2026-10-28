@@ -105,6 +105,13 @@ const DEFAULT_DUMMY_AGREEMENTS: AgreementData[] = [
 interface AgreementHistoryTableProps {
   isLoading?: boolean;
   errorMessage?: string | null;
+  activeType?: "general" | "shoot";
+  onTypeChange?: (type: "general" | "shoot") => void;
+  currentPage?: number;
+  pageSize?: number;
+  totalCount?: number;
+  onPageChange?: (page: number) => void;
+  emptyMessage?: string;
   generalData?: AgreementData[];
   shootData?: AgreementData[];
   onActionClick?: (item: AgreementData, e: React.MouseEvent) => void;
@@ -115,6 +122,13 @@ interface AgreementHistoryTableProps {
 export default function GeneralAgreementHistoryTable({
   isLoading = false,
   errorMessage = null,
+  activeType = "general",
+  onTypeChange,
+  currentPage = 1,
+  pageSize = 10,
+  totalCount = 0,
+  onPageChange,
+  emptyMessage = "There are no agreements to display yet.",
   generalData = [],
   shootData = [],
   onActionClick,
@@ -123,11 +137,11 @@ export default function GeneralAgreementHistoryTable({
 }: AgreementHistoryTableProps) {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<"general" | "shoot">("general");
-  const [currentPage, setCurrentPage] = useState(1);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-  const tableData = activeTab === "general" ? generalData : shootData;
-  const totalPages = Math.max(1, Math.ceil(tableData.length / 10));
+  const tableData = activeType === "general" ? generalData : shootData;
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const firstItem = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const lastItem = Math.min(currentPage * pageSize, totalCount);
 
   useEffect(() => {
     setMounted(true);
@@ -233,7 +247,7 @@ export default function GeneralAgreementHistoryTable({
         <div className="flex items-center gap-2.5">
           <div className="w-[3px] h-6 bg-[#E5D5B8] rounded-full" />
           <h2 className={`text-base ${isDark ? "text-white" : "text-black"}`}>
-            {activeTab === "general" ? "General Agreement History" : "Shoot Agreement History"}
+            {activeType === "general" ? "General Agreement History" : "Shoot Agreement History"}
           </h2>
         </div>
 
@@ -241,9 +255,9 @@ export default function GeneralAgreementHistoryTable({
         <div className={`flex items-center p-1 rounded-lg border w-full sm:w-auto ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-[#F8F8F8] border-[#E5E5E5]"}`}>
           <button
             type="button"
-            onClick={() => setActiveTab("general")}
+            onClick={() => onTypeChange?.("general")}
             className={`flex-1 sm:flex-none px-3.5 py-1.5 text-xs rounded-md transition-all ${
-              activeTab === "general"
+              activeType === "general"
               ? "bg-[#E5D5B8] text-black font-semibold shadow-xs"
               : isDark
                 ? "text-white/60 hover:text-white"
@@ -254,9 +268,9 @@ export default function GeneralAgreementHistoryTable({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("shoot")}
+            onClick={() => onTypeChange?.("shoot")}
             className={`flex-1 sm:flex-none px-3.5 py-1.5 text-xs rounded-md transition-all ${
-              activeTab === "shoot"
+              activeType === "shoot"
               ? "bg-[#E5D5B8] text-black font-semibold shadow-xs"
               : isDark
                 ? "text-white/60 hover:text-white"
@@ -288,14 +302,14 @@ export default function GeneralAgreementHistoryTable({
                 isDark ? "border-[#3D3D3D] text-[#E8D1AB]" : "border-[#E5E5E5] text-[#8C6B30]"
               }`}
             >
-              {activeTab === "general" ? (
+              {activeType === "general" ? (
                 <>
               <th className="py-4 px-6">Creative Partner</th>
               <th className="py-4 px-6">Agreement</th>
               <th className="py-4 px-6">Role</th>
               <th className="py-4 px-6">Version</th>
               <th className="py-4 px-6">Status</th>
-              <th className="py-4 px-6 text-right">{activeTab === "general" ? "Details" : "Actions"}</th>
+              <th className="py-4 px-6 text-right">{activeType === "general" ? "Details" : "Actions"}</th>
                 </>
               ) : (
                 <>
@@ -313,8 +327,8 @@ export default function GeneralAgreementHistoryTable({
           <tbody className={isDark ? "bg-[#171717]" : ""}>
             {tableData.length === 0 && (
               <tr>
-                <td colSpan={activeTab === "general" ? 6 : 7} className={`px-6 py-12 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
-                  No {activeTab === "general" ? "general" : "shoot"} agreement history yet.
+              <td colSpan={activeType === "general" ? 6 : 7} className={`px-6 py-12 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+                  {emptyMessage}
                 </td>
               </tr>
             )}
@@ -325,7 +339,7 @@ export default function GeneralAgreementHistoryTable({
                   isDark ? "hover:bg-white/[0.02]" : "hover:bg-black/[0.02]"
                 }`}
               >
-                {activeTab === "general" ? (
+                {activeType === "general" ? (
                   <>
                     <td className="py-4 px-6">{renderCreativePartnerCell(item)}</td>
                     <td className="py-4 px-6">{renderProjectCell(item)}</td>
@@ -372,11 +386,11 @@ export default function GeneralAgreementHistoryTable({
                 <td className="py-4 px-6 text-right">
                   <div className="flex items-center justify-end gap-3 text-sm">
                     <button type="button" onClick={(e) => onActionClick?.(item, e)} className="text-[#E8D1AB] hover:underline">View</button>
-                    {activeTab === "shoot" && item.rawStatus !== "draft" && item.isCurrent && ["accepted", "pending_acceptance", "rejected"].includes(item.rawStatus || "") &&
+                    {activeType === "shoot" && item.rawStatus !== "draft" && item.isCurrent && ["accepted", "pending_acceptance", "rejected"].includes(item.rawStatus || "") &&
                       <button type="button" onClick={() => onRevise?.(item)} className="text-[#E8D1AB] hover:underline">New version</button>}
-                    {activeTab === "shoot" && item.rawStatus === "draft" &&
+                    {activeType === "shoot" && item.rawStatus === "draft" &&
                       <button type="button" onClick={() => onRevise?.(item)} className="text-[#E8D1AB] hover:underline">Edit draft</button>}
-                    {activeTab === "shoot" && ["draft", "pending_acceptance"].includes(item.rawStatus || "") &&
+                    {activeType === "shoot" && ["draft", "pending_acceptance"].includes(item.rawStatus || "") &&
                       <button type="button" onClick={() => onCancel?.(item)} className="text-red-400 hover:underline">{item.rawStatus === "draft" ? "Discard" : "Cancel"}</button>}
                   </div>
                 </td>
@@ -393,15 +407,15 @@ export default function GeneralAgreementHistoryTable({
             isDark ? "border-[#3D3D3D] text-[#E8D1AB] bg-[#101010]" : "border-[#E5E5E5] text-[#8C6B30] bg-[#F8F8F8]"
           }`}
         >
-          <span>{activeTab === "general" ? "Creative Partner" : "Project"}</span>
+                      <span>{activeType === "general" ? "Creative Partner" : "Project"}</span>
           <span>Status</span>
         </div>
 
         {/* Mobile Rows */}
         <div className={`divide-y ${isDark ? "divide-[#3D3D3D]" : "divide-[#E5E5E5]"}`}>
           {tableData.length === 0 && (
-            <p className={`px-4 py-10 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
-              No {activeTab === "general" ? "general" : "shoot"} agreement history yet.
+              <p className={`px-4 py-10 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+              {emptyMessage}
             </p>
           )}
           {tableData.map((item) => {
@@ -456,7 +470,7 @@ export default function GeneralAgreementHistoryTable({
                     }`}
                   >
                     <div className="flex flex-col gap-0.5">
-                      <span className={isDark ? "text-white/50" : "text-black/50"}>{activeTab === "general" ? "Agreement Name" : "Project ID"}</span>
+                      <span className={isDark ? "text-white/50" : "text-black/50"}>{activeType === "general" ? "Agreement Name" : "Project ID"}</span>
                       <span className={`font-medium ${isDark ? "text-white" : "text-black"}`}>
                         {item.projectId}
                       </span>
@@ -469,7 +483,7 @@ export default function GeneralAgreementHistoryTable({
                       </span>
                     </div>
 
-                    {activeTab === "shoot" && (
+                    {activeType === "shoot" && (
                     <div className="flex flex-col gap-0.5">
                         <span className={isDark ? "text-white/50" : "text-black/50"}>Compensation</span>
                         <span className={`font-semibold ${isDark ? "text-white" : "text-black"}`}>
@@ -478,7 +492,7 @@ export default function GeneralAgreementHistoryTable({
                       </div>
                     )}
 
-                    <div className={`flex flex-col gap-0.5 ${activeTab === "general" ? "" : "items-end"}`}>
+                    <div className={`flex flex-col gap-0.5 ${activeType === "general" ? "" : "items-end"}`}>
                       <span className={isDark ? "text-white/50" : "text-black/50"}>Version</span>
                       <span
                         className={`w-fit px-2.5 py-0.5 text-xs font-medium rounded-sm border ${
@@ -498,9 +512,9 @@ export default function GeneralAgreementHistoryTable({
                     </div>
                       <div className="flex flex-wrap justify-end gap-3 text-sm">
                         <button type="button" onClick={(e) => { e.stopPropagation(); onActionClick?.(item, e); }} className="text-[#E8D1AB]">View</button>
-                        {activeTab === "shoot" && (item.rawStatus === "draft" || (item.isCurrent && ["accepted", "pending_acceptance", "rejected"].includes(item.rawStatus || ""))) &&
+                        {activeType === "shoot" && (item.rawStatus === "draft" || (item.isCurrent && ["accepted", "pending_acceptance", "rejected"].includes(item.rawStatus || ""))) &&
                           <button type="button" onClick={(e) => { e.stopPropagation(); onRevise?.(item); }} className="text-[#E8D1AB]">{item.rawStatus === "draft" ? "Edit draft" : "New version"}</button>}
-                        {activeTab === "shoot" && ["draft", "pending_acceptance"].includes(item.rawStatus || "") &&
+                        {activeType === "shoot" && ["draft", "pending_acceptance"].includes(item.rawStatus || "") &&
                           <button type="button" onClick={(e) => { e.stopPropagation(); onCancel?.(item); }} className="text-red-400">{item.rawStatus === "draft" ? "Discard" : "Cancel"}</button>}
                       </div>
                     </div>
@@ -513,15 +527,15 @@ export default function GeneralAgreementHistoryTable({
       </div>
 
       {/* Footer Pagination */}
-      {tableData.length > 0 && <div className={`flex flex-col sm:flex-row items-center justify-between p-4 lg:p-6 border-t gap-4 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
-        <p className={`hidden lg:block text-xs lg:text-sm ${isDark ? "text-white" : "text-black"}`}>
-          Page {currentPage} of {totalPages}
+      {totalCount > 0 && <div className={`flex flex-col sm:flex-row items-center justify-between p-4 lg:p-6 border-t gap-4 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
+        <p className={`text-xs lg:text-sm ${isDark ? "text-white" : "text-black"}`}>
+          Showing {firstItem} to {lastItem} of {totalCount} agreements
         </p>
 
-        <div className="flex items-center gap-1.5">
+        {totalCount > pageSize && <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            onClick={() => onPageChange?.(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
             className={`p-1.5 rounded-lg border transition-colors disabled:opacity-30 ${isDark
               ? "border-[#3D3D3D] text-white/70 hover:text-white"
@@ -531,29 +545,13 @@ export default function GeneralAgreementHistoryTable({
             <ChevronLeft size={16} />
           </button>
 
-          {[1, 2, 3].map((page) => (
-            <button
-              key={page}
-              type="button"
-              onClick={() => setCurrentPage(page)}
-              className={`w-8 h-8 flex items-center justify-center text-xs font-medium rounded-lg border transition-all ${currentPage === page
-                ? isDark
-                  ? "border-[#E5D5B8] bg-[#E5D5B8] text-black font-semibold"
-                  : "border-[#E8D1AB] bg-[#E8D1AB] text-black font-semibold"
-                : isDark
-                  ? "border-[#3D3D3D] text-white/60 hover:text-white"
-                  : "border-[#E5E5E5] text-black/60 hover:text-black"
-                }`}
-            >
-              {page}
-            </button>
-          ))}
-
-          <span className={`px-1 text-xs ${isDark ? "text-white/40" : "text-black/40"}`}>...</span>
+          <span aria-current="page" className={`min-w-8 h-8 px-2 flex items-center justify-center text-xs font-medium rounded-lg border ${isDark ? "border-[#E5D5B8] bg-[#E5D5B8] text-black" : "border-[#E8D1AB] bg-[#E8D1AB] text-black"}`}>
+            {currentPage} / {totalPages}
+          </span>
 
           <button
             type="button"
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            onClick={() => onPageChange?.(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage === totalPages}
             className={`p-1.5 rounded-lg border transition-colors disabled:opacity-30 ${isDark
               ? "border-[#3D3D3D] text-white/70 hover:text-white"
@@ -562,7 +560,7 @@ export default function GeneralAgreementHistoryTable({
           >
             <ChevronRight size={16} />
           </button>
-        </div>
+        </div>}
       </div>}
         </>
       )}

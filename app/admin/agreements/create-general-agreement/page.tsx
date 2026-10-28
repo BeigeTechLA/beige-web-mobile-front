@@ -22,6 +22,7 @@ import { DatePickerFloating } from "@/components/admin/DatePickerFloating";
 import SuccessModal from "@/components/admin/agreements/AgreementSendSuccess";
 import { toast } from "sonner";
 import { agreementApi } from "@/lib/api/agreements";
+import { agreementContentPreview } from "@/lib/utils/agreementContent";
 import { format, startOfDay } from "date-fns";
 
 interface Section {
@@ -49,9 +50,18 @@ const parseAgreementContent = (value: unknown): { lead_paragraphs?: unknown[]; s
   try { return JSON.parse(String(value)); } catch { return null; }
 };
 
-const contentToEditorHtml = (content: string) => /<\/?[a-z][\s\S]*>/i.test(content)
-  ? content
-  : content ? content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />") : "";
+const contentToEditorHtml = (content: string) => {
+  const html = /<\/?[a-z][\s\S]*>/i.test(content)
+    ? content
+    : content ? content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />") : "";
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  container.querySelectorAll<HTMLElement>("*").forEach((element) => {
+    element.style.removeProperty("color");
+    element.removeAttribute("color");
+  });
+  return container.innerHTML;
+};
 
 const hasSectionContent = (content: string) => {
   const element = document.createElement("div");
@@ -118,7 +128,7 @@ function RichTextEditor({ value, onChange, isDark }: { value: string; onChange: 
       <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { rememberSelection(); setLinkError(""); setIsLinkModalOpen(true); }} className={toolClass()} aria-label="Add link"><Link size={14} /></button>
     </div>
     <div className={`border rounded-md overflow-hidden ${isDark ? "bg-[#111110] border-[#252523] text-[#E8E8E7]" : "bg-[#F8F8F8] border-gray-200 text-black"}`}>
-      <div ref={editorRef} contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" onInput={syncValue} onKeyUp={rememberSelection} onMouseUp={rememberSelection} onFocus={rememberSelection} className={`min-h-32 w-full p-4 text-sm focus:outline-none [&_a]:text-[#E8D1AB] [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6`} />
+      <div ref={editorRef} contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" onInput={syncValue} onKeyUp={rememberSelection} onMouseUp={rememberSelection} onFocus={rememberSelection} className={`min-h-32 w-full p-4 text-sm focus:outline-none ${isDark ? "text-[#E8E8E7]" : "text-black"} [&_a]:text-[#E8D1AB] [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6`} />
     </div>
     {isLinkModalOpen && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" onMouseDown={() => setIsLinkModalOpen(false)}>
       <div className={`w-full max-w-md rounded-xl border p-6 shadow-2xl ${isDark ? "border-[#3D3D3D] bg-[#202020] text-white" : "border-[#E5E5E5] bg-white text-black"}`} onMouseDown={(event) => event.stopPropagation()}>
@@ -152,25 +162,10 @@ export default function AdminCreateGeneralAgreementPage() {
   // Sections State
   const [sections, setSections] = useState<Section[]>([
     {
-      id: "1",
-      title: "Introduction",
-      content:
-        "These general terms outline the conditions and policies applicable to the use of Beige services.",
+      id: "section-new",
+      title: "",
+      content: "",
       isExpanded: true,
-    },
-    {
-      id: "2",
-      title: "Scope of Agreement",
-      content:
-        "This agreement defines the general terms, responsibilities, and expectations...",
-      isExpanded: false,
-    },
-    {
-      id: "3",
-      title: "General Terms",
-      content:
-        "Additional terms and conditions applicable to this agreement...",
-      isExpanded: false,
     },
   ]);
 
@@ -189,7 +184,7 @@ export default function AdminCreateGeneralAgreementPage() {
         setDescription(savedDraft.description);
         const draftDate = savedDraft.effectiveDate ? new Date(`${savedDraft.effectiveDate}T12:00:00`) : null;
         setEffectiveDate(draftDate && !isPastEffectiveDate(draftDate) ? draftDate : null);
-        setSections(savedDraft.sections.map((section, index) => ({ ...section, isExpanded: index === 0 })));
+        setSections(savedDraft.sections.map((section, index) => ({ ...section, content: contentToEditorHtml(section.content), isExpanded: index === 0 })));
         return;
       }
     } catch {
@@ -201,7 +196,12 @@ export default function AdminCreateGeneralAgreementPage() {
     agreementApi.listGeneralTemplates()
       .then((response) => {
         const source = response.data.find((template) => template.agreement_template_id === sourceTemplateId);
-        if (!active || !source) return;
+        if (!active) return;
+        if (!source) {
+          sessionStorage.removeItem(GENERAL_AGREEMENT_DRAFT_KEY);
+          toast.error("That agreement is no longer available to copy. Start a new agreement instead.");
+          return;
+        }
 
         setAgreementName(source.description || source.title);
         setAgreementTitle(source.title);
@@ -219,7 +219,7 @@ export default function AdminCreateGeneralAgreementPage() {
           setSections(sourceSections.map((section, index) => ({
             id: section.id || String(index + 1),
             title: section.title || `Section ${String(index + 1).padStart(2, "0")}`,
-            content: section.content || "",
+            content: contentToEditorHtml(section.content || ""),
             isExpanded: index === 0,
           })));
         }
@@ -289,7 +289,7 @@ export default function AdminCreateGeneralAgreementPage() {
   }[character] || character));
 
   const contentToHtml = (content: string) => /<\/?[a-z][\s\S]*>/i.test(content)
-    ? content
+    ? contentToEditorHtml(content)
     : `<p>${escapeHtml(content).replace(/\n/g, "<br />")}</p>`;
   const buildContentHtml = () => [
     ...description.split(/\n\s*\n/).filter(Boolean).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`),
@@ -347,8 +347,8 @@ export default function AdminCreateGeneralAgreementPage() {
       sessionStorage.removeItem(GENERAL_AGREEMENT_DRAFT_KEY);
       setIsSuccessModalOpen(true);
       toast.success("General agreement published");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to publish agreement");
+    } catch {
+      toast.error("We couldn’t publish the agreement. Please review the details and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -561,7 +561,7 @@ export default function AdminCreateGeneralAgreementPage() {
                       </p>
                       {!section.isExpanded && section.content && (
                         <p className={`text-xs truncate max-w-xs md:max-w-md ${isDark ? "text-[#737373]" : "text-black/40"}`}>
-                          {section.content}
+                          {agreementContentPreview(section.content)}
                         </p>
                       )}
                     </div>

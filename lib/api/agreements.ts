@@ -79,6 +79,13 @@ export interface AgreementEvent {
 
 type ApiResponse<T> = { success: boolean; data: T; message?: string };
 
+export interface PaginatedAgreements {
+  items: AgreementDocument[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export const agreementApi = {
   listGeneralTemplates: () => apiClient.get<ApiResponse<AgreementTemplate[]>>("agreements/admin/general"),
   getGeneralTemplate: (templateId: number) => apiClient.get<ApiResponse<AgreementTemplate>>(`agreements/admin/general/${templateId}`),
@@ -92,6 +99,32 @@ export const agreementApi = {
     apiClient.post<ApiResponse<AgreementTemplate>>(`agreements/admin/general/${templateId}/publish`),
 
   listAdminAgreements: (params?: Record<string, unknown>) => apiClient.get<ApiResponse<AgreementDocument[]>>("agreements/admin", params),
+  listAdminAgreementsPaged: async (params: { type: AgreementType; status?: string; page: number; limit: number; search?: string }) => {
+    const response = await apiClient.get<ApiResponse<PaginatedAgreements | AgreementDocument[]>>("agreements/admin", params);
+    if (!Array.isArray(response.data)) return response as ApiResponse<PaginatedAgreements>;
+
+    // Keep the admin list usable while an older API deployment is being updated.
+    const legacyResponse = await agreementApi.listAdminAgreements({
+      type: params.type,
+      status: params.status,
+      limit: 100,
+    });
+    const allItems = Array.isArray(legacyResponse.data) ? legacyResponse.data : response.data;
+    const query = params.search?.trim().toLocaleLowerCase();
+    const matchingItems = query
+      ? allItems.filter((item) => `${item.title} ${item.snapshot?.creative_partner?.name || ""}`.toLocaleLowerCase().includes(query))
+      : allItems;
+    const start = (params.page - 1) * params.limit;
+    return {
+      ...response,
+      data: {
+        items: matchingItems.slice(start, start + params.limit),
+        total: matchingItems.length,
+        page: params.page,
+        limit: params.limit,
+      },
+    };
+  },
   getAdminAgreement: (agreementId: number) => apiClient.get<ApiResponse<{ agreement: AgreementDocument; responses: AgreementResponse[]; events: AgreementEvent[] }>>(`agreements/admin/${agreementId}`),
   createShootAgreement: (bookingId: number, assignmentId: number, payload: { title?: string; content_html: string; content_json?: unknown; due_at?: string; snapshot_overrides?: Record<string, unknown> }) =>
     apiClient.post<ApiResponse<AgreementDocument>>(`agreements/admin/shoots/${bookingId}/assignments/${assignmentId}`, payload),

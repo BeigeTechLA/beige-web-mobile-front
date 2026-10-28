@@ -751,6 +751,9 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                         const response = await adminApi.setShootProducer(Number(id), Number(producer.id));
                         if (!response.success) throw new Error(response.message);
                         await fetchProjectAndSkills(false);
+                        if (response.email_notification && !response.email_notification.success) {
+                          toast.error("Producer assigned, but the notification email could not be sent");
+                        }
                       }}
                       onRemove={async () => {
                         const response = await adminApi.setShootProducer(Number(id), null);

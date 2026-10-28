@@ -16,6 +16,7 @@ import {
   Link,
 } from "lucide-react";
 import { CPDetail, AgreementCreationMode } from "./Step1AgreementTypeSelection";
+import { agreementContentPreview } from "@/lib/utils/agreementContent";
 
 export interface ClauseSection {
   id: string;
@@ -514,7 +515,7 @@ export function Step2AgreementDetails({
                   </p>
                   {!section.isExpanded && section.content && (
                     <p className={`text-xs truncate max-w-[190px] md:max-w-md ${isDark ? "text-[#737373]" : "text-black/40"}`}>
-                      {section.content}
+                      {agreementContentPreview(section.content)}
                     </p>
                   )}
                 </div>

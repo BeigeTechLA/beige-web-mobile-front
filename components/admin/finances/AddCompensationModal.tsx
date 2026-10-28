@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, TrendingUp, Minus, Plus, X } from "lucide-react";
+import { Check, ChevronDown, Info, TrendingUp, Minus, Plus, X } from "lucide-react";
 
 import { formatCurrency } from "@/lib/utils";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
@@ -852,13 +852,33 @@ export default function AddCompensationModal({
                 </div>
               </div>
 
-              <p className={`text-sm leading-relaxed rounded-lg border p-4 ${isDark ? "border-white/15 text-white/75" : "border-black/15 text-black/70"}`}>
-                {compensationMethod === "equal"
-                  ? requiredCPCount > 0
-                    ? `You can invite more CPs than required. Each offer is ${formatCurrency(compensationReference.budget)} ÷ ${requiredCPCount} required CP${requiredCPCount === 1 ? "" : "s"} = ${formatCurrency(compensationReference.perCreator)} per CP, regardless of how many you invite. Positions are filled in acceptance order, subject to the required roles. Remaining requests close when the positions are filled.`
-                    : "Set the shoot's CP requirements before using Equal Split, or choose Manual to enter your own amounts."
-                  : "Enter your own compensation amount for each CP. The shoot amount and 25% CP budget above are reference figures and stay unchanged when you edit offers. Finance will show only CPs who accept. Positions are filled in acceptance order, subject to the required roles."}
-              </p>
+              <aside aria-label="Compensation note" className={`flex items-start gap-3 rounded-xl border p-4 ${isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/5 text-white/80" : "border-[#B89B6C]/35 bg-[#E8D1AB]/20 text-black/75"}`}>
+                <Info size={18} aria-hidden="true" className={`mt-0.5 shrink-0 ${isDark ? "text-[#E8D1AB]" : "text-[#806439]"}`} />
+                <div className="min-w-0 space-y-2 text-sm leading-relaxed [&_strong]:font-semibold">
+                  <p className={`font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#634B28]"}`}>
+                    {compensationMethod === "equal" ? "Equal split & assignments" : "Manual compensation & assignments"}
+                  </p>
+                  {compensationMethod === "equal" ? (
+                    requiredCPCount > 0 ? (
+                      <>
+                        <p>
+                          The total CP budget (25%) is <strong>{formatCurrency(compensationReference.budget)}</strong>, divided equally among <strong>{requiredCPCount} required CP{requiredCPCount === 1 ? "" : "s"}</strong>, with an offer of <strong>{formatCurrency(compensationReference.perCreator)} per CP</strong>.
+                        </p>
+                        <p>You can invite more CPs, but the offer amount remains the same regardless of how many you invite.</p>
+                        <p>Positions are filled on a <strong>first-come, first-served</strong> basis, subject to the required roles.</p>
+                      </>
+                    ) : (
+                      <p>Set the shoot's CP requirements before using Equal Split, or choose Manual to enter your own amounts.</p>
+                    )
+                  ) : (
+                    <>
+                      <p>Enter the compensation for each CP. The shoot amount and CP budget are <strong>for reference only and remain unchanged</strong>; the final payout and margin may vary based on the number of CPs and their compensation.</p>
+                      <p>Only CPs who accept will be submitted to <strong>Finance for approval</strong>.</p>
+                      <p>Assignments are <strong>first-come, first-served</strong>, based on required roles.</p>
+                    </>
+                  )}
+                </div>
+              </aside>
 
               <div className="flex flex-col gap-3 lg:gap-5">
                 <label className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>Select Creative Partner</label>

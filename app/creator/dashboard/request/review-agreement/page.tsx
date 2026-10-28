@@ -13,6 +13,7 @@ import { AgreementSignatureModal } from "@/components/creator-profile/AgreementS
 import { AgreementSignatureEvidence } from "@/components/creator-profile/AgreementSignatureEvidence";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import { formatAgreementDate } from "@/lib/utils/agreementDate";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type AgreementSection = { id?: string; num?: string; title?: string; content?: string };
 
@@ -43,6 +44,8 @@ export default function AgreementReviewPage() {
   const [agreement, setAgreement] = useState<AgreementDocument | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSignOpen, setIsSignOpen] = useState(false);
+  const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
   const [signatureResponse, setSignatureResponse] = useState<AgreementResponse | null>(null);
 
   // Form Metadata State
@@ -135,12 +138,13 @@ export default function AgreementReviewPage() {
 
   const handleReject = async () => {
     if (!agreement || agreement.status !== "pending_acceptance") return;
-    const rejectionReason = window.prompt("Why are you rejecting this agreement?");
     if (!rejectionReason?.trim()) return;
     try {
       setIsSubmitting(true);
       await agreementApi.rejectShootAgreement(agreement.agreement_document_id, rejectionReason.trim());
       setAgreement({ ...agreement, status: "rejected" });
+      setIsRejectOpen(false);
+      setRejectionReason("");
       toast.success("Shoot agreement rejected");
       router.push("/creator/dashboard/request");
     } catch (error) {
@@ -404,7 +408,7 @@ export default function AgreementReviewPage() {
             </button>
             <button
               disabled={!agreement || agreement.status !== "pending_acceptance" || isSubmitting}
-              onClick={handleReject}
+              onClick={() => { setRejectionReason(""); setIsRejectOpen(true); }}
               className={`px-8 py-3 rounded-lg text-sm font-medium transition-all ${isDark
                   ? "bg-[#EF4444] text-white hover:bg-[#8F2B2B]"
                   : "bg-red-600 text-white hover:bg-red-700"
@@ -420,6 +424,32 @@ export default function AgreementReviewPage() {
           onClose={() => setIsModalOpen(false)}
         />
       </div>
+      <Dialog open={isRejectOpen} onOpenChange={(open) => { if (!isSubmitting) setIsRejectOpen(open); }}>
+        <DialogContent className={`w-[92vw] max-w-lg rounded-2xl border shadow-2xl ${isDark ? "border-[#3D3D3D] bg-[#171717] text-white" : "border-[#E5E5E5] bg-white text-black"}`}>
+          <DialogHeader>
+            <DialogTitle className={isDark ? "text-white" : "text-black"}>Reject this Shoot Agreement?</DialogTitle>
+            <DialogDescription className={isDark ? "text-white/60" : "text-black/60"}>
+              Tell us why you’re rejecting this agreement. Your response will be shared with the admin.
+            </DialogDescription>
+          </DialogHeader>
+          <textarea
+            autoFocus
+            value={rejectionReason}
+            onChange={(event) => setRejectionReason(event.target.value)}
+            placeholder="Enter your reason"
+            rows={4}
+            className={`w-full resize-y rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#E8D1AB] ${isDark ? "border-[#3D3D3D] bg-[#111110] text-white placeholder:text-white/40" : "border-[#D7D7D7] bg-white text-black placeholder:text-black/40"}`}
+          />
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button type="button" variant="outline" onClick={() => setIsRejectOpen(false)} disabled={isSubmitting} className={isDark ? "border-[#3D3D3D] bg-transparent text-white hover:bg-white/10 hover:text-white" : "border-[#D7D7D7] bg-white text-black hover:bg-black/5"}>
+              Keep Agreement
+            </Button>
+            <Button type="button" onClick={handleReject} disabled={!rejectionReason.trim() || isSubmitting} className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+              {isSubmitting ? "Submitting..." : "Reject Agreement"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {isSignOpen && agreement?.status === "pending_acceptance" && <AgreementSignatureModal title={agreement.title} initialName={projectInfo.creativePartner === "—" ? "" : projectInfo.creativePartner} isSubmitting={isSubmitting} onClose={() => setIsSignOpen(false)} onSubmit={handleAccept} />}
     </>
   );

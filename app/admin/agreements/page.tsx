@@ -10,9 +10,12 @@ import { useTheme } from "next-themes";
 import { TabsSwitcher } from "@/components/admin/TabsSwitcher";
 import Topbar from "@/components/admin/Topbar";
 import GeneralAgreementHistoryTable from "@/components/admin/agreements/AgreementsTable";
+import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
 import { agreementApi, AgreementDocument, AgreementTemplate } from "@/lib/api/agreements";
+import type { AgreementData } from "@/components/admin/agreements/AgreementsTable";
 
 type TabType = "All" | "Pending" | "Accepted" | "Rejected" | "Cancelled";
+type AgreementConfirmation = { type: "delete-general" } | { type: "cancel-shoot"; agreement: AgreementData };
 
 const tabs: { label: string; value: TabType }[] = [
   { label: "All", value: "All" },
@@ -31,15 +34,18 @@ export default function AdminAgreementsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
   const [activeTab, setActiveTab] = useState<TabType>("All");
-
-  const [, setAgreementsCurrentPage] = useState(1);
-  const [, setUsersCurrentPage] = useState(1);
+  const [agreementType, setAgreementType] = useState<"general" | "shoot">("general");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalAgreements, setTotalAgreements] = useState(0);
+  const [agreementsRefreshKey, setAgreementsRefreshKey] = useState(0);
   const [agreements, setAgreements] = useState<AgreementDocument[]>([]);
   const [isLoadingAgreements, setIsLoadingAgreements] = useState(true);
-  const [loadedTab, setLoadedTab] = useState<TabType | null>(null);
+  const [loadedRequest, setLoadedRequest] = useState<string | null>(null);
   const [agreementsError, setAgreementsError] = useState<string | null>(null);
   const [activeGeneralAgreement, setActiveGeneralAgreement] = useState<AgreementTemplate | null>(null);
   const [isGeneralAgreementMenuOpen, setIsGeneralAgreementMenuOpen] = useState(false);
+  const [agreementConfirmation, setAgreementConfirmation] = useState<AgreementConfirmation | null>(null);
+  const [isAgreementActionSubmitting, setIsAgreementActionSubmitting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -47,32 +53,45 @@ export default function AdminAgreementsPage() {
 
   useEffect(() => {
     let ignore = false;
+    const requestKey = `${activeTab}:${agreementType}:${currentPage}:${debouncedSearch}`;
     const load = async () => {
       setIsLoadingAgreements(true);
       setAgreementsError(null);
       try {
-        const documents = await agreementApi.listAdminAgreements({
+        const response = await agreementApi.listAdminAgreementsPaged({
+          type: agreementType,
           status: activeTab === "All" ? undefined : activeTab === "Pending" ? "pending_acceptance" : activeTab.toLowerCase(),
-          limit: 100,
+          page: currentPage,
+          limit: 10,
+          search: debouncedSearch.trim() || undefined,
         });
         if (ignore) return;
-        setAgreements(documents.data);
-      } catch (error) {
+        const pageData = response.data;
+        if (!pageData || !Array.isArray(pageData.items) || !Number.isFinite(pageData.total)) {
+          throw new Error("Invalid agreements response");
+        }
+        const lastAvailablePage = Math.ceil(pageData.total / 10);
+        if (lastAvailablePage > 0 && currentPage > lastAvailablePage) {
+          setCurrentPage(lastAvailablePage);
+          return;
+        }
+        setAgreements(pageData.items);
+        setTotalAgreements(pageData.total);
+      } catch {
         if (ignore) return;
-        const message = error instanceof Error ? error.message : "Unable to load agreements";
         setAgreements([]);
-        setAgreementsError(message);
-        toast.error(message);
+        setTotalAgreements(0);
+        setAgreementsError("We couldn’t load agreements. Please try again.");
       } finally {
         if (!ignore) {
-          setLoadedTab(activeTab);
+          setLoadedRequest(requestKey);
           setIsLoadingAgreements(false);
         }
       }
     };
     void load();
     return () => { ignore = true; };
-  }, [activeTab]);
+  }, [activeTab, agreementType, currentPage, debouncedSearch, agreementsRefreshKey]);
 
   useEffect(() => {
     let ignore = false;
@@ -100,16 +119,37 @@ export default function AdminAgreementsPage() {
     if (!activeGeneralAgreement) return;
     router.push(`/admin/agreements/create-general-agreement?clone_from=${activeGeneralAgreement.agreement_template_id}`);
   };
+  const createNewGeneralAgreement = () => {
+    sessionStorage.removeItem("admin-general-agreement-draft");
+    router.push("/admin/agreements/create-general-agreement");
+  };
   const deleteGeneralAgreement = async () => {
     if (!activeGeneralAgreement) return;
-    if (!window.confirm("Delete this general agreement? This is available only before it has been presented to a Creative Partner.")) return;
+    await agreementApi.deleteGeneralTemplate(activeGeneralAgreement.agreement_template_id);
+    sessionStorage.removeItem("admin-general-agreement-draft");
+    setActiveGeneralAgreement(null);
+    setIsGeneralAgreementMenuOpen(false);
+    toast.success("General agreement deleted");
+  };
+  const confirmAgreementAction = async () => {
+    if (!agreementConfirmation) return;
+    setIsAgreementActionSubmitting(true);
     try {
-      await agreementApi.deleteGeneralTemplate(activeGeneralAgreement.agreement_template_id);
-      setActiveGeneralAgreement(null);
-      setIsGeneralAgreementMenuOpen(false);
-      toast.success("General agreement deleted");
+      if (agreementConfirmation.type === "delete-general") {
+        await deleteGeneralAgreement();
+      } else {
+        const item = agreementConfirmation.agreement;
+        await agreementApi.cancelAgreement(Number(item.id));
+        setAgreements((current) => current.map((agreement) => agreement.agreement_document_id === Number(item.id)
+          ? { ...agreement, status: "cancelled", is_current: false } : agreement));
+        setAgreementsRefreshKey((key) => key + 1);
+        toast.success(item.rawStatus === "draft" ? "Draft discarded" : "Pending agreement cancelled");
+      }
+      setAgreementConfirmation(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to delete general agreement");
+      toast.error(error instanceof Error ? error.message : "Unable to complete this agreement action");
+    } finally {
+      setIsAgreementActionSubmitting(false);
     }
   };
   if (!mounted) return null;
@@ -120,7 +160,7 @@ export default function AdminAgreementsPage() {
         actions={
           <>
             <Button
-              onClick={() => router.push("/admin/agreements/create-general-agreement")}
+              onClick={createNewGeneralAgreement}
               disabled={Boolean(activeGeneralAgreement)}
 
               title={activeGeneralAgreement ? "A general agreement already exists. Use Edit to create its next version." : "Create General Agreement"}
@@ -207,7 +247,7 @@ export default function AdminAgreementsPage() {
                   <button type="button" onClick={createNewVersion} className={`w-full rounded-md px-3 py-2 text-left text-xs font-medium ${isDark ? "text-white hover:bg-white/10" : "text-black hover:bg-black/5"}`}>
                     Create new version
                   </button>
-                  <button type="button" onClick={deleteGeneralAgreement} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs font-medium text-red-400 hover:bg-red-500/10">
+                  <button type="button" onClick={() => { setIsGeneralAgreementMenuOpen(false); setAgreementConfirmation({ type: "delete-general" }); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs font-medium text-red-400 hover:bg-red-500/10">
                     <Trash2 size={14} /> Delete agreement
                   </button>
                 </div>
@@ -223,8 +263,7 @@ export default function AdminAgreementsPage() {
               activeTab={activeTab}
               onChange={(tab) => {
                 setActiveTab(tab as TabType);
-                setUsersCurrentPage(1);
-                setAgreementsCurrentPage(1);
+                setCurrentPage(1);
               }}
             />
 
@@ -243,7 +282,7 @@ export default function AdminAgreementsPage() {
                   type="text"
                   placeholder="Search by agreement..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                   className={`h-12 w-full min-w-0 pl-10 pr-4 rounded-xl text-xs lg:text-sm transition-all focus:outline-none focus:ring-1 ${isDark
                     ? "bg-[#202020] text-white placeholder:text-white/40 focus:ring-[#E8D1AB]"
                     : "bg-[#F8F8F8] text-black placeholder:text-black/40 focus:ring-[#E8D1AB]"
@@ -256,8 +295,19 @@ export default function AdminAgreementsPage() {
 
         {/* History Table */}
         <GeneralAgreementHistoryTable
-          isLoading={isLoadingAgreements || loadedTab !== activeTab}
+          isLoading={isLoadingAgreements || loadedRequest !== `${activeTab}:${agreementType}:${currentPage}:${debouncedSearch}`}
           errorMessage={agreementsError}
+          activeType={agreementType}
+          onTypeChange={(type) => { setAgreementType(type); setCurrentPage(1); }}
+          currentPage={currentPage}
+          pageSize={10}
+          totalCount={totalAgreements}
+          onPageChange={setCurrentPage}
+          emptyMessage={agreements.length === 0 && debouncedSearch.trim()
+            ? "No agreements match your search. Try a different name or keyword."
+            : activeTab === "All"
+              ? "There are no agreements to display yet."
+              : `No ${activeTab.toLowerCase()} agreements found.`}
           generalData={agreements.filter((agreement) => agreement.agreement_type === "general").map((agreement) => ({
             id: String(agreement.agreement_document_id),
             creativePartnerName: agreement.snapshot?.creative_partner?.name || "Unknown Creative Partner",
@@ -292,24 +342,34 @@ export default function AdminAgreementsPage() {
           onRevise={(item) => {
             if (item.bookingId && item.assignmentId) router.push(`/admin/shoots/${item.bookingId}/shoot-agreement?revise_from=${item.id}`);
           }}
-          onCancel={async (item) => {
-            const verb = item.rawStatus === "draft" ? "discard this draft" : "cancel this pending agreement";
-            if (!window.confirm(`Are you sure you want to ${verb}?`)) return;
-            try {
-              await agreementApi.cancelAgreement(Number(item.id));
-              setAgreements((current) => current.map((agreement) => agreement.agreement_document_id === Number(item.id)
-                ? { ...agreement, status: "cancelled", is_current: false } : agreement));
-              toast.success(item.rawStatus === "draft" ? "Draft discarded" : "Pending agreement cancelled");
-            } catch (error) {
-              toast.error(error instanceof Error ? error.message : "Unable to cancel agreement");
-            }
+          onCancel={(item) => {
+            setAgreementConfirmation({ type: "cancel-shoot", agreement: item });
           }}
+        />
+
+        <ActionModal
+          isOpen={agreementConfirmation !== null}
+          onClose={() => setAgreementConfirmation(null)}
+          onConfirm={confirmAgreementAction}
+          isLoading={isAgreementActionSubmitting}
+          tone="danger"
+          title={agreementConfirmation?.type === "delete-general"
+            ? "Delete this General Agreement?"
+            : agreementConfirmation?.agreement.rawStatus === "draft" ? "Discard this draft?" : "Cancel this agreement?"}
+          description={agreementConfirmation?.type === "delete-general"
+            ? "This agreement can only be deleted before it has been presented to a Creative Partner. This action cannot be undone."
+            : agreementConfirmation?.agreement.rawStatus === "draft"
+              ? "This draft will be discarded and will not be available to the Creative Partner."
+              : "The Creative Partner will no longer be able to review or accept this agreement."}
+          confirmLabel={agreementConfirmation?.type === "delete-general"
+            ? "Delete Agreement"
+            : agreementConfirmation?.agreement.rawStatus === "draft" ? "Discard Draft" : "Cancel Agreement"}
         />
 
         {/* Floating Mobile Button */}
         <div className={`lg:hidden fixed flex gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>
           <Button
-            onClick={() => router.push("/admin/agreements/create-general-agreement")}
+            onClick={createNewGeneralAgreement}
             disabled={Boolean(activeGeneralAgreement)}
             title={activeGeneralAgreement ? "A general agreement already exists. Use Edit to create its next version." : "Create General Agreement"}
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#d4c3a3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
