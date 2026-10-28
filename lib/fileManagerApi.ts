@@ -1,6 +1,9 @@
 import axios from "axios";
 import apiClient from "@/lib/apiClient";
 import { getUploadContentType } from "@/lib/fileMimeType";
+import { toast } from "sonner";
+
+const pendingFolderZipToastIds = new Map<string, string | number>();
 
 export interface ProjectUserRef {
   user_id: number;
@@ -1227,6 +1230,11 @@ export const fileManagerApi = {
   },
 
   downloadUrl(url: string, filename?: string) {
+    const toastId = pendingFolderZipToastIds.get(url);
+    if (toastId) {
+      pendingFolderZipToastIds.delete(url);
+      toast.success("ZIP download started", { id: toastId });
+    }
     triggerBrowserDownload(url, filename);
   },
 
@@ -1234,18 +1242,38 @@ export const fileManagerApi = {
     externalId: string | number,
     options?: { phase?: string; path?: string }
   ) {
-    const response = await apiClient.post<{ success: boolean; data: { url: string; filepath: string } }>(
-      "external-file-manager/folder-download-url",
-      {
-        externalId: String(externalId),
-        phase: options?.phase,
-        path: options?.path,
+    const toastId = toast.loading("Preparing folder ZIP...");
+    try {
+      const response = await apiClient.post<{ success: boolean; data: { url: string; filepath: string } }>(
+        "external-file-manager/folder-download-url",
+        {
+          externalId: String(externalId),
+          phase: options?.phase,
+          path: options?.path,
+        }
+      );
+      if (response?.data?.url) {
+        response.data.url = normalizeExternalLinkUrl(response.data.url);
+        pendingFolderZipToastIds.set(response.data.url, toastId);
+      } else {
+        toast.dismiss(toastId);
       }
-    );
-    if (response?.data?.url) {
-      response.data.url = normalizeExternalLinkUrl(response.data.url);
+      return response.data;
+    } catch (error) {
+      toast.dismiss(toastId);
+      throw error;
     }
-    return response.data;
+  },
+
+  async downloadExternalFolderAsZip(
+    externalId: string | number,
+    filename: string,
+    options?: { phase?: string; path?: string }
+  ) {
+    const result = await this.getExternalFolderDownloadUrl(externalId, options);
+    if (!result?.url) throw new Error("The ZIP download link was not returned");
+    this.downloadUrl(result.url, filename);
+    return result;
   },
 
   async downloadExternalSelectedFiles(filepaths: string[], filename = "selected-files.zip") {
@@ -1257,15 +1285,22 @@ export const fileManagerApi = {
       throw new Error("Select at least one file to download");
     }
 
-    const response = await apiClient.getInstance().post("external-file-manager/selected-download", {
-      filepaths: normalizedFilepaths,
-      filename,
-    }, {
-      responseType: "blob",
-    });
+    const toastId = toast.loading(`Preparing ZIP for ${normalizedFilepaths.length.toLocaleString()} files...`);
+    try {
+      const response = await apiClient.getInstance().post("external-file-manager/selected-download", {
+        filepaths: normalizedFilepaths,
+        filename,
+      }, {
+        responseType: "blob",
+      });
 
-    const responseFilename = getFilenameFromDisposition(response.headers?.["content-disposition"]);
-    downloadBlob(response.data, responseFilename || filename);
+      const responseFilename = getFilenameFromDisposition(response.headers?.["content-disposition"]);
+      downloadBlob(response.data, responseFilename || filename);
+      toast.success("ZIP download started", { id: toastId });
+    } catch (error) {
+      toast.dismiss(toastId);
+      throw error;
+    }
   },
 
   async deleteExternalEntry(filepath: string) {
@@ -1503,6 +1538,29 @@ export const fileManagerApi = {
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     return response.data;
+  },
+
+  async downloadSharedFolderAsZip(
+    shareToken: string,
+    accessToken: string,
+    filepaths: string[],
+    options?: { phase?: string; path?: string }
+  ) {
+    const toastId = toast.loading("Preparing shared folder ZIP...");
+    try {
+      const response = await apiClient.getInstance().post(
+        `external-file-manager/share/${shareToken}/folder-download-url`,
+        { filepaths, phase: options?.phase, path: options?.path },
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const url = response?.data?.data?.url;
+      if (!url) throw new Error("The ZIP download link was not returned");
+      triggerBrowserDownload(url, "shared-files.zip");
+      toast.success("ZIP download started", { id: toastId });
+    } catch (error) {
+      toast.dismiss(toastId);
+      throw error;
+    }
   },
 
   async getSharedFileViewUrl(
