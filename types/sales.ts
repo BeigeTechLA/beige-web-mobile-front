@@ -26,6 +26,10 @@ export interface SalesLead {
     name: string;
     email: string;
   };
+  previous_assigned_sales_rep?: {
+    id: number;
+    name: string;
+  } | null;
   booking?: {
     stream_project_booking_id: number;
     project_name: string;

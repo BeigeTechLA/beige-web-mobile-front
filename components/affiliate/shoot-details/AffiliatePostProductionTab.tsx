@@ -35,7 +35,7 @@ interface AffiliatePostProductionTabProps {
 const prettifyFolderName = (name?: string) => {
   const normalized = String(name || "").trim();
   if (!normalized) return "Folder";
-  if (normalized === "Raw Footage") return "Raw Footages";
+  if (normalized === "Raw Footage") return "Raw Footage";
   return normalized.replace(/-/g, " ");
 };
 

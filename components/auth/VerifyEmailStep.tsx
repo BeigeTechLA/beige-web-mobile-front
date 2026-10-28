@@ -10,7 +10,7 @@ interface VerifyEmailStepProps {
   onResend: () => void
   isVerifying?: boolean
   isResending?: boolean
-  timer: number // Added timer prop
+  timer?: number
 }
 
 export function VerifyEmailStep({ 
@@ -19,7 +19,7 @@ export function VerifyEmailStep({
   onResend, 
   isVerifying = false, 
   isResending = false,
-  timer 
+  timer = 0
 }: VerifyEmailStepProps) {
   const [otp, setOtp] = React.useState(["", "", "", "", "", ""])
   const inputRefs = React.useRef<(HTMLInputElement | null)[]>([])
@@ -76,7 +76,7 @@ export function VerifyEmailStep({
             Verify Email Address
           </h1>
           <p className="text-sm lg:text-base text-[#9E9696] px-4">
-            We've sent a 6-digit verification code to your email address: <br />
+            Enter the 6-digit verification code sent to your email address: <br />
             <span className="text-white font-medium">{email}</span>
           </p>
         </div>

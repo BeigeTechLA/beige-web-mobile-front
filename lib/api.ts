@@ -888,6 +888,9 @@ export interface SalesQuoteDetailData {
   tax_type?: string;
   tax_rate?: number | string;
   tax_amount?: number | string;
+  sales_tax_rate?: number | string;
+  card_payment_charge_enabled?: boolean | number;
+  card_payment_method?: string | null;
   sales_tax?: number | string;
   discount_type?: string;
   discount_value?: number | string;
@@ -1130,6 +1133,39 @@ export interface AdminShootUpdateDateLocationResponse {
   error?: string;
   message?: string;
 }
+
+export type QuoteCatalogBulkDeleteResponse = {
+  success: boolean;
+  partial_success?: boolean;
+  message?: string;
+  error?: string;
+  data?: {
+    action: 'delete';
+    success_ids: number[];
+    failed_ids: number[];
+    success_count: number;
+    failed_count: number;
+    results: Array<{
+      catalog_item_id: number;
+      success: boolean;
+      message?: string;
+    }>;
+  } | null;
+};
+
+export type QuoteTypesBulkDeleteResponse = {
+  success: boolean;
+  partial_success?: boolean;
+  message?: string;
+  error?: string;
+  data?: {
+    action: 'delete';
+    shoot: { success_ids: number[]; failed_ids: number[] };
+    editing: { success_ids: number[]; failed_ids: number[] };
+    success_count: number;
+    failed_count: number;
+  } | null;
+};
 
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
@@ -2073,6 +2109,226 @@ export const getCreatorEarningDetails = async (
 
 
 
+export type FinanceAnalyticsParams = {
+  start_date?: string; // YYYY-MM-DD, must be sent with end_date
+  end_date?: string;   // YYYY-MM-DD, must be sent with start_date
+  timezone?: string;   // IANA, backend default Asia/Kolkata
+};
+
+export type FinanceAnalyticsData = {
+  filters: { start_date: string | null; end_date: string | null; timezone: string };
+  revenue: {
+    gross_revenue: { amount: number };
+    refund_amount: number;
+    net_revenue: { amount: number };
+    pending_revenue: { amount: number };
+    cp_payout: { paid_amount: number; payable_amount: number; total_amount: number };
+    series: Array<{ date: string; gross: number; pending: number; cp_payout: number; refunds: number; net_revenue: number }>;
+  };
+  creative_partners: {
+    top_by_payout: Array<{ id: string; name: string; payout: number; shoots: number; shoot_revenue: number; margin: number }>;
+    top_by_shoots: Array<{ id: string; name: string; shoots: number }>;
+    averages: { payout_per_assignment: number; cp_payout_percent_of_revenue: number; cps_per_shoot: number };
+    payout_timeline: Array<{
+      id: string;
+      label: string;
+      segments: { upcoming: number; dueSoon: number; later: number; overdue: number };
+    }>;
+    top_overdue: Array<{ id: string; name: string; roles: string[]; amount: number; days_overdue: number }>;
+  };
+  clients: {
+    top_by_shoots: FinanceAnalyticsClient[];
+    top_by_spend: FinanceAnalyticsClient[];
+    average_spend_per_shoot: { amount: number };
+    payment_overview: Array<{ id: string; label: string; clients: number }>;
+    outstanding: {
+      collected_amount: number;
+      outstanding_amount: number;
+      recovered_amount: number;
+      recovered_series: Array<{ name: string; value: number }>;
+    };
+  };
+  disputes: {
+    raised: number;
+    resolved: number;
+    pending: number;
+    active: number;
+    top_reasons: Array<{ id: string; name: string; cases: number }>;
+  };
+};
+
+export type FinanceAnalyticsClient = {
+  id: string;
+  name: string;
+  shoots: number;
+  spend: number;
+  collected: number;
+  outstanding: number;
+  status: string;
+};
+
+export type FinanceAnalyticsResponse = {
+  success: boolean;
+  data: FinanceAnalyticsData | null;
+  error?: string;
+};
+
+export type FinanceShootHistoryParams = {
+  entity_type: 'cp' | 'client';
+  entity_id: string | number; // cp: creator id, client: "user:<id>" | "guest:<email>"
+  search?: string;
+  status?: 'Paid' | 'Pending' | 'Failed';
+  period?: 'last_30_days' | 'this_quarter' | 'this_year';
+  service_type?: string; // Videography | Photography | Photo + Video
+  start_date?: string;   // YYYY-MM-DD, send with end_date
+  end_date?: string;
+  page?: number;
+  limit?: number;
+  timezone?: string;
+};
+
+export type FinanceShootHistoryInvoice = {
+  id: string;            // transaction_code
+  date: string | null;   // YYYY-MM-DD
+  method: string;
+  status: 'Paid' | 'Pending' | 'Failed';
+  amount: number;
+  note: string;          // "Refund" / "Ref: <external_reference>" or ""
+};
+
+export type FinanceShootHistoryRow = {
+  id: string;
+  booking_id: number;
+  shoot_id: string;      // "#1234"
+  project_name: string;
+  client_name: string;
+  date: string | null;
+  service_type: string;
+  total_amount: number;
+  invoice_count: number;
+  payment_method: string;
+  status: 'Paid' | 'Pending' | 'Failed';
+  invoices: FinanceShootHistoryInvoice[];
+};
+
+export type FinanceShootHistoryData = {
+  rows: FinanceShootHistoryRow[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+};
+
+export type FinanceShootHistoryResponse = {
+  success: boolean;
+  data: FinanceShootHistoryData | null;
+  error?: string;
+};
+
+export type FinanceCpPayoutHistoryParams = {
+  creator_id: string | number;
+  search?: string;
+  status?: 'Completed' | 'Pending';
+  period?: 'last_30_days' | 'this_quarter' | 'this_year';
+  service_type?: string; // Videography | Photography | Photo + Video
+  start_date?: string;   // YYYY-MM-DD, send with end_date (page-level range)
+  end_date?: string;
+  page?: number;
+  limit?: number;
+  timezone?: string;
+};
+
+export type FinanceCpPayoutHistoryRow = {
+  id: string;
+  booking_id: number;
+  shoot_id: string;        // "#1234"
+  project_name: string;
+  date: string | null;     // YYYY-MM-DD (paid date, or due date if pending)
+  service_type: string;
+  payout: number;
+  payment_method: string;
+  status: 'Completed' | 'Pending';
+};
+
+export type FinanceCpPayoutHistoryData = {
+  summary: { total_paid: number; total_payable: number };
+  rows: FinanceCpPayoutHistoryRow[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+};
+
+export type FinanceCpPayoutHistoryResponse = {
+  success: boolean;
+  data: FinanceCpPayoutHistoryData | null;
+  error?: string;
+};
+
+export type FinanceCpOverdueHistoryParams = {
+  creator_id: string | number;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  limit?: number;
+  timezone?: string;
+};
+
+export type FinanceCpOverdueHistoryRow = {
+  id: string;
+  earning_id: number;
+  booking_id: number;
+  shoot_name: string;
+  category: string;
+  customer_name: string;
+  amount: number;
+  due_date: string;
+  days_overdue: number;
+};
+
+export type FinanceCpOverdueHistoryData = {
+  summary: { total_overdue: number; total_shoots: number };
+  rows: FinanceCpOverdueHistoryRow[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+};
+
+export type FinanceCpOverdueHistoryResponse = {
+  success: boolean;
+  data: FinanceCpOverdueHistoryData | null;
+  error?: string;
+};
+
+export type FinancePayoutScheduleParams = {
+  bucket_id: 'this_week' | 'next_week' | '2_4_weeks' | 'overdue';
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  limit?: number;
+  timezone?: string;
+};
+
+export type FinancePayoutScheduleRow = {
+  id: string;
+  creator_name: string;
+  creator_roles: string;
+  creator_id: number;
+  shoot_id: string;
+  created_date: string | null;
+  customer_name: string;
+  shoot_amount: number;
+  cp_payout: number;
+  pending_amount: number;
+  due_date: string;
+  status: 'Pending' | 'Partially Paid' | 'Finance Approval' | 'Approved' | 'Fully Paid';
+};
+
+export type FinancePayoutScheduleData = {
+  summary: { total_pending: number; total_rows: number };
+  rows: FinancePayoutScheduleRow[];
+  pagination: { page: number; limit: number; total: number; total_pages: number };
+};
+
+export type FinancePayoutScheduleResponse = {
+  success: boolean;
+  data: FinancePayoutScheduleData | null;
+  error?: string;
+};
+
 export const adminApi = {
   getUserLoginHistory: async (
     params: { user_id: number; page?: number; limit?: number; status?: 'active' | 'all' },
@@ -2096,6 +2352,8 @@ export const adminApi = {
       return {
         success: false,
         data: null,
+        code: error.response?.data?.code,
+        conflicts: error.response?.data?.conflicts,
         error: error.response?.data?.message || 'Failed to create internal credential',
       };
     }
@@ -2243,6 +2501,120 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to update signup credit promotion',
+      };
+    }
+  },
+  getFinanceAnalytics: async (
+    params: FinanceAnalyticsParams = {},
+    signal?: AbortSignal,
+  ): Promise<FinanceAnalyticsResponse & { canceled?: boolean }> => {
+    try {
+      const response = await api.get<FinanceAnalyticsResponse>('finance/admin/analytics', { params, signal });
+      return response.data;
+    } catch (error: any) {
+      if (error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
+        return { success: false, data: null, canceled: true };
+      }
+      console.error('Get Finance Analytics Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch finance analytics',
+      };
+    }
+  },
+  exportFinanceAnalyticsAudit: async (params: FinanceAnalyticsParams = {}): Promise<Blob> => {
+    try {
+      const response = await api.get<Blob>('finance/admin/analytics/reconciliation/export', {
+        params,
+        responseType: 'blob',
+      });
+      return response.data;
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
+        let message: string | undefined;
+        try {
+          const body = JSON.parse(await error.response.data.text());
+          message = body.message;
+        } catch { /* Use the fallback message below. */ }
+        if (message) throw new Error(message);
+      }
+      throw new Error('Failed to export finance analytics reconciliation');
+    }
+  },
+  getFinanceShootHistory: async (
+    params: FinanceShootHistoryParams,
+    signal?: AbortSignal,
+  ): Promise<FinanceShootHistoryResponse & { canceled?: boolean }> => {
+    try {
+      const response = await api.get<FinanceShootHistoryResponse>('finance/admin/analytics/shoot-history', { params, signal });
+      return response.data;
+    } catch (error: any) {
+      if (error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
+        return { success: false, data: null, canceled: true };
+      }
+      console.error('Get Shoot History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch shoot history',
+      };
+    }
+  },
+  getFinanceCpPayoutHistory: async (
+    params: FinanceCpPayoutHistoryParams,
+    signal?: AbortSignal,
+  ): Promise<FinanceCpPayoutHistoryResponse & { canceled?: boolean }> => {
+    try {
+      const response = await api.get<FinanceCpPayoutHistoryResponse>('finance/admin/analytics/cp-payout-history', { params, signal });
+      return response.data;
+    } catch (error: any) {
+      if (error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
+        return { success: false, data: null, canceled: true };
+      }
+      console.error('Get CP Payout History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch payout history',
+      };
+    }
+  },
+  getFinanceCpOverdueHistory: async (
+    params: FinanceCpOverdueHistoryParams,
+    signal?: AbortSignal,
+  ): Promise<FinanceCpOverdueHistoryResponse & { canceled?: boolean }> => {
+    try {
+      const response = await api.get<FinanceCpOverdueHistoryResponse>('finance/admin/analytics/cp-overdue-history', { params, signal });
+      return response.data;
+    } catch (error: any) {
+      if (error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
+        return { success: false, data: null, canceled: true };
+      }
+      console.error('Get CP Overdue History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch overdue CP shoots',
+      };
+    }
+  },
+  getFinancePayoutSchedule: async (
+    params: FinancePayoutScheduleParams,
+    signal?: AbortSignal,
+  ): Promise<FinancePayoutScheduleResponse & { canceled?: boolean }> => {
+    try {
+      const response = await api.get<FinancePayoutScheduleResponse>('finance/admin/analytics/payout-schedule-history', { params, signal });
+      return response.data;
+    } catch (error: any) {
+      if (error?.code === 'ERR_CANCELED' || error?.message === 'canceled') {
+        return { success: false, data: null, canceled: true };
+      }
+      console.error('Get Finance Payout Schedule Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to fetch payout schedule',
       };
     }
   },
@@ -2631,6 +3003,10 @@ export const adminApi = {
     post_production_user_id?: string | number;
     payment_filter?: string;
     production_filter?: string;
+    post_production_assignment?: string;
+    board_page?: number;
+    board_limit?: number;
+    column_status?: string;
   } = {}) => {
     try {
       const response = await api.get('admin/get-projects-board', {
@@ -2830,6 +3206,11 @@ export const adminApi = {
         error: error.response?.data?.message || 'Failed to fetch project details',
       };
     }
+  },
+
+  updateProjectCrewRequirements: async (id: string, crewRoles: Record<string, number>) => {
+    const response = await api.put(`admin/shoots/${id}/crew-requirements`, { crew_roles: crewRoles });
+    return response.data;
   },
 
   getCrewMemberDetail: async (id: string) => {
@@ -3279,6 +3660,23 @@ export const adminApi = {
     }
   },
 
+  getMyProducerShoots: async () => {
+    try {
+      const response = await api.get('admin/my-producer-shoots', { params: { range: 'all' } });
+      return response.data;
+    } catch (error: any) {
+      return { error: true, message: error.response?.data?.message || 'Failed to fetch producer shoots', data: { projects: [] } };
+    }
+  },
+  setShootProducer: async (projectId: number, producerUserId: number | null) => {
+    try {
+      const response = await api.put(`admin/shoots/${projectId}/producer`, { producer_user_id: producerUserId });
+      return response.data;
+    } catch (error: any) {
+      return { success: false, message: error.response?.data?.message || 'Failed to update producer' };
+    }
+  },
+
   assignPostProductionMember: async (payload: { post_production_member_id: number; project_id: number }) => {
     try {
       const response = await api.post('admin/assign-post-production-member', payload);
@@ -3494,6 +3892,21 @@ export const adminApi = {
     }
   },
 
+  editClient: async (clientId: string | number, payload: { name: string; email: string; phone_number: string }) => {
+    try {
+      const response = await api.put(`admin/edit-client/${clientId}`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Edit Client Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        code: error.response?.data?.code,
+        conflicts: error.response?.data?.conflicts,
+        message: error.response?.data?.message || 'Unable to update client details. Please try again.',
+      };
+    }
+  },
+
   deleteClient: async (clientId: string | number) => {
     try {
       const response = await api.delete(`admin/delete-client/${clientId}`);
@@ -3584,6 +3997,22 @@ export const adminApi = {
     }
   },
 
+  getArchiveHistory: async (targetType: string, targetId: number | string) => {
+    try {
+      const response = await api.get('admin/archive-history', {
+        params: { target_type: targetType, target_id: targetId, limit: 100 },
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Archive History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: [],
+        error: error.response?.data?.message || 'Failed to fetch archive history',
+      };
+    }
+  },
+
   exportUsers: async (): Promise<AdminUsersExportResponse> => {
     const response = await api.get('admin/users/export', {
       responseType: 'blob',
@@ -3630,6 +4059,63 @@ export const adminApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to fetch user role details',
+      };
+    }
+  },
+
+  getUserReassignments: async (
+    userId: number | string,
+    options: { search?: string; page?: number; limit?: number; type?: "all" | "Lead" | "Quote" | "Post Production" } = {},
+  ) => {
+    try {
+      const params = {
+        ...(options.page || options.limit ? { range: "all" } : {}),
+        ...(options.search?.trim() ? { search: options.search.trim() } : {}),
+        ...(options.page ? { page: options.page } : {}),
+        ...(options.limit ? { limit: options.limit } : {}),
+        ...(options.type && options.type !== "all" ? { type: options.type.toLowerCase().replace(/\s+/g, "_") } : {}),
+      };
+      const response = await api.get(
+        `admin/users/${userId}/reassignments`,
+        Object.keys(params).length ? { params } : undefined,
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Get User Reassignments Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch user reassignment records',
+        data: null,
+      };
+    }
+  },
+
+  reassignUserSalesRecords: async (
+    userId: number | string,
+    assignments: { recordId: string; repId: string }[],
+  ) => {
+    try {
+      const response = await api.post(`admin/users/${userId}/reassignments`, { assignments });
+      return response.data;
+    } catch (error: any) {
+      console.error('Reassign User Sales Records Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to reassign sales records',
+      };
+    }
+  },
+
+  getUserReassignmentHistory: async (userId: number | string) => {
+    try {
+      const response = await api.get(`admin/users/${userId}/reassignment-history`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Get User Reassignment History Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to fetch reassignment history',
+        data: [],
       };
     }
   },
@@ -4936,6 +5422,37 @@ export const salesApi = {
       };
     }
   },
+  bulkDeleteTypes: async (payload: {
+    shoot_type_ids: Array<number | string>;
+    ai_editing_type_ids: Array<number | string>;
+  }): Promise<QuoteTypesBulkDeleteResponse> => {
+    const clean = (arr: Array<number | string>) =>
+      Array.from(
+        new Set(arr.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0))
+      );
+    const shoot_type_ids = clean(payload.shoot_type_ids);
+    const ai_editing_type_ids = clean(payload.ai_editing_type_ids);
+
+    if (shoot_type_ids.length + ai_editing_type_ids.length === 0) {
+      return { success: false, data: null, error: 'No valid types selected' };
+    }
+
+    try {
+      const response = await api.post<QuoteTypesBulkDeleteResponse>(
+        '/sales/quotes/types/bulk-delete',
+        { shoot_type_ids, ai_editing_type_ids }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Bulk Delete Types Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: error.response?.data?.data || null,
+        message: error.response?.data?.message,
+        error: error.response?.data?.message || 'Failed to delete selected types',
+      };
+    }
+  },
   getClientDropdown: async (search?: string) => {
     try {
       const url = search ? `/sales/client-dropdown?search=${search}` : '/sales/client-dropdown';
@@ -5086,7 +5603,7 @@ export const salesApi = {
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other" | "net30";
+      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "payment_link" | "applepay" | "stripe" | "other" | "net30";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;
@@ -5104,12 +5621,29 @@ export const salesApi = {
       };
     }
   },
+  editLeadManualPayment: async (
+    leadId: number | string,
+    paymentId: number | string,
+    payload: { amount: number }
+  ) => {
+    try {
+      const response = await api.put(`/sales/leads/${leadId}/manual-payment/${paymentId}`, payload);
+      return response.data;
+    } catch (error: any) {
+      console.error('Edit Lead Manual Payment Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: null,
+        error: error.response?.data?.message || 'Failed to update manual payment amount',
+      };
+    }
+  },
   recordClientLeadManualPayment: async (
     leadId: number | string,
     payload: {
       payment_type: "full" | "partial";
       amount?: number;
-      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other" | "net30";
+      payment_mode: "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "payment_link" | "applepay" | "stripe" | "other" | "net30";
       other_payment_mode?: string;
       proof_url: string;
       notes?: string;
@@ -5187,6 +5721,37 @@ export const salesApi = {
         success: false,
         data: null,
         error: error.response?.data?.message || 'Failed to assign client lead to yourself',
+      };
+    }
+  },
+  bulkDeleteQuoteCatalog: async (
+    catalogItemIds: Array<number | string>
+  ): Promise<QuoteCatalogBulkDeleteResponse> => {
+    const ids = Array.from(
+      new Set(
+        catalogItemIds
+          .map((id) => Number(id))
+          .filter((id) => Number.isInteger(id) && id > 0)
+      )
+    );
+
+    if (ids.length === 0) {
+      return { success: false, data: null, error: 'No valid items selected' };
+    }
+
+    try {
+      const response = await api.post<QuoteCatalogBulkDeleteResponse>(
+        '/sales/quotes/catalog/bulk-delete',
+        { catalog_item_ids: ids }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Bulk Delete Quote Catalog Error:', error.response?.data || error.message);
+      return {
+        success: false,
+        data: error.response?.data?.data || null,
+        message: error.response?.data?.message,
+        error: error.response?.data?.message || 'Failed to delete selected items',
       };
     }
   },

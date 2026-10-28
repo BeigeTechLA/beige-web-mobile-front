@@ -1,467 +1,126 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, History } from "lucide-react";
-import { useTheme } from "next-themes";
 import Topbar from "@/components/admin/Topbar";
-import DottedDivider from "@/components/admin/DottedDivider";
+import { agreementApi, AgreementDocument, type AgreementEvent, type AgreementResponse } from "@/lib/api/agreements";
+import { AgreementSignatureEvidence } from "@/components/creator-profile/AgreementSignatureEvidence";
+import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+import { formatAgreementDate } from "@/lib/utils/agreementDate";
 
-// Single Dummy Data Object
-const AGREEMENT_DETAIL_DATA = {
-  agreementType: "SHOOT ASSIGNMENT AGREEMENT",
-  projectName: "ABC Corporate Shoot",
-  projectId: "PRJ-1024",
-  assignmentId: "ASN-2012",
-  cpName: "John Doe",
-  role: "Photographer",
-  currentVersion: "v1.0",
-  status: "Accepted",
-  badgeType: "Common Agreement",
-  compensation: 2000.0,
-  productionDetails: {
-    date: "15 September, 2026",
-    location: "Los Angeles",
-    callTime: "8:00 AM",
-    expectedEndTime: "6:00 PM",
-  },
-  scopeOfServices:
-    "Capture photography coverage for the corporate event, including event highlights and speaker sessions.",
-  equipmentRequirements:
-    "Sony FX3 or equivalent cinema camera, prime lenses (24mm, 50mm, 85mm), tripod, gimbal stabilizer, audio recording equipment.",
-  deliverableRequirements:
-    "Upload all raw media to the designated Beige folder within 24 hours of shoot completion.",
-  approvedExpenses:
-    "Travel to and from shoot location (up to $75 round trip). Parking at venue. No additional expenses without prior written approval.",
-  specialInstructions:
-    "Client requires all crew to sign NDA upon arrival. Business casual attire. Shoot brief will be provided 48 hours before the production date.",
-  versionHistory: [
-    {
-      version: "v1.0",
-      status: "Accepted",
-      date: "15 Sep 2026, 10:32 AM",
-      compensation: 2000.0,
-    },
-  ],
-  activityLog: [
-    {
-      id: "1",
-      user: "ADMIN",
-      version: "v1.0",
-      action: "Created agreement — v1.0",
-      time: "11:15 AM",
-    },
-    {
-      id: "2",
-      user: "ADMIN",
-      version: "v1.0",
-      action: "Agreement sent to John Doe",
-      time: "10:32 AM",
-    },
-  ],
+type AgreementSection = { id?: string; num?: string; title?: string; content?: string };
+
+const formatDate = formatAgreementDate;
+
+const titleCase = (value?: string) => (value || "Pending").replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+const getAgreementSections = (content: unknown): AgreementSection[] => {
+  const parsed = typeof content === "string" ? (() => {
+    try { return JSON.parse(content); } catch { return null; }
+  })() : content;
+  if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as { sections?: unknown }).sections)) return [];
+  return (parsed as { sections: AgreementSection[] }).sections.filter((section) =>
+    section && typeof section.title === "string" && typeof section.content === "string" && section.content.trim(),
+  );
 };
+
+const SectionContent = ({ content }: { content: string }) => /<[/!]?\w[\s\S]*>/i.test(content)
+  ? <div className="agreement-content" dangerouslySetInnerHTML={{ __html: content }} />
+  : <p className="whitespace-pre-wrap">{content}</p>;
 
 export default function ShootAgreementPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { theme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  const data = AGREEMENT_DETAIL_DATA;
+  const searchParams = useSearchParams();
+  const [agreement, setAgreement] = useState<AgreementDocument | null>(null);
+  const [events, setEvents] = useState<AgreementEvent[]>([]);
+  const [signatureResponse, setSignatureResponse] = useState<AgreementResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const agreementId = Number(searchParams.get("agreement_id"));
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
-
-  if (!mounted) return null;
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Accepted":
-        return (
-          <span
-            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm lg:text-base font-medium ${isDark
-              ? "bg-[#D4FFE4] text-[#16A34A] border border-[#D4FFE4]"
-              : "bg-[#E6F8ED] text-[#0D894F] border border-[#A3E6C1]"
-              }`}
-          >
-            Accepted
-          </span>
-        );
-      case "Expired":
-      case "Pending":
-        return (
-          <span
-            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm lg:text-base font-medium ${isDark
-              ? "bg-[#FFF4C9] text-[#BA6605] border border-[#FFF4C9]"
-              : "bg-[#FEF6E7] text-[#B7791F] border border-[#FCD34D]"
-              }`}
-          >
-            {status}
-          </span>
-        );
-      case "Not Accepted":
-        return (
-          <span
-            className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm lg:text-base font-medium ${isDark
-              ? "bg-[#FFD4D4] text-[#A31616] border border-[#FFD4D4]"
-              : "bg-[#FDE8E8] text-[#E53E3E] border border-[#F87171]"
-              }`}
-          >
-            Not Accepted
-          </span>
-        );
-      default:
-        return null;
+    if (!agreementId) {
+      router.replace("/creator/dashboard/profile");
+      return;
     }
-  };
+    agreementApi.getCreatorAgreement(agreementId)
+      .then((response) => {
+        if (response.data.agreement.agreement_type !== "shoot") {
+          router.replace(`/creator/dashboard/agreements/general-agreement?agreement_id=${agreementId}`);
+          return;
+        }
+        setAgreement(response.data.agreement);
+        setSignatureResponse(response.data.responses.find((item) => item.action === "accepted") || null);
+        setEvents(Array.isArray(response.data.events) ? response.data.events : []);
+      })
+      .catch(() => router.replace("/creator/dashboard/profile"))
+      .finally(() => setLoading(false));
+  }, [agreementId, router]);
+
+  if (loading || !agreement) return <div className="min-h-screen bg-[#0A0A0A]" aria-busy="true" />;
+
+  const snapshot = agreement.snapshot || {};
+  const shoot = snapshot.shoot || {};
+  const cp = snapshot.creative_partner || {};
+  const role = getPrimaryRoleLabel(cp.role);
+  const currency = agreement.currency || snapshot.compensation?.currency || "USD";
+  const compensation = Number(agreement.compensation_amount ?? snapshot.compensation?.amount ?? 0);
+  const savedSections = getAgreementSections(agreement.content_json);
+  const fallbackSections: AgreementSection[] = [
+    { title: "Scope of Services", content: String(shoot.scope || "") },
+    { title: "Equipment Requirements", content: Array.isArray(shoot.equipment) ? shoot.equipment.join(", ") : String(shoot.equipment || "") },
+    { title: "Deliverables / Media Transfer", content: Array.isArray(shoot.deliverables) ? shoot.deliverables.join(", ") : String(shoot.deliverables || "") },
+    { title: "Approved Expenses / Travel", content: String(snapshot.extras?.expenses || "") },
+    { title: "Special Instructions", content: String(shoot.special_instructions || "") },
+  ].filter((section) => section.content.trim());
+  const sections = savedSections.length ? savedSections : fallbackSections;
+  const statusClass = agreement.status === "accepted"
+    ? "bg-[#D4FFE4] text-[#16803F]"
+    : agreement.status === "rejected" || agreement.status === "cancelled"
+      ? "bg-[#FFDADA] text-[#A31616]"
+      : "bg-[#FFF4C9] text-[#A96208]";
 
   return (
     <>
       <Topbar pathname={pathname} />
-
-      <div className={`min-h-screen p-4 lg:p-6 lg:px-10 lg:py-9 font-sans pb-20 transition-colors space-y-4 lg:space-y-9 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}>
-        <Button
-          onClick={() => router.back()}
-          className={`transition-colors flex items-center gap-2 mb-5 p-0 ${isDark ? "text-white hover:text-white/80" : "text-black hover:text-black/70"}`}
-        >
-          <ArrowLeft size={24} />
-          <span className="text-sm font-medium">Back</span>
-        </Button>
-
-        <div className="flex gap-4 items-center w-full">
-          <h1 className={`text-lg lg:text-2xl lg:leading-[32px] font-semibold mb-1 transition-colors ${isDark ? "text-white" : "text-black"}`}>
-            Shoot Agreement Detail
-          </h1>
-          <span
-            className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-sm border ${isDark
-              ? "text-[#18150F] bg-[#EDE5D5] border-[#3D3D3D]"
-              : "text-black/80 bg-[#F8F8F8] border-[#E5E5E5]"
-              }`}
-          >
-            {data.currentVersion}
-          </span>
-          {getStatusBadge(data.status)}
+      <main className="min-h-screen bg-[#0A0A0A] px-4 py-7 text-white lg:px-10 lg:py-9">
+        <Button variant="ghost" className="mb-6 -ml-3 gap-2 hover:bg-transparent hover:text-[#E8D1AB]" onClick={() => router.back()}><ArrowLeft size={18} /> Back</Button>
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <h1 className="text-xl font-semibold lg:text-2xl">Shoot Agreement Detail</h1>
+          <span className="rounded bg-[#EDE5D5] px-2 py-0.5 text-xs font-medium text-[#18150F]">{agreement.display_version}</span>
+          <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusClass}`}>{titleCase(agreement.status)}</span>
         </div>
 
-        {/* Main Grid Section (Left: Document Card, Right: Version History & Activity Log) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Agreement Preview Document */}
-          <div className={`lg:col-span-2 space-y-5`}>
-            {/* Top Summary Info Card */}
-            <div className={`border rounded-2xl p-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-xs ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"}`}>
-              <div>
-                <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Project</p>
-                <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
-                  {data.projectName}
-                </p>
-              </div>
-              <div className="text-right lg:text-left">
-                <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>CP</p>
-                <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
-                  {data.cpName}
-                </p>
-              </div>
-              <div>
-                <div className="hidden lg:block">
-                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Role</p>
-                  <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
-                    {data.role}
-                  </p>
-                </div>
-                <div className="lg:hidden">
-                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Assignment ID</p>
-                  <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
-                    {data.assignmentId}
-                  </p>
-                </div>
-              </div>
-
-              <div className="text-right lg:text-left">
-                <div className="hidden lg:block">
-                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Assignment ID</p>
-                  <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
-                    {data.assignmentId}
-                  </p>
-                </div>
-                <div className="lg:hidden">
-                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Current Version</p>
-                  <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
-                    {data.currentVersion}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <div className="hidden lg:block">
-                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Current Version</p>
-                  <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
-                    {data.currentVersion}
-                  </p>
-                </div>
-                <div className="lg:hidden">
-                  <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Role</p>
-                  <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
-                    {data.role}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right lg:text-left">
-                <p className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>Compensation</p>
-                <p className={`font-semibold text-sm mt-0.5 ${isDark ? "text-white" : "text-black"}`}>
-                  ${data.compensation.toFixed(2)}
-                </p>
-              </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <section className="space-y-5 lg:col-span-2">
+            <div className="grid grid-cols-2 gap-4 rounded-2xl border border-[#3D3D3D] bg-[#171717] p-5 text-xs md:grid-cols-3">
+              {[["Project", shoot.name || `Booking #${agreement.booking_id || "—"}`], ["CP", cp.name || "Creative Partner"], ["Role", role], ["Assignment ID", agreement.assignment_id ? `ASN-${agreement.assignment_id}` : "—"], ["Current Version", agreement.display_version], ["Compensation", `${currency} ${compensation.toFixed(2)}`]].map(([label, value]) => <div key={label}><p className="text-[#AAA7A7]">{label}</p><p className="mt-1 text-sm font-semibold text-white">{value}</p></div>)}
             </div>
 
-            <div className={`lg:col-span-2 border rounded-2xl ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"}`}>
-              {/* Header Title Section */}
-              <div className={`space-y-2 p-5 lg:px-8 lg:py-7 rounded-t-2xl flex flex-col lg:flex-row lg:justify-between ${isDark ? "bg-[#202020]" : "bg-white"}`}>
-                <div className="">
-                  <p className={`text-xs uppercase font-semibold mb-1 ${isDark ? "text-[#D8CCBA]" : "text-gray-400"}`}>
-                    {data.agreementType}
-                  </p>
-                  <h2 className={`text-lg lg:text-3xl capitalize ${isDark ? "text-white" : "text-black"}`}>
-                    {data.projectName}
-                  </h2>
-                </div>
-
-                <div className="flex flex-col gap-2 lg:items-end">
-                  <span className={`px-2.5 py-1 text-xs font-medium rounded-lg w-fit ${isDark ? "bg-white/10 text-white/70" : "bg-[#F0F0F0] text-black/70"}`}>
-                    {data.currentVersion}
-                  </span>
-                  <div className="flex gap-2">
-                    <span className="px-3 py-1 rounded-full text-[10px] font-medium bg-[#D4E0FF] text-[#0B2F8B]">
-                      ● {data.badgeType}
-                    </span>
-                    <span className="px-3 py-1 rounded-full text-[10px] font-medium bg-[#D4FFE4] text-[#16A34A]">
-                      ● {data.status}
-                    </span>
-                  </div>
-                </div>
+            <article className="overflow-hidden rounded-2xl border border-[#3D3D3D] bg-[#171717]">
+              <header className="flex flex-col justify-between gap-3 border-b border-[#3D3D3D] bg-[#202020] p-6 lg:flex-row lg:items-start">
+                <div><p className="mb-1 text-xs font-semibold uppercase text-[#D8CCBA]">Shoot Assignment Agreement</p><h2 className="text-2xl text-white">{shoot.name || agreement.title}</h2><p className="mt-1 text-sm text-[#AAA7A7]">{cp.name || "Creative Partner"}{role !== "Creative Partner" ? ` · ${role}` : ""}</p></div>
+                <div className="flex flex-wrap gap-2"><span className="rounded-lg bg-white/10 px-2.5 py-1 text-xs">{agreement.display_version}</span><span className="rounded-full bg-[#D4E0FF] px-3 py-1 text-xs text-[#0B2F8B]">Individual Agreement</span></div>
+              </header>
+              <div className="space-y-7 p-6 lg:p-8">
+                <section><h3 className="mb-3 text-sm font-medium">Project Information</h3><div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-[#AAA7A7]"><span>Project Name: <b className="font-medium text-white">{shoot.name || "—"}</b></span><span>Project ID: <b className="font-medium text-white">{agreement.booking_id ? `PRJ-${agreement.booking_id}` : "—"}</b></span><span>Assignment ID: <b className="font-medium text-white">{agreement.assignment_id ? `ASN-${agreement.assignment_id}` : "—"}</b></span><span>Creative Partner: <b className="font-medium text-white">{cp.name || "—"}</b></span><span>Role: <b className="font-medium text-white">{role}</b></span></div></section>
+                <section><h3 className="mb-3 text-sm font-medium">Production Details</h3><div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-[#AAA7A7]"><span>Date: <b className="font-medium text-white">{formatDate(shoot.date)}</b></span><span>Location: <b className="font-medium text-white">{shoot.location || "—"}</b></span><span>Call Time: <b className="font-medium text-white">{shoot.start_time || "—"}</b></span><span>Expected End Time: <b className="font-medium text-white">{shoot.end_time || "—"}</b></span></div></section>
+                <section><h3 className="mb-3 text-sm font-medium">Compensation</h3><div className="rounded-lg border border-[#6E6049] bg-[#2A2824] px-4 py-3 text-sm">Total Compensation <b className="float-right text-[#E8D1AB]">{currency} {compensation.toFixed(2)}</b></div></section>
+                {sections.map((section, index) => <section key={section.id || `${section.title}-${index}`} className="border-t border-dashed border-[#3D3D3D] pt-6"><p className="mb-1 text-xs font-semibold text-[#D8CCBA]">{section.num || String(index + 1).padStart(2, "0")}</p><h3 className="mb-3 text-base font-medium text-white">{section.title}</h3><div className="rounded-lg border border-[#6E6049] bg-[#2A2824] px-4 py-3 text-sm leading-6 text-[#D8D8D8]"><SectionContent content={section.content || ""} /></div></section>)}
+                <section className="border-t border-dashed border-[#3D3D3D] pt-6 text-xs leading-5 text-[#9E9690]">This Shoot Assignment Agreement is issued under the Beige Creative Partner Agreement. By accepting, the Creative Partner confirms their ability to perform the assignment as described and agrees to the terms herein and the governing Beige Creative Partner Agreement.<div className="mt-4 flex gap-8"><div><p className="text-[#E8D1AB]">Beige Sheet Version</p><b className="text-white">{agreement.display_version}</b></div><div><p className="text-[#E8D1AB]">Created</p><b className="text-white">{formatDate(agreement.created_at, true)}</b></div></div></section>
               </div>
+            </article>
+            <AgreementSignatureEvidence response={signatureResponse} />
+          </section>
 
-              {/* Project Information */}
-              <div className="space-y-3 px-5 pt-5 lg:px-8 lg:pt-9">
-                <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  Project Information
-                </h3>
-                <div className={`text-xs lg:text-sm w-full flex flex-col lg:flex-row lg:flex-wrap gap-y-2 gap-x-3 lg:gap-y-4 lg:gap-x-5 ${isDark ? "text-[#AAA7A7]" : "text-black/70"}`}>
-                  <p>Project Name : <span className={isDark ? "text-white" : "text-black"}>{data.projectName}</span></p>
-                  <p className="hidden lg:block">|</p>
-                  <p>Project ID : <span className={isDark ? "text-white" : "text-black"}>{data.projectId}</span></p>
-                  <p className="hidden lg:block">|</p>
-                  <p>Assignment ID : <span className={isDark ? "text-white" : "text-black"}>{data.assignmentId}</span></p>
-                </div>
-                <div className={`text-xs lg:text-sm flex flex-col lg:flex-row lg:flex-wrap gap-y-2 gap-x-3 lg:gap-y-4 lg:gap-x-5 ${isDark ? "text-[#AAA7A7]" : "text-black/70"}`}>
-                  <p>Creative Partner : <span className={isDark ? "text-[#E8D1AB]" : "text-black"}>{data.cpName}</span></p>
-                  <p className="hidden lg:block">|</p>
-                  <p>Role : <span className={isDark ? "text-white" : "text-black"}>{data.role}</span></p>
-                </div>
-              </div>
-
-              <DottedDivider />
-
-              {/* Production Details */}
-              <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  Production Details
-                </h3>
-                <div className={`text-xs lg:text-sm w-full flex flex-col lg:flex-row lg:flex-wrap gap-y-2 gap-x-3 lg:gap-y-4 lg:gap-x-5 ${isDark ? "text-[#AAA7A7]" : "text-black/70"}`}>
-                  <p>Production Date : <span className={isDark ? "text-white" : "text-black"}>{data.productionDetails.date}</span></p>
-                  <p className="hidden lg:block">|</p>
-                  <p>Location : <span className={isDark ? "text-white" : "text-black"}>{data.productionDetails.location}</span></p>
-                  <p className="hidden lg:block">|</p>
-                  <p>Call Time : <span className={isDark ? "text-white" : "text-black"}>{data.productionDetails.callTime}</span></p>
-                </div>
-                <p className={`text-xs lg:text-sm ${isDark ? "text-white/70" : "text-black/70"}`}>
-                  Expected End Time / Duration : <span className={isDark ? "text-white" : "text-black"}>{data.productionDetails.expectedEndTime}</span>
-                </p>
-              </div>
-
-              <DottedDivider />
-
-              {/* Compensation Box */}
-              <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  Compensation
-                </h3>
-                <div className={`flex justify-between items-center border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
-                  <span className={`text-base ${isDark ? "text-white/80" : "text-black/80"}`}>
-                    Total Compensation
-                  </span>
-                  <span className={`text-xl lg:text-2xl font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
-                    ${data.compensation.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-
-              <DottedDivider />
-
-              {/* Scope of Services Box */}
-              <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  Scope of Services
-                </h3>
-                <div className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
-                  {data.scopeOfServices}
-                </div>
-              </div>
-
-              <DottedDivider />
-
-              {/* Equipment Requirements Box */}
-              <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  Equipment Requirements
-                </h3>
-                <div className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
-                  {data.equipmentRequirements}
-                </div>
-              </div>
-              <DottedDivider />
-
-              {/* Deliverables / Media Transfer Requirements */}
-              <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  Deliverables / Media Transfer Requirements
-                </h3>
-                <div className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
-                  {data.deliverableRequirements}
-                </div>
-              </div>
-              <DottedDivider />
-
-              {/* Approved Expenses / Travel */}
-              <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  Approved Expenses / Travel
-                </h3>
-                <div className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
-                  {data.approvedExpenses}
-                </div>
-              </div>
-              <DottedDivider />
-
-              {/* Special Instructions */}
-              <div className="space-y-3 px-5 lg:px-8">
-                <h3 className={`text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                  Special Instructions
-                </h3>
-                <div className={`border rounded-md lg:rounded-xl p-2.5 lg:p-5 text-sm lg:text-base ${isDark ? "bg-[#E8D1AB]/10 border-[#E8D1AB] text-white/70" : "bg-[#F9FAFB] border-[#E5E5E5] text-black/80"}`}>
-                  {data.specialInstructions}
-                </div>
-              </div>
-
-              <div className="space-y-3 lg:space-y-5 px-5 py-5 lg:px-8 lg:pb-9 lg:pt-6">
-                <p className={`text-xs lg:text-sm ${isDark ? "text-[#9E9690]" : "text-black/50"}`}>
-                  This Shoot Assignment Agreement is issued under the Beige Creative Partner Agreement. By accepting,
-                  the Creative Partner confirms their ability to perform the assignment as described and agrees to the
-                  terms herein and the governing Beige Creative Partner Agreement. Both parties acknowledge that
-                  acceptance creates a binding commitment for the specified production.
-                </p>
-                <div className="flex items-center gap-4 lg:gap-7">
-                  <div>
-                    <p className="text-xs lg:text-sm text-[#E8D1AB]">Beige Sheet Version</p>
-                    <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>{data.currentVersion}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs lg:text-sm text-[#E8D1AB]">Created</p>
-                    <p className={`text-sm lg:text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>15 Sep 2026, 12:20 PM</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Side Cards */}
-          <div className="space-y-6">
-            {/* Version History Card */}
-            <div className={`border rounded-2xl p-5 space-y-4 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"}`}>
-              <h3 className={`text-xs font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                Version History
-              </h3>
-
-              {data.versionHistory.map((item, index) => (
-                <div
-                  key={index}
-                  className={`border rounded-xl px-4 py-5 space-y-2.5 ${isDark ? "bg-[#101010] border-white/10" : "bg-[#F9FAFB] border-[#E5E5E5]"}`}
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2 lg:gap-3">
-                      <span className={`font-semibold text-sm ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
-                        {item.version}
-                      </span>
-                      <span className="px-3 py-1 rounded-full text-[10px] font-medium bg-[#D4FFE4] text-[#16A34A]">
-                        ● {data.status}
-                      </span>
-                    </div>
-                    <span className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>
-                      {item.date}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs pt-1">
-                    <span className={isDark ? "text-[#AAA7A7]" : "text-black/50"}>
-                      Compensation
-                    </span>
-                    <span className={`text-sm font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                      ${item.compensation.toFixed(2)}
-                    </span>
-                  </div>
-
-                  <Button
-                    onClick={() => console.log("Preview Agreement")}
-                    className="w-full bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] h-9 rounded-lg text-xs font-semibold"
-                  >
-                    Preview Agreement
-                  </Button>
-                </div>
-              ))}
-            </div>
-
-            {/* Activity Log Card */}
-            <div className={`border rounded-2xl p-5 space-y-4 ${isDark ? "bg-[#171717] border-[#3D3D3D]" : "bg-white border-[#E5E5E5]"}`}>
-              <h3 className={`text-xs font-semibold ${isDark ? "text-white" : "text-black"}`}>
-                Activity Log
-              </h3>
-
-              <div className="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[1px] before:bg-white/20">
-                {data.activityLog.map((log) => (
-                  <div key={log.id} className="relative flex items-start justify-between text-xs">
-                    <div className="absolute -left-6 top-0.5 w-4 h-4 rounded-full bg-[#3D3D3D] flex items-center justify-center text-[9px] font-bold text-white/70">
-                      A
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className={`font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
-                          {log.user}
-                        </span>
-                        <span
-                          className={`inline-block px-1.5 py-0.5 text-xs font-medium rounded-sm border ${isDark
-                            ? "text-[#18150F] bg-[#EDE5D5] border-[#3D3D3D]"
-                            : "text-black/80 bg-[#F8F8F8] border-[#E5E5E5]"
-                            }`}
-                        >
-                          {log.version}
-                        </span>
-                      </div>
-                      <p className={`text-sm mt-1 ${isDark ? "text-white" : "text-black"}`}>
-                        {log.action}
-                      </p>
-                    </div>
-                    <span className={isDark ? "text-[#AAA7A7]" : "text-black/40"}>
-                      {log.time}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <aside className="space-y-5">
+            <section className="rounded-2xl border border-[#3D3D3D] bg-[#171717] p-5"><h2 className="mb-4 text-sm font-semibold">Version History</h2><div className="border-l border-[#5E533F] pl-4"><p className="text-sm font-medium">{agreement.display_version} <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${statusClass}`}>{titleCase(agreement.status)}</span></p><p className="mt-2 text-xs text-[#AAA7A7]">Created {formatDate(agreement.created_at, true)}</p><p className="mt-1 text-xs text-[#AAA7A7]">Compensation {currency} {compensation.toFixed(2)}</p><Button className="mt-4 h-9 w-full bg-[#E8D1AB] text-xs font-semibold text-black hover:bg-[#D4C3A3]" onClick={() => router.push(`/creator/dashboard/request/review-agreement?agreement_id=${agreement.agreement_document_id}`)}>Preview Agreement</Button></div></section>
+            <section className="rounded-2xl border border-[#3D3D3D] bg-[#171717] p-5"><h2 className="mb-4 text-sm font-semibold">Activity Log</h2>{events.length ? <div className="space-y-3">{events.map((event) => <div key={event.agreement_event_id} className="border-b border-[#2C2C2C] pb-3 last:border-0"><p className="text-xs font-medium">{titleCase(event.event_type)}</p><p className="mt-1 text-xs text-[#AAA7A7]">{formatDate(event.occurred_at, true)}</p></div>)}</div> : <p className="text-sm text-[#AAA7A7]">No activity recorded yet.</p>}</section>
+          </aside>
         </div>
-      </div>
+      </main>
     </>
   );
 }

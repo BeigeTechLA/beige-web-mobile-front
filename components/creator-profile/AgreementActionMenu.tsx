@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 
@@ -87,12 +87,14 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
             variant="default"
             isDark={isDark}
           />
-          <MenuButton
-            label="Review Agreement"
-            onClick={handleReviewDetails}
-            variant="default"
-            isDark={isDark}
-          />
+          {onReview && (
+            <MenuButton
+              label="Review Agreement"
+              onClick={handleReviewDetails}
+              variant="default"
+              isDark={isDark}
+            />
+          )}
           <MenuButton
             label="Approve"
             onClick={handleApprove}

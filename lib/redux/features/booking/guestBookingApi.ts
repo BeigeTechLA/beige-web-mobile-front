@@ -28,7 +28,7 @@ export interface GuestBookingData {
   location_latitude?: number | null;
   location_longitude?: number | null;
   streaming_platforms?: string[];
-  crew_roles?: string[];
+  crew_roles?: string[] | Record<string, number>;
   skills_needed?: string;
   equipments_needed?: string;
   is_draft?: boolean;

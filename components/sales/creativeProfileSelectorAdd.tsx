@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { salesApi, adminApi } from '@/lib/api';
-import { Search, SlidersHorizontal, Check, Loader2, List, LayoutGrid, ChevronDown } from 'lucide-react';
+import { Search, SlidersHorizontal, Check, Loader2, List, LayoutGrid, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { CreativeFilterModal, CREATIVE_RADIUS_OPTIONS } from './CreativeFilterModal';
 import { Separator } from '@/src/components/landing/Separator';
 
 const S3_PREFIX = process.env.NEXT_PUBLIC_S3_PREFIX || "";
 const DEFAULT_RADIUS = 50;
 const OVER_200_BUCKET = 250;
+
+// Full profile page for a CP (also used for the share link)
+const getCreativeProfilePath = (id: number | string) => `/creatives/${id}`;
 
 type CreativeWithDistance = {
   id: number;
@@ -54,11 +58,14 @@ type CrewApiItem = {
   longitude?: string | number;
   distance?: number | string;
   years_of_experience?: number;
+  assigned_shoots?: number;
+  hourly_rate?: number | string;
   is_active?: boolean;
   [key: string]: unknown;
 };
 
 type LeadStats = {
+  location?: string;
   fulfillment_stats?: {
     videographer?: string;
     photographer?: string;
@@ -69,7 +76,8 @@ type CreativeCardProps = {
   creative: CreativeWithDistance;
   isSelected: boolean;
   onToggle: () => void;
-  onViewProfile: () => void;
+  onViewBriefProfile: () => void;
+  onViewFullProfile: () => void;
   isDark?: boolean;
   viewMode: 'list' | 'grid';
 };
@@ -151,21 +159,24 @@ export const CreativeProfileSelectorAdd = ({
   statsSource = "lead",
   isDark = true,
   roleType: externalRoleType,
+  onViewBriefProfile,
 }: {
   selectedIds?: number[],
   onChange?: (ids: number[]) => void,
-  onSelectionUpdate?: (counts: { videographer: number, photographer: number }) => void,
+  onSelectionUpdate?: (counts: { videographer: number, photographer: number, hybrid: number }) => void,
   onSelectedCreativesChange?: (creatives: CreativeWithDistance[]) => void,
   leadId?: number | string,
   projectId?: number | string,
   currentLocation?: string,
   currentLatitude?: number,
   currentLongitude?: number,
-  targets?: { videographer: number, photographer: number },
+  targets?: { videographer: number, photographer: number, hybrid?: number },
   disableCrewFetch?: boolean, // When true, suppresses the get-crew-for-lead API call
   statsSource?: "lead" | "client",
   isDark?: boolean,
   roleType?: string,
+  /** Optional custom brief profile view; otherwise show a summary of the loaded CP data. */
+  onViewBriefProfile?: (creative: CreativeWithDistance) => void,
 } = {}) => {
   const [internalSelectedIds, setInternalSelectedIds] = useState<number[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<Record<number, string>>({});
@@ -173,6 +184,7 @@ export const CreativeProfileSelectorAdd = ({
   const [appliedFilters, setAppliedFilters] = useState({ radius: DEFAULT_RADIUS });
   const [stats, setStats] = useState<LeadStats | null>(null);
   const [creatives, setCreatives] = useState<CreativeWithDistance[]>([]);
+  const [briefCreative, setBriefCreative] = useState<CreativeWithDistance | null>(null);
   // const [roleType, setRoleType] = useState<string>('videographer');
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -200,7 +212,7 @@ export const CreativeProfileSelectorAdd = ({
   );
 
   useEffect(() => {
-    setExpandedBuckets(gridBucketLimits);
+    setExpandedBuckets([...gridBucketLimits]);
   }, [gridBucketLimits]);
 
   const parseDistance = (distance?: number | string) => {
@@ -313,6 +325,8 @@ export const CreativeProfileSelectorAdd = ({
             name: `${item.first_name} ${item.last_name}`,
             status: item.is_active ? "Active" : "Inactive",
             shoots: item.years_of_experience || 0,
+            assigned_shoots: Number(item.assigned_shoots ?? 0) || 0,
+            hourly_rate: item.hourly_rate,
             specialities: item.role || "Creative",
             availability: item.availability || "Available",
             location: item.location || item.old_location || "",
@@ -418,8 +432,11 @@ export const CreativeProfileSelectorAdd = ({
       }
     });
 
-    const targetV = targets?.videographer || parseInt(stats?.fulfillment_stats?.videographer?.split('/')[1] || '0') || 0;
-    const targetP = targets?.photographer || parseInt(stats?.fulfillment_stats?.photographer?.split('/')[1] || '0') || 0;
+    const targetV = targets?.videographer ?? (parseInt(stats?.fulfillment_stats?.videographer?.split('/')[1] || '0') || 0);
+    const targetP = targets?.photographer ?? (parseInt(stats?.fulfillment_stats?.photographer?.split('/')[1] || '0') || 0);
+    const targetH = targets?.hybrid ?? 0;
+    const hybridCount = Math.min(bothCount, targetH);
+    bothCount -= hybridCount;
 
     for (let i = 0; i < bothCount; i++) {
       const deficitV = targetV - vCount;
@@ -438,7 +455,7 @@ export const CreativeProfileSelectorAdd = ({
       }
     }
 
-    return { videographer: vCount, photographer: pCount };
+    return { videographer: vCount, photographer: pCount, hybrid: hybridCount };
   }, [selectedIds, selectedRoles, targets, stats]);
 
   // Notify parent of count updates
@@ -456,10 +473,21 @@ export const CreativeProfileSelectorAdd = ({
     );
   };
 
+  const openFullProfile = (creative: CreativeWithDistance) =>
+    window.open(getCreativeProfilePath(creative.id), '_blank', 'noopener,noreferrer');
+
+  const openBriefProfile = (creative: CreativeWithDistance) => {
+    if (onViewBriefProfile) {
+      onViewBriefProfile(creative);
+      return;
+    }
+    setBriefCreative(creative);
+  };
+
   const toggleSelection = (id: number) => {
     const creative = creatives.find(c => c.id === id);
     if (!selectedIds.includes(id) && creative) {
-      setSelectedRoles(prev => ({ ...prev, [id]: creative.specialities }));
+      setSelectedRoles(prev => ({ ...prev, [id]: creative.specialities || creative.role || "" }));
     }
 
     const nextIds = selectedIds.includes(id)
@@ -516,19 +544,19 @@ export const CreativeProfileSelectorAdd = ({
             />
           </div>
           <div className={`hidden md:flex border rounded-xl overflow-hidden ${isDark ? "border-white/10" : "border-[#D8D8D8]"}`}>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-3 transition-colors ${viewMode === 'list' ? 'bg-[#E8D1AB] text-black' : (isDark ? 'text-white' : 'text-black')}`}
-          >
-            <List size={20} />
-          </button>
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-3 transition-colors ${viewMode === 'grid' ? 'bg-[#E8D1AB] text-black' : (isDark ? 'text-white' : 'text-black')}`}
-          >
-            <LayoutGrid size={20} />
-          </button>
-        </div>  
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-3 transition-colors ${viewMode === 'list' ? 'bg-[#E8D1AB] text-black' : (isDark ? 'text-white' : 'text-black')}`}
+            >
+              <List size={20} />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-3 transition-colors ${viewMode === 'grid' ? 'bg-[#E8D1AB] text-black' : (isDark ? 'text-white' : 'text-black')}`}
+            >
+              <LayoutGrid size={20} />
+            </button>
+          </div>
           {/* FILTER TRIGGER */}
           <button
             onClick={() => setIsFilterOpen(true)}
@@ -606,23 +634,23 @@ export const CreativeProfileSelectorAdd = ({
                               creative={creative}
                               isSelected={selectedIds.includes(creative.id)}
                               onToggle={() => toggleSelection(creative.id)}
-                              onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
+                              onViewBriefProfile={() => openBriefProfile(creative)}
+                              onViewFullProfile={() => openFullProfile(creative)}
                               isDark={isDark}
                               viewMode="grid"
                             />
                           ))
                         ) : (
-                          <div className={`col-span-full rounded-2xl border border-dashed px-6 py-10 text-center ${
-                            isDark ? "border-white/10 text-white/50" : "border-black/10 text-black/50"
-                          }`}>
+                          <div className={`col-span-full rounded-2xl border border-dashed px-6 py-10 text-center ${isDark ? "border-white/10 text-white/50" : "border-black/10 text-black/50"
+                            }`}>
                             No creative found in this range.
                           </div>
                         )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </>
           ) : (
             <div className={`text-center py-4 lg:py-8 ${isDark ? "text-white/50" : "text-black/50"}`}>
@@ -636,7 +664,8 @@ export const CreativeProfileSelectorAdd = ({
                 creative={creative}
                 isSelected={selectedIds.includes(creative.id)}
                 onToggle={() => toggleSelection(creative.id)}
-                onViewProfile={() => window.open(`/creatives/${creative.id}`, '_blank', 'noopener,noreferrer')}
+                onViewBriefProfile={() => openBriefProfile(creative)}
+                onViewFullProfile={() => openFullProfile(creative)}
                 isDark={isDark}
                 viewMode={viewMode}
               />
@@ -658,164 +687,379 @@ export const CreativeProfileSelectorAdd = ({
         value={appliedFilters.radius}
         isDark={isDark}
       />
+      {briefCreative && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/70 p-4" onClick={() => setBriefCreative(null)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${briefCreative.name || "Creative partner"} brief profile`}
+            className={`w-full max-w-md rounded-2xl p-6 shadow-2xl ${isDark ? "bg-[#1A1A1A] text-white" : "bg-white text-black"}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold">{briefCreative.name || "Creative partner"}</h2>
+                <p className="mt-1 text-sm opacity-70">{briefCreative.specialities || briefCreative.role || "Creative partner"}</p>
+              </div>
+              <button type="button" onClick={() => setBriefCreative(null)} aria-label="Close brief profile"><X size={20} /></button>
+            </div>
+            <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
+              <div><dt className="opacity-60">Location</dt><dd className="mt-1">{formatLocation(briefCreative.location)}</dd></div>
+              <div><dt className="opacity-60">Availability</dt><dd className="mt-1">{briefCreative.availability || "—"}</dd></div>
+              <div><dt className="opacity-60">Assigned shoots</dt><dd className="mt-1">{briefCreative.assigned_shoots ?? "—"}</dd></div>
+              <div><dt className="opacity-60">Hourly rate</dt><dd className="mt-1">{formatHourlyRate(briefCreative.hourly_rate) || "—"}</dd></div>
+            </dl>
+            <button type="button" onClick={() => openFullProfile(briefCreative)} className="mt-6 w-full rounded-lg bg-[#E8D1AB] px-4 py-3 text-sm font-semibold text-black">
+              View Full Profile
+            </button>
+          </div>
+        </div>, document.body
+      )}
     </div>
   );
 };
-const CreativeCard = ({ creative, isSelected, onToggle, onViewProfile, isDark, viewMode }: CreativeCardProps) => {
+/* ------------------------------------------------------------------ */
+/* Card helpers                                                        */
+/* ------------------------------------------------------------------ */
+
+const formatHourlyRate = (rate?: number | string) => {
+  const n = typeof rate === "string" ? Number.parseFloat(rate) : rate;
+  if (n == null || !Number.isFinite(n) || n <= 0) return null;
+  return `$${Number.isInteger(n) ? n : n.toFixed(2)}/hr`;
+};
+
+const getInitials = (name?: string) =>
+  (name || "").split(" ").filter(Boolean).map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+
+// Share: native share sheet where available (mobile), otherwise copy the profile link
+const ShareButton = ({ creative, isDark, size = 20 }: { creative: CreativeWithDistance; isDark?: boolean; size?: number }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}${getCreativeProfilePath(creative.id)}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: creative.name, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // share sheet dismissed / clipboard blocked: nothing to do
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleShare}
+      aria-label={copied ? "Profile link copied" : `Share ${creative.name}'s profile`}
+      title={copied ? "Link copied" : "Share profile"}
+      className={`shrink-0 p-1 -m-1 rounded-md transition-colors ${isDark ? "text-white/90 hover:text-[#E8D1AB]" : "text-black/80 hover:text-[#9C7B45]"}`}
+    >
+      {copied ? <Check size={size} strokeWidth={2.25} /> :
+        <>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M11.1002 3C7.45057 3.00657 5.53942 3.09617 4.31806 4.31754C3 5.63559 3 7.75698 3 11.9997C3 16.2425 3 18.3639 4.31806 19.6819C5.63611 21 7.75749 21 12.0003 21C16.243 21 18.3644 21 19.6825 19.6819C20.9038 18.4606 20.9934 16.5494 21 12.8998" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="white" />
+            <path d="M20.9995 6.02529L20 6.02276C16.2634 6.01331 14.3951 6.00859 13.0817 6.95266C12.6452 7.26639 12.2622 7.64845 11.9474 8.08412C11 9.39515 11 11.2634 11 15M20.9995 6.02529C21.0062 5.86266 20.9481 5.69906 20.8251 5.55333C20.0599 4.64686 18.0711 3 18.0711 3M20.9995 6.02529C20.9934 6.17112 20.9352 6.31616 20.8249 6.44681C20.0596 7.3531 18.0711 9 18.0711 9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke="white" />
+          </svg>
+        </>
+      }
+    </button>
+  );
+};
+
+// "View CP Profile ⌄" -> Brief Profile / Full Profile. The menu is portalled so the
+// grid card's overflow-hidden (needed for the rounded photo) can't clip it.
+const ViewProfileMenu = ({
+  onViewBrief,
+  onViewFull,
+  fullWidth,
+}: {
+  onViewBrief: () => void;
+  onViewFull: () => void;
+  fullWidth?: boolean;
+}) => {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  const place = useCallback(() => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = Math.max(rect.width, 240);
+    const left = Math.min(Math.max(8, rect.right - width), window.innerWidth - width - 8);
+    const menuHeight = menuRef.current?.offsetHeight ?? 112;
+    // open below; flip above when there isn't room
+    const below = rect.bottom + 8;
+    const top = below + menuHeight > window.innerHeight - 8 ? rect.top - menuHeight - 8 : below;
+    setPos({ top, left, width });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (open) place();
+  }, [open, place]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => {
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onMove = () => setOpen(false);
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onMove);
+    window.addEventListener("scroll", onMove, true);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onMove);
+      window.removeEventListener("scroll", onMove, true);
+    };
+  }, [open]);
+
+  const choose = (action: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpen(false);
+    action();
+  };
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className={`flex h-12 items-center justify-between rounded-lg bg-[#E8D1AB] pl-4 pr-3 text-sm font-medium text-black transition-colors hover:bg-[#EEDCBC] ${fullWidth ? "w-full" : "w-full md:w-[196px]"}`}
+      >
+        <span>View CP Profile</span>
+        <span className="flex items-center gap-3">
+          <span className="h-4 w-px bg-black/25" aria-hidden="true" />
+          <ChevronDown size={18} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+        </span>
+      </button>
+
+      {open && typeof document !== "undefined" && createPortal(
+        <div
+          ref={menuRef}
+          role="menu"
+          onClick={(e) => e.stopPropagation()}
+          className="fixed z-[200] overflow-hidden rounded-lg bg-[#E8D1AB] text-black shadow-[0_12px_32px_rgba(0,0,0,0.45)]"
+          style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999, width: pos?.width ?? 240 }}
+        >
+          {[
+            { label: "View Brief Profile", action: onViewBrief },
+            { label: "View Full Profile", action: onViewFull },
+          ].map((item, i) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              onClick={choose(item.action)}
+              className={`flex w-full items-center justify-between px-4 py-3.5 text-left text-sm font-medium transition-colors hover:bg-black/5 ${i > 0 ? "border-t border-black/20" : ""}`}
+            >
+              <span>{item.label}</span>
+              <span className="flex items-center gap-3">
+                <span className="h-5 w-px bg-black/25" aria-hidden="true" />
+                <ChevronRight size={18} />
+              </span>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
+
+const CreativeCard = ({ creative, isSelected, onToggle, onViewBriefProfile, onViewFullProfile, isDark, viewMode }: CreativeCardProps) => {
   const isGrid = viewMode === 'grid';
   const imageSrc = creative.profile_photo
     ? (creative.profile_photo.startsWith('http') ? creative.profile_photo : `${S3_PREFIX}${creative.profile_photo}`)
     : null;
-  const experienceLabel = `${String(creative.shoots || 0).padStart(2, '0')} Years`;
+  const assignedShoots = Number(creative.assigned_shoots ?? 0) || 0;
+  const assignedShootsLabel = `${String(assignedShoots).padStart(2, '0')} Shoot${assignedShoots === 1 ? '' : 's'}`;
+  const hourlyRate = formatHourlyRate(creative.hourly_rate);
   const locationLabel = formatLocation(creative.location);
+  const hasLocation = locationLabel !== "N/A";
+
+  const labelCls = `text-xs lg:text-sm ${isDark ? "text-[#AAA7A7]" : "text-zinc-500"}`;
+  const valueCls = `text-xs lg:text-sm ${isDark ? "text-white" : "text-black"}`;
+  const dividerCls = isDark ? "bg-white/25" : "bg-[#D8D8D8]";
+
+  const locationNode = hasLocation ? (
+    <a
+      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationLabel)}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className={`text-xs lg:text-sm underline underline-offset-2 ${isDark ? "text-[#E8D1AB] decoration-[#E8D1AB]/60" : "text-[#9C7B45] decoration-[#9C7B45]/60"}`}
+    >
+      {locationLabel}
+    </a>
+  ) : (
+    <p className={valueCls}>N/A</p>
+  );
+
+  const checkbox = (size: string) => (
+    <div
+      className={`${size} shrink-0 rounded-sm border flex items-center justify-center transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-black/20 border-white/30' : 'bg-white border-black/25')}`}
+      aria-hidden="true"
+    >
+      {isSelected && <Check size={16} className="text-black stroke-[3px]" />}
+    </div>
+  );
+
+  const nameRow = (nameSize: string) => (
+    <div className="flex min-w-0 items-center gap-2.5">
+      <h3 className={`truncate font-medium leading-tight ${nameSize} ${isDark ? "text-white" : "text-black"}`}>
+        {creative.name}
+      </h3>
+      {creative.status && (
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] lg:text-xs font-semibold leading-tight text-white ${creative.status === "Active" ? "bg-[#16A34A]" : "bg-zinc-500"}`}>
+          {creative.status}
+        </span>
+      )}
+      <ShareButton creative={creative} isDark={isDark} />
+    </div>
+  );
+
+  const rate = hourlyRate && (
+    <p className={`mt-1 ${isGrid ? "text-base lg:text-lg" : "text-base lg:text-xl font-medium"} leading-tight ${isDark ? "text-[#E8D1AB]" : "text-[#9C7B45]"}`}>
+      {hourlyRate}
+    </p>
+  );
 
   return (
     <div
       onClick={onToggle}
-      className={`relative group flex transition-all border rounded-lg lg:rounded-2xl cursor-pointer overflow-hidden ${isGrid ? "flex-col h-full min-h-[430px] p-0" : "p-4 flex-col md:flex-row items-center md:items-start gap-6"
+      role="checkbox"
+      aria-checked={isSelected}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
+      className={`relative group flex transition-all border rounded-lg lg:rounded-2xl cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#E8D1AB]/60 ${isGrid ? "flex-col h-full overflow-hidden p-0" : "p-4 flex-col md:flex-row items-stretch gap-4 lg:gap-6"
         } ${isGrid
           ? (isSelected
-            ? (isDark ? 'bg-white/[0.08] border-[#E8D1AB]/50' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
-            : (isDark ? 'bg-white/[0.08] border-white/10 hover:bg-white/[0.06]' : 'bg-transparent border-transparent hover:bg-gray-50'))
-          : (isSelected
-            ? (isDark ? 'bg-white/[0.04] border-[#E8D1AB]/50' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
-            : (isDark ? 'bg-transparent border-transparent hover:bg-white/[0.02]' : 'bg-transparent border-transparent hover:bg-gray-50'))
+            ? (isDark ? 'bg-[#1A1919] border-[#E8D1AB]' : 'bg-[#E8D1AB]/5 border-[#E8D1AB]')
+            : (isDark ? 'bg-[#1A1919] border-transparent hover:border-[#E8D1AB]/10' : 'bg-white border-[#E5E5E5] hover:bg-gray-50'))
+          : (isDark ? 'bg-transparent border-transparent hover:bg-white/[0.02]' : 'bg-transparent border-transparent hover:bg-gray-50')
         }`}
     >
       {isGrid ? (
         <>
-            <div className="relative w-full overflow-hidden rounded-t-xl lg:rounded-t-[22px]">
-              <div className="relative aspect-square w-full overflow-hidden">
-                {imageSrc ? (
-                  <img
-                    src={imageSrc}
-                    alt={creative.name}
-                    className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] ${!isSelected ? 'grayscale-[0.15]' : ''}`}
-                  />
-                ) : (
-                  <div className={`h-full w-full flex items-center justify-center bg-gradient-to-br from-[#2A241A] to-[#0F0F0F] text-white text-xl lg:text-3xl font-semibold ${!isSelected ? 'grayscale-[0.15]' : ''}`}>
-                    {creative.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
-                  </div>
-                )}
-
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 lg:h-20 bg-gradient-to-t from-[#0F0F0F] via-[#0F0F0F]/85 to-transparent backdrop-blur-[1.5px]" />
-
-                <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-3 px-4 pb-4 lg:px-5 lg:pb-5">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-3">
-                    <h3 className={`truncate text-lg lg:text-2xl leading-none font-medium transition-colors ${isDark ? "text-white" : "text-black"
-                      }`}>
-                      {creative.name}
-                    </h3>
-                    <span className="inline-flex items-center rounded-full bg-[#16A34A] px-2.5 py-1 text-xs font-semibold leading-none text-white">
-                      {creative.status}
-                    </span>
-                  </div>
-                </div>
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20')}`}
-                >
-                  {isSelected && <Check size={18} className="text-black stroke-[3px]" />}
-                </div>
+          {/* Photo with name / status / share / checkbox over the bottom fade */}
+          <div className="relative aspect-[350/300] w-full overflow-hidden">
+            {imageSrc ? (
+              <img
+                src={imageSrc}
+                alt={creative.name}
+                className={`h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03] ${!isSelected ? 'grayscale-[0.15]' : ''}`}
+              />
+            ) : (
+              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-[#2A241A] to-[#0F0F0F] text-white text-xl lg:text-3xl font-semibold">
+                {getInitials(creative.name)}
               </div>
-            </div>
+            )}
+            <div className={`pointer-events-none absolute inset-x-0 bottom-0 h-25 bg-gradient-to-t ${isDark ? "from-[#1A1919] via-[#1A1919]/85" : "from-white via-white/80"} to-transparent`} />
           </div>
 
-          <div className={`flex w-full flex-1 flex-col px-4 pb-4 pt-4 lg:px-5 lg:pb-5 lg:pt-4 ${isDark ? "bg-[#0F0F0F]" : "bg-white"}`}>
-            {/* Experience and Specialities Row */}
-            <div className={`grid grid-cols-[1fr_auto_1fr] items-start gap-2 lg:gap-4 border-t pt-4 transition-colors ${isDark ? "border-white/15 text-white/90" : "border-[#e3e3e3] text-black/80"}`}>
-              <div>
-                <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
-                  Experience:
-                </p>
-                <p className={`text-sm lg:text-base font-medium transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                  {experienceLabel}
-                </p>
+          <div className="relative z-10 -mt-12 flex w-full flex-1 flex-col px-4 pb-4 lg:px-5 lg:pb-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                {nameRow("text-base lg:text-xl")}
+                {rate}
               </div>
+              {checkbox("w-6 h-6")}
+            </div>
 
-              <div className={`mt-1 h-8 w-px transition-colors ${isDark ? "bg-white/20" : "bg-[#e3e3e3]"}`} />
+            <div className={`my-3 lg:my-5 h-px w-full ${isDark ? "bg-white/10" : "bg-[#E5E5E5]"}`} />
 
+            {/* Assigned Shoots | Roles */}
+            <div className="grid grid-cols-[auto_auto_1fr] items-start gap-x-4 lg:gap-x-8">
               <div>
-                <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
-                  Specialities:
-                </p>
-                <p className={`text-sm lg:text-base font-medium leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                  {creative.specialities}
-                </p>
+                <p className={labelCls}>Assigned Shoots:</p>
+                <p className={valueCls}>{assignedShootsLabel}</p>
+              </div>
+              <div className={`mt-2 h-6 w-px ${dividerCls}`} />
+              <div className="min-w-0">
+                <p className={labelCls}>Roles:</p>
+                <p className={valueCls}>{creative.specialities}</p>
               </div>
             </div>
 
-            {/* Location Row */}
-            <div className={`mt-4 border-t pt-4 transition-colors ${isDark ? "border-white/15" : "border-[#e3e3e3]"}`}>
-              <p className={`mb-1 text-xs lg:text-sm transition-colors ${isDark ? "text-white/45" : "text-zinc-500"}`}>
-                Location:
-              </p>
-              <p className={`text-sm lg:text-base font-medium leading-tight transition-colors ${isDark ? "text-white" : "text-black"}`}>
-                {locationLabel}
-              </p>
+            <div className="mt-3">
+              <p className={labelCls}>Location:</p>
+              {locationNode}
+            </div>
+
+            <div className="mt-auto pt-4">
+              <ViewProfileMenu onViewBrief={onViewBriefProfile} onViewFull={onViewFullProfile} fullWidth />
             </div>
           </div>
         </>
       ) : (
         <>
           {/* Profile Image */}
-          <div className="relative flex-shrink-0 w-20 h-20 lg:w-[146px] lg:h-[156px]">
+          <div className="relative flex-shrink-0 self-center md:self-start w-24 h-24 lg:w-[146px] lg:h-[156px]">
             {imageSrc ? (
-              <img
-                src={imageSrc}
-                alt={creative.name}
-                className="w-full h-full object-cover rounded-lg"
-              />
+              <img src={imageSrc} alt={creative.name} className="w-full h-full object-cover object-top rounded-lg" />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-[#E8D1AB] rounded-lg text-black text-lg lg:text-2xl font-bold">
-                {creative.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                {getInitials(creative.name)}
               </div>
             )}
           </div>
 
           {/* Content */}
-          <div className="flex-1 w-full flex flex-col">
-            <div className="flex justify-between items-center mb-3 w-full">
-              <div className="flex items-center gap-3">
-                <h3 className={`font-medium transition-colors text-lg lg:text-2xl ${isDark ? "text-white" : "text-black"}`}>
-                  {creative.name}
-                </h3>
-                <span className="bg-[#16A34A] text-[#fff] text-[10px] font-semibold px-2 py-0.5 rounded-lg capitalize">
-                  {creative.status}
-                </span>
+          <div className="flex-1 min-w-0 w-full flex flex-col">
+            <div className="flex items-start justify-between gap-3 w-full">
+              <div className="min-w-0">
+                {nameRow("text-lg lg:text-2xl")}
+                {rate}
               </div>
-
-              <div className={`w-6 h-6 rounded-sm border flex items-center justify-center transition-all ${isSelected ? 'bg-[#E8D1AB] border-[#E8D1AB]' : (isDark ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20')}`}>
-                {isSelected && <Check size={18} className="text-black stroke-[3px]" />}
-              </div>
+              {checkbox("w-7 h-7 lg:w-8 lg:h-8")}
             </div>
 
-            <div className={`flex gap-4 text-sm border-t pt-3 w-full transition-colors ${isDark ? "border-white/5" : "border-gray-100"} flex-row`}>
-              <div>
-                <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Experience:</p>
-                <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{(creative.shoots || 0)} Yrs</p>
-              </div>
-              <div className={`md:border-x md:px-6 transition-colors ${isDark ? "border-white/10" : "border-gray-200"}`}>
-                <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Specialities:</p>
-                <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{creative.specialities}</p>
-              </div>
-              <div className="md:pl-6">
-                <p className={`text-xs mb-0.5 ${isDark ? "text-[#AAA7A7]" : "text-black/50"}`}>Location:</p>
-                <p className={`font-medium ${isDark ? "text-white" : "text-black"}`}>{formatLocation(creative.location)}</p>
-              </div>
-            </div>
+            <div className={`my-3 lg:my-4 h-px w-full ${isDark ? "bg-white/10" : "bg-gray-100"}`} />
 
-            <div className="mt-auto pt-4 w-full flex justify-end">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onViewProfile();
-                }}
-                className={`text-sm font-medium px-5 py-2 rounded-lg transition-colors w-full md:w-auto ${isDark ? "bg-[#E8D1AB] text-black hover:bg-[#d9bc90]" : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"}`}
-              >
-                View Profile
-              </button>
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between w-full">
+              {/* Assigned Shoots | Roles | Location */}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:flex sm:items-start sm:gap-x-0">
+                <div className="pr-3 lg:pr-7">
+                  <p className={labelCls}>Assigned Shoots:</p>
+                  <p className={valueCls}>{assignedShootsLabel}</p>
+                </div>
+                <div className={`hidden sm:block mt-3 h-6 w-px ${dividerCls}`} />
+                <div className="px-3 lg:px-7 min-w-0">
+                  <p className={labelCls}>Roles:</p>
+                  <p className={valueCls}>{creative.specialities}</p>
+                </div>
+                <div className={`hidden sm:block mt-3 h-6 w-px ${dividerCls}`} />
+                <div className="col-span-2 pl-3 lg:pl-7 min-w-0">
+                  <p className={labelCls}>Location:</p>
+                  {locationNode}
+                </div>
+              </div>
+
+              <div className="shrink-0">
+                <ViewProfileMenu onViewBrief={onViewBriefProfile} onViewFull={onViewFullProfile} />
+              </div>
             </div>
           </div>
         </>

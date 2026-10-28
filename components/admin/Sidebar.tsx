@@ -8,6 +8,7 @@ import {
   FolderOpen,
   CalendarClock,
   MessageCircle,
+  Bell,
   Users,
   ChevronDown,
   CircleDollarSign,
@@ -64,7 +65,12 @@ type MenuItem = {
   name: string;
   icon: React.ElementType<{ size?: number; isActive?: boolean }>;
   link?: string;
-  children?: { name: string; link: string; isDisabled?: boolean }[];
+  children?: {
+    name: string;
+    link: string;
+    isDisabled?: boolean;
+    permissionKeys?: string[];
+  }[];
   isDisabled?: boolean;
   permissionKeys?: string[];
 };
@@ -75,6 +81,7 @@ const menuItems: MenuItem[] = [
   { name: 'File Manager', icon: FolderOpen, link: '/admin/file-manager', permissionKeys: ['file_manager'] },
   { name: 'Meetings', icon: CalendarClock, link: '/admin/meetings', permissionKeys: ['meetings'] },
   { name: 'Messages', icon: MessageCircle, link: '/admin/messages', permissionKeys: ['messages'] },
+  // { name: 'Notifications', icon: Bell, link: '/admin/notifications' },
   { name: 'Availability', icon: CalendarClock, link: '/admin/availability', permissionKeys: ['availability'] },
   {
     name: "Sales Representative",
@@ -96,11 +103,31 @@ const menuItems: MenuItem[] = [
     permissionKeys: ["finances"],
     children: [
       // { name: 'Payouts', link: '/admin/finances/payouts' },
-      { name: "Finance Analytics", link: '/admin/finances/analytics' },
-      { name: "Transactions", link: "/admin/finances/transactions" },
-      { name: "Disputes", link: "/admin/finances/disputes" },
-      { name: "Beige credit points", link: "/admin/finances/creditPoints" },
-      { name: "CP Compensation", link: "/admin/finances/cpCompensation" },
+      {
+        name: "Finance Analytics",
+        link: "/admin/finances/analytics",
+        permissionKeys: ["finances"],
+      },
+      {
+        name: "Transactions",
+        link: "/admin/finances/transactions",
+        permissionKeys: ["admin_finances_transactions"],
+      },
+      {
+        name: "Disputes",
+        link: "/admin/finances/disputes",
+        permissionKeys: ["admin_finances_disputes"],
+      },
+      {
+        name: "Beige credit points",
+        link: "/admin/finances/creditPoints",
+        permissionKeys: ["admin_finances_beige_credit_points"],
+      },
+      {
+        name: "CP Compensation",
+        link: "/admin/finances/cpCompensation",
+        permissionKeys: ["admin_finances_cp_compensation"],
+      },
     ],
   },
 
@@ -132,12 +159,12 @@ const menuItems: MenuItem[] = [
       { name: "Quote Analytics", link: "/admin/quotes/analytics" },
     ],
   },
-  // {
-  //   name: "Agreements",
-  //   icon: ClipboardList,
-  //   link: "/admin/agreements",
-  //   permissionKeys: ["agreements"],
-  // },
+  {
+    name: "Agreements",
+    icon: ClipboardList,
+    link: "/admin/agreements",
+    permissionKeys: ["agreements"],
+  },
   {
     name: "Invoices",
     icon: Receipt,
@@ -155,6 +182,8 @@ const menuItems: MenuItem[] = [
     link: "/admin/settings",
     permissionKeys: ["finances"],
   },
+  { name: 'Notifications', icon: Bell, link: '/admin/notifications' },
+
   { name: "Profile", icon: User, link: "/admin/profile" },
 ];
 
@@ -454,17 +483,34 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
                 {hasChildren && isExpanded && (
                   <div className="mt-1 ml-4 border-l border-zinc-800 pl-4 space-y-1">
                     {item
-                      .children!.filter((_, childIndex) => {
-                        if (!hierarchyEntry) return true;
-                        const childModuleKey =
-                          hierarchyEntry[1].children[childIndex];
-                        return Boolean(
-                          childModuleKey &&
+                      .children!.filter((child, childIndex) => {
+                        const childPermissionKeys =
+                          child.permissionKeys ??
+                          (hierarchyEntry
+                            ? [hierarchyEntry[1].children[childIndex]]
+                            : []);
+
+                        if (!childPermissionKeys.length) return true;
+
+                        // Quote submenu permissions were introduced after the
+                        // existing admin/sales quote permissions. Keep those
+                        // valid legacy permissions usable until every role has
+                        // been migrated to the per-submenu permission keys.
+                        const canUseLegacyQuoteAccess =
+                          item.name === "Quotes" &&
+                          hasModulePermission(permissions, ["quotes"], "view");
+                        const canUseLegacyFinanceAccess =
+                          item.name === "Finances" &&
+                          hasModulePermission(permissions, ["finances"], "view");
+
+                        return (
+                          canUseLegacyQuoteAccess ||
+                          canUseLegacyFinanceAccess ||
                           hasModulePermission(
                             permissions,
-                            [childModuleKey],
+                            childPermissionKeys,
                             "view",
-                          ),
+                          )
                         );
                       })
                       .map((child) => {

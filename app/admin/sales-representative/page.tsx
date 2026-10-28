@@ -167,13 +167,17 @@ const isClosedLostStatus = (value: unknown): boolean => {
 };
 
 const resolveBookingStatusForList = (lead: BookingStatusSource): BookingStatus => {
+  if (isClosedLostStatus(lead?.booking_status)) {
+    return "Closed - Lost";
+  }
+
   const paymentSummary = lead?.payment_summary || {};
   const paymentSummaryStatus = normalizeStatusValue(paymentSummary?.payment_status).replace(/\s+/g, "_");
   const paidAmount = Number(paymentSummary?.paid_amount || lead?.collected_amount || 0);
   const dueAmount = Number(paymentSummary?.due_amount || lead?.outstanding_amount || 0);
 
   if (
-    ["partially_paid", "partial_paid", "approval_pending"].includes(paymentSummaryStatus) ||
+    ["partially_paid", "partial_paid"].includes(paymentSummaryStatus) ||
     (Number.isFinite(paidAmount) && paidAmount > 0 && Number.isFinite(dueAmount) && dueAmount > 0)
   ) {
     return "Partially Paid";
@@ -564,8 +568,8 @@ export default function AdminSaleRepManagerPage() {
     const hasManualPaymentHistory = Boolean(
       manualPaymentSummary?.paidAmount > 0 || manualPaymentSummary?.hasFullPayment
     );
-    const hasFullManualPayment = Boolean(manualPaymentSummary?.hasFullPayment);
-    const isPaidByBookingStatus = isPaidBookingStatus(lead.booking_status);
+    const bookingStatus = resolveBookingStatusForList(lead);
+    const isPaidByBookingStatus = isPaidBookingStatus(bookingStatus);
 
     return {
       lead_id: lead.lead_id,
@@ -574,16 +578,14 @@ export default function AdminSaleRepManagerPage() {
       email: lead.guest_email || "No email",
       registrationType: lead.user_id ? "registered" : "guest",
       leadType: (lead.lead_type === "self_serve" ? "Self-Serve" : "Sales Assisted") as LeadData["leadType"],
-      bookingStatus: hasFullManualPayment
-        ? "Paid"
-        : resolveBookingStatusForList(lead),
+      bookingStatus,
       lastActivity: formatRelativeTime(lead.last_activity_at),
       date: new Date(lead.created_at),
       intent: lead.intent || "Hot",
       assignedSalesRepName: lead.assigned_sales_rep?.name || "",
       assignedSalesRepEmail: lead.assigned_sales_rep?.email || "",
       hasManualPaymentHistory,
-      isPaymentPending: !(isPaidByBookingStatus || hasFullManualPayment),
+      isPaymentPending: !isPaidByBookingStatus,
       hasCreativePartnerAssigned: Array.isArray(lead.selected_crew_ids) && lead.selected_crew_ids.length > 0,
     };
   };

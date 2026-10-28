@@ -30,7 +30,11 @@ import { getCpAssignmentMissingDetails } from "@/lib/utils/cpAssignmentMissingFi
 import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConfirmationModal";
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 import CpAgreementsTable from "@/components/admin/shoot-details/CpAgreementsTable";
+import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
 import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
+import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+import ProjectProducerSection from "@/components/admin/shoot-details/ProjectProducerSection";
+import type { Producer } from "@/components/admin/shoot-details/ProducerSelectionModal";
 
 type SkillOption = {
   id?: number | string;
@@ -181,11 +185,25 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { canEdit, canDelete } = usePermissions("shoots");
+  const { canCreate: canCreateAgreement } = usePermissions("agreements");
   // const [activeTab, setActiveTab] = useState("Overview");
   const activeTab = searchParams.get("tab") || "Overview";
 
   const [project, setProject] = useState<ProjectDetails | null>(null);
+  const [producerOptions, setProducerOptions] = useState<Producer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [crewSizeNeeded, setCrewSizeNeeded] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    adminApi.getPostProductionTeamOptions().then((response) => {
+      if (cancelled) return;
+      setProducerOptions((response?.success && Array.isArray(response.data) ? response.data : []).map((user: { id: number; name: string; email?: string; role_name?: string }) => ({
+        id: String(user.id), name: user.name, email: user.email, role: user.role_name || "Producer",
+      })));
+    });
+    return () => { cancelled = true; };
+  }, []);
   const [previewInvoice, { isLoading: isViewingInvoice }] = usePreviewInvoiceMutation();
 
   // State to handle mobile timeline visibility
@@ -198,9 +216,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const [quotePreviewData, setQuotePreviewData] = useState<SalesQuoteDetailData | null>(null);
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-
-  // State to show/hide CP Agreements table
-  const [isCPAgreementAvailable, setIsCPAgreementAvailable] = useState(true);
+  const [shootAgreements, setShootAgreements] = useState<AgreementDocument[]>([]);
 
   // 3. Helper to update the URL when a tab is clicked
   const handleTabChange = (tabName: string) => {
@@ -214,6 +230,22 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    agreementApi
+      .listAdminAgreements({ type: "shoot", booking_id: Number(id), limit: 100 })
+      .then((response) => {
+        if (active) setShootAgreements(response.data);
+      })
+      .catch(() => {
+        if (active) setShootAgreements([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const shootBasePath = pathname?.startsWith("/sales") ? "/sales/shoots" : "/admin/shoots";
@@ -354,6 +386,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         responseData?.project || responseData || projectResponse;
 
       if (projectData) {
+        setCrewSizeNeeded(Math.max(0, Number(projectData?.crew_size_needed) || 0));
+
         // 3. Map Skills Needed to Names
         let skillsText = "";
         if (projectData.skills_needed) {
@@ -528,6 +562,48 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     );
   }
 
+  const assignedCrewFromResponse = asArray(project?.assignedCrew);
+  const assignedCreativePartners = assignedCrewFromResponse.length
+    ? assignedCrewFromResponse
+    : asArray(project?.assigned_crews);
+  const currentAgreementByAssignmentId = new Map<number, AgreementDocument>();
+  shootAgreements
+    .filter((agreement) => agreement.is_current && agreement.assignment_id)
+    .forEach((agreement) => currentAgreementByAssignmentId.set(Number(agreement.assignment_id), agreement));
+  const cpAgreementRows = assignedCreativePartners.map((assignment: any) => {
+    const assignmentId = Number(assignment?.id || 0);
+    const creator = assignment?.crew_member || assignment?.creator || {};
+    const name = [creator.first_name, creator.last_name].filter(Boolean).join(" ") || creator.name || `CP #${assignment?.crew_member_id || assignmentId}`;
+    const agreement = currentAgreementByAssignmentId.get(assignmentId);
+    const statusMap: Record<string, "Completed" | "Pending" | "Rejected" | "Draft" | "Cancelled"> = {
+      accepted: "Completed",
+      pending_acceptance: "Pending",
+      rejected: "Rejected",
+      draft: "Draft",
+      cancelled: "Cancelled",
+    };
+
+    return {
+      id: String(assignmentId),
+      assignmentId,
+      agreementId: agreement?.agreement_document_id,
+      name,
+      role: getPrimaryRoleLabel(creator.primary_role ?? creator.role, creator.role_name),
+      avatarUrl: "",
+      agreementType: "Individual",
+      version: agreement?.display_version || "—",
+      compensation: agreement?.compensation_amount != null
+        ? `${agreement.currency || "USD"} ${Number(agreement.compensation_amount).toFixed(2)}`
+        : assignment?.total_compensation != null
+          ? `USD ${Number(assignment.total_compensation).toFixed(2)}`
+          : "Not configured",
+      status: agreement ? statusMap[agreement.status] || "Draft" : "Not Sent",
+      actionLabel: agreement ? "Manage" : "Create Agreement",
+    };
+  });
+  const canOpenShootAgreement =
+    canCreateAgreement && assignedCreativePartners.length > 0;
+
   return (
     <>
       <Topbar pathname={pathname}
@@ -565,6 +641,21 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
               {notesButtonText}
             </Button>
             <Button
+              type="button"
+              onClick={() => router.push(`${shootBasePath}/${id}/shoot-agreement`)}
+              disabled={!canOpenShootAgreement}
+              title={
+                !canCreateAgreement
+                  ? "Create agreement permission not allowed"
+                  : assignedCreativePartners.length === 0
+                    ? "Assign a Creative Partner before creating a shoot agreement"
+                    : "Create or manage shoot agreements"
+              }
+              className="h-12 shrink-0 whitespace-nowrap rounded-lg bg-[#E8D1AB] px-5 text-black hover:bg-[#E8D1AB]/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Shoot Agreement
+            </Button>
+            <Button
               className="text-sm font-semibold text-[#BD1010] h-12 px-4 lg:px-7 rounded-lg bg-[#FFC3C3] border border-white/20 hover:bg-[#FFC3C3]/80 transition-colors "
               onClick={handleDelete}
               disabled={!canEdit}
@@ -572,7 +663,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             >
               <CircleX /> Cancel Shoot
             </Button>
-            <Button
+            {/* <Button
               variant="outline"
               className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
                 ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
@@ -580,7 +671,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 }`}
             >
               <SlidersHorizontal className="w-4 h-4" /> Filters
-            </Button>
+            </Button> */}
             <Button
               onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
               disabled={!canEdit}
@@ -649,6 +740,26 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
               {activeTab === "Overview" && (
                 <>
+                  <div className="px-5 mb-6">
+                    <ProjectProducerSection
+                      title="Producer"
+                      canManage={canEdit}
+                      producer={producerOptions.find((option) => option.id === String(project?.producer_user_id)) || null}
+                      producers={producerOptions.filter((option) => option.id === String(project?.producer_user_id) || !((project?.assigned_post_production_members || []) as Array<{ post_production_member?: { email?: string } }>).some((member) => !!option.email && member.post_production_member?.email?.trim().toLowerCase() === option.email.trim().toLowerCase()))}
+                      shoot={{ id: String(id), clientName: project?.project_name || `Shoot #${id}`, serviceType: String(project?.shoot_type || 'Shoot'), code: `#${id}` }}
+                      onAssign={async (producer) => {
+                        const response = await adminApi.setShootProducer(Number(id), Number(producer.id));
+                        if (!response.success) throw new Error(response.message);
+                        await fetchProjectAndSkills(false);
+                      }}
+                      onRemove={async () => {
+                        const response = await adminApi.setShootProducer(Number(id), null);
+                        if (!response.success) throw new Error(response.message);
+                        await fetchProjectAndSkills(false);
+                      }}
+                    />
+                  </div>
+
                   <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <ProjectTeam
                       projectId={id}
@@ -661,6 +772,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                       assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
                       cpCompensationStatus={project?.cp_compensation_status as string | null}
                       onRequestAssignment={handleAssignmentRequest}
+                      crewSizeNeeded={crewSizeNeeded}
+                      crewRoles={project?.crew_roles}
                     />
                   </div>
                   {Array.isArray(project?.payment_history) && project.payment_history.length > 0 ? (
@@ -743,20 +856,22 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                     </div>
                   ) : null}
 
-                  {/* If shoot Agreement is sent to CPs, show them below */}
-                  {
-                    isCPAgreementAvailable &&
+                  {assignedCreativePartners.length > 0 && (
                     <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                       <CpAgreementsTable
-                        // agreements={agreements}
+                        agreements={cpAgreementRows}
                         onActionClick={(agreement) => {
-                          console.log("Action menu clicked for:", agreement.name);
+                          if (agreement.agreementId) {
+                            router.push(`/admin/agreements/agreement-details?agreement_id=${agreement.agreementId}`);
+                            return;
+                          }
+                          router.push(`${shootBasePath}/${id}/shoot-agreement?assignment_id=${agreement.assignmentId}`);
                         }}
                       />
                     </div>
-                  }
+                  )}
 
-                  <div className={`${isCPAgreementAvailable ? "" : "mt-5 lg:mt-9 "} border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
+                  <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                     <MeetingSchedule orderId={id} createPermissionModuleKey="shoots" />
                   </div>
                 </>

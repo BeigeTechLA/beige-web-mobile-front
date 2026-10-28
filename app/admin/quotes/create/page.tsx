@@ -34,6 +34,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -1230,7 +1237,7 @@ export default function CreateQuotePage() {
   );
   const quotePermissionAction = isEditMode && !isDuplicateFlow ? "edit" : "create";
   const { allowed: hasQuotePermission, isLoading: isQuotePermissionLoading } =
-    useRequireModulePermission("quotes", quotePermissionAction, "/admin/quotes");
+    useRequireModulePermission("admin_quotes_all_quotes", quotePermissionAction, "/admin/quotes");
 
   if (isQuotePermissionLoading || !hasQuotePermission) {
     return (
@@ -1379,6 +1386,8 @@ function CreateQuotePageContent() {
   const [showCustomTax, setShowCustomTax] = useState<boolean>(false);
   const [taxRate, setTaxRate] = useState<number | string>(0);
   const [taxType, setTaxType] = useState("");
+  const [cardPaymentChargeEnabled, setCardPaymentChargeEnabled] = useState(true);
+  const [cardPaymentMethod, setCardPaymentMethod] = useState("cash");
   const [preProductionNotes, setPreProductionNotes] = useState("");
   const [preProductionFile, setPreProductionFile] =
     useState<PreProductionFileDraft | null>(null);
@@ -2106,6 +2115,8 @@ function CreateQuotePageContent() {
         setSelectedTax(isPresetTaxRate ? hydratedTaxRate : -1);
         setShowCustomTax(!isPresetTaxRate);
         setTaxType(hydratedState.taxType);
+        setCardPaymentChargeEnabled(hydratedState.cardPaymentChargeEnabled);
+        setCardPaymentMethod(hydratedState.cardPaymentMethod || "cash");
         setServices(hydratedState.services);
         setSelectedServices(hydratedState.selectedServices);
         setServiceConfigs(hydratedState.serviceConfigs);
@@ -3487,13 +3498,10 @@ function CreateQuotePageContent() {
       : normalizedDiscountValue;
   const discountAmount = Math.min(rawDiscountAmount, quoteSubtotal);
   const discountedSubtotal = Math.max(quoteSubtotal - discountAmount, 0);
-  // Tax controls are hidden for now, but the step remains for pre-production details.
-  // const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
-  // const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
-  // const totalAfterTax = discountedSubtotal + taxAmount;
-  const normalizedTaxRate = 0;
-  const taxAmount = 0;
-  const totalAfterTax = discountedSubtotal;
+  const configuredTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
+  const normalizedTaxRate = configuredTaxRate + (cardPaymentChargeEnabled ? 4 : 0);
+  const taxAmount = Math.round(discountedSubtotal * normalizedTaxRate) / 100;
+  const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
   const leadPricingPaid = Number(linkedLeadDetails?.pricing_breakdown?.total_paid);
   const leadPricingTotal = Number(linkedLeadDetails?.pricing_breakdown?.total_amount);
@@ -3539,9 +3547,12 @@ function CreateQuotePageContent() {
   }, [discountValue, maxDiscountValue]);
 
   // const taxLabel = taxType.trim() || "Sales Tax";
-  const taxLabel = (selectedTax === -1 && taxType.trim())
+  const configuredTaxLabel = (selectedTax === -1 && taxType.trim())
     ? taxType.trim()
     : "Sales Tax";
+  const taxLabel = configuredTaxRate > 0
+    ? `${configuredTaxLabel} (${configuredTaxRate}%)${cardPaymentChargeEnabled ? " + Card Payment Charges (4%)" : ""}`
+    : cardPaymentChargeEnabled ? "Card Payment Charges (4%)" : "Sales Tax";
   const canOpenQuoteSummary = hasQuoteSummaryContent({
     selectedClient,
     clientName,
@@ -3656,6 +3667,9 @@ function CreateQuotePageContent() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
+      salesTaxRate: configuredTaxRate,
+      cardPaymentChargeEnabled,
+      cardPaymentMethod,
       bookingSchedule: effectiveBookingSchedule,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
@@ -3695,6 +3709,9 @@ function CreateQuotePageContent() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
+      salesTaxRate: configuredTaxRate,
+      cardPaymentChargeEnabled,
+      cardPaymentMethod,
       bookingSchedule: effectiveBookingSchedule,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
@@ -3735,6 +3752,9 @@ function CreateQuotePageContent() {
         discountValue,
         taxLabel,
         normalizedTaxRate,
+        salesTaxRate: configuredTaxRate,
+        cardPaymentChargeEnabled,
+        cardPaymentMethod,
         bookingSchedule: effectiveBookingSchedule,
         selectedShootType: quoteDraftSelectedShootType,
         shootTypes: quoteDraftShootTypes,
@@ -3821,6 +3841,9 @@ function CreateQuotePageContent() {
       discountValue,
       taxLabel,
       normalizedTaxRate,
+      salesTaxRate: configuredTaxRate,
+      cardPaymentChargeEnabled,
+      cardPaymentMethod,
       selectedShootType: quoteDraftSelectedShootType,
       shootTypes: quoteDraftShootTypes,
       selectedEditingTypes,
@@ -8065,28 +8088,71 @@ function CreateQuotePageContent() {
                     </span>
                   </div>
 
-                  {/* Calculated Tax Amount - hidden while tax controls are disabled. */}
-                  {false ? (
-                    <>
-                  <div className="flex justify-between items-center">
+                  <>
+                  <div className={`my-4 flex flex-col gap-3 border-t border-b py-4 ${isDark ? "border-[#FFFFFF33]" : "border-[#E5E7EB]"}`}>
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>Card Payment Charges (4%)</p>
+                        <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-[#727272]"}`}>Choose whether to include the card payment charge in this quote.</p>
+                      </div>
+                      <div className={`flex shrink-0 rounded-lg border p-1 ${isDark ? "border-white/15" : "border-[#D7D7D7]"}`}>
+                        {[{ value: true, label: "Yes" }, { value: false, label: "No" }].map((option) => (
+                          <button
+                            key={option.label}
+                            type="button"
+                            onClick={() => setCardPaymentChargeEnabled(option.value)}
+                            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${cardPaymentChargeEnabled === option.value
+                              ? "bg-[#E8D1AB] text-black"
+                              : isDark ? "text-white/60" : "text-[#727272]"
+                              }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {!cardPaymentChargeEnabled ? (
+                      <label className={`flex flex-col gap-2 text-sm ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
+                        Payment Method
+                        <Select
+                          value={cardPaymentMethod}
+                          onValueChange={setCardPaymentMethod}
+                        >
+                          <SelectTrigger className={`h-11 rounded-lg border bg-transparent px-3 text-sm transition-colors ${isDark ? "border-white/20 text-white" : "border-[#000000]/15 text-[#000000]"}`}>
+                            <SelectValue placeholder="Select payment method" />
+                          </SelectTrigger>
+                          <SelectContent
+                            className={`transition-colors ${isDark
+                              ? "border-[#333333] bg-[#111111] text-white"
+                              : "border-[#000000]/10 bg-white text-[#000000]"
+                              }`}
+                          >
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="wire">Wire</SelectItem>
+                            <SelectItem value="ach">ACH</SelectItem>
+                            <SelectItem value="zelle">Zelle</SelectItem>
+                            <SelectItem value="venmo">Venmo</SelectItem>
+                            <SelectItem value="cashapp">CashApp</SelectItem>
+                            <SelectItem value="applepay">ApplePay</SelectItem>
+                            <SelectItem value="stripe">Stripe</SelectItem>
+                            <SelectItem value="net30">Net 30</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </label>
+                    ) : null}
+                  </div>
+
+                  {normalizedTaxRate > 0 ? <div className="flex justify-between items-center">
                     <span className={`text-sm lg:text-base ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
-                      {`${taxLabel} (${normalizedTaxRate}%)`}
+                      {taxLabel}
                     </span>
                     <span className={`text-sm lg:text-base tracking-tight ${isDark ? "text-[#9F9FA9]" : "text-[#727272]"}`}>
                       {formatCurrency(taxAmount)}
                     </span>
-                  </div>
+                  </div> : null}
 
-                  <div className="flex justify-between items-center mt-2 mb-2">
-                    <span className={`text-sm lg:text-base font-medium ${isDark ? "text-white" : "text-black"}`}>
-                      Amount After Tax
-                    </span>
-                    <span className={`text-sm lg:text-base font-medium tracking-tight ${isDark ? "text-white" : "text-black"}`}>
-                      {formatCurrency(totalAfterTax)}
-                    </span>
-                  </div>
-                    </>
-                  ) : null}
+                  </>
 
                   {/* Revision Multi-Layer Summary */}
                   {showQuoteRevisionSummary ? (

@@ -17,6 +17,7 @@ type PortalKey = "admin" | "affiliate" | "sales" | "production-manager" | "creat
 const MODULE_ALIASES: Record<string, string[]> = {
   admin_dashboard: ["dashboard", "sales_admin_dashboard", "sales_rep_dashboard", "client_dashboard", "crew_dashboard", "production_manager_dashboard"],
   admin_availability: ["availability"],
+  admin_agreements: ["agreements"],
   admin_file_manager: ["file_manager", "file-manager"],
   admin_finances: [
     "finances",
@@ -73,6 +74,7 @@ const MODULE_ALIASES: Record<string, string[]> = {
   quotes: ["admin_quotes", "sales_admin_quotes", "sales_rep_quotes", "client_quotes"],
   request_shoots: ["request_shoots", "request-shoots", "crew_request_shoots", "client_book_a_shoot"],
   affiliate: ["crew_affiliate", "client_affiliate_overview"],
+  agreements: ["admin_agreements"],
   roles_permissions: ["roles_permissions", "roles-permissions"],
   sales: ["sales", "sales_rep_sales"],
   sales_representative: ["admin_sales_representative", "sales_admin_sales_people", "sales_representative", "sales-representative", "users"],
@@ -103,20 +105,39 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
   },
   { prefix: "/admin/invoice", permissionKeys: ["invoices"] },
   {
+    prefix: "/admin/finances/analytics",
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[0],
+      "finances",
+    ],
+  },
+  {
     prefix: "/admin/finances/transactions",
-    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[0]],
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[1],
+      "finances",
+    ],
   },
   {
     prefix: "/admin/finances/disputes",
-    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[1]],
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[2],
+      "finances",
+    ],
   },
   {
     prefix: "/admin/finances/creditPoints",
-    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[2]],
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[3],
+      "finances",
+    ],
   },
   {
     prefix: "/admin/finances/cpCompensation",
-    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[3]],
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[4],
+      "finances",
+    ],
   },
   {
     prefix: "/admin/finances",
@@ -125,7 +146,9 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
       ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[1],
       ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[2],
       ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[3],
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_finances.children[4],
       "admin_finances",
+      "finances",
     ],
   },
   {
@@ -151,15 +174,24 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
   },
   {
     prefix: "/admin/quotes/change-requests",
-    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[1]],
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[1],
+      "quotes",
+    ],
   },
   {
     prefix: "/admin/quotes/pricing",
-    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[2]],
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[2],
+      "quotes",
+    ],
   },
   {
     prefix: "/admin/quotes/analytics",
-    permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[3]],
+    permissionKeys: [
+      ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[3],
+      "quotes",
+    ],
   },
   {
     prefix: "/admin/quotes",
@@ -169,12 +201,13 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
       ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[2],
       ADMIN_PERMISSION_MENU_HIERARCHY.admin_quotes.children[3],
       "admin_quotes",
+      "quotes",
     ],
   },
   { prefix: "/admin/roles-permissions", permissionKeys: ["roles_permissions"] },
   { prefix: "/admin/settings", permissionKeys: ["finances", "payouts"] },
   { prefix: "/admin/finances", permissionKeys: ["finances", "payouts"] },
-  { prefix: "/admin/internal-credentials", permissionKeys: ["users"] },
+  { prefix: "/admin/internal-credentials", permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[0]] },
 ];
 
 const AFFILIATE_ROUTE_RULES: AdminRouteRule[] = [

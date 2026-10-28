@@ -18,6 +18,8 @@ import { useResolvedTheme } from "@/lib/useResolvedTheme";
 import { SidebarProvider, useSidebar } from "@/context/SidebarContext";
 import Sidebar from "@/components/creator-profile/Sidebar";
 import WebPushRegistration from "@/components/chat/WebPushRegistration";
+import NotificationPopup from "@/components/notifications/NotificationPopup";
+import { CreatorAgreementGate } from "@/components/creator-profile/CreatorAgreementGate";
 
 type CpStatusPayload = {
   success?: boolean;
@@ -161,6 +163,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     const publicCreatorPaths = new Set([
       "/creator/dashboard",
       "/creator/dashboard/profile",
+      "/creator/dashboard/notifications",
+      "/creator/dashboard/notifications/preferences",
     ]);
 
     if (publicCreatorPaths.has(pathname)) return;
@@ -178,6 +182,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const publicCreatorPaths = new Set([
     "/creator/dashboard",
     "/creator/dashboard/profile",
+    "/creator/dashboard/notifications",
+    "/creator/dashboard/notifications/preferences",
   ]);
   const isPublicCreatorPath = publicCreatorPaths.has(pathname);
   const isRegistrationComplete =
@@ -194,6 +200,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
     }`}>
       {user?.id ? <WebPushRegistration userType={2} /> : null}
+      {isCreatorUser ? <CreatorAgreementGate /> : null}
       {/* Desktop Panel View */}
       <div className="hidden lg:block h-full border-r border-transparent">
         <Sidebar permissionsVersion={permissionsVersion} />
@@ -231,6 +238,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           children
         )}
       </main>
+      <NotificationPopup portal="creator" />
     </div>
   );
 }

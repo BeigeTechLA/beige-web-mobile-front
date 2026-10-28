@@ -8,6 +8,7 @@ import { UpdateRoleModal } from "@/components/admin/roles-permissions/UpdateRole
 import { RoleUpdatedSuccessModal } from "@/components/admin/roles-permissions/RoleUpdatedSuccessModal";
 import { ActionModal } from "@/components/admin/roles-permissions/ActionModal";
 import ActionSuccessModal from "@/components/admin/ActionSuccessModal";
+import { OpenRecordsReassignModal } from "@/components/admin/roles-permissions/OpenRecordsReassignModal";
 import {
   adminApi,
   type AdminRoleRecord,
@@ -180,6 +181,10 @@ export default function AdminRoleEditDetailsRoute() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleteSuccessModalOpen, setIsDeleteSuccessModalOpen] = useState(false);
+  const [isOpenRecordsModalOpen, setIsOpenRecordsModalOpen] = useState(false);
+  const [openLeadsCount, setOpenLeadsCount] = useState(0);
+  const [openQuotesCount, setOpenQuotesCount] = useState(0);
+  const [openPostProductionCount, setOpenPostProductionCount] = useState(0); 
   const [error, setError] = useState("");
   const [rows, setRows] = useState<PermissionMatrixRow[]>([]);
   const [roleName, setRoleName] = useState("Role");
@@ -327,6 +332,14 @@ export default function AdminRoleEditDetailsRoute() {
       mounted = false;
     };
   }, [mode, roleId, userId]);
+
+  useEffect(() => {
+    if (mode !== "user" || !userId || searchParams.get("open_delete") !== "1" || isLoading) return;
+    setIsDeleteModalOpen(true);
+    router.replace(`/admin/roles-permissions/edit-details?user_id=${encodeURIComponent(userId)}`, {
+      scroll: false,
+    });
+  }, [mode, userId, isLoading, router, searchParams]);
 
   const handleModalUpdate = ({
     roleId: selectedRoleId,
@@ -561,6 +574,34 @@ export default function AdminRoleEditDetailsRoute() {
     setIsDeleteSuccessModalOpen(true);
   };
 
+  const handleDeleteClick = async () => {
+    if (mode === "user") {
+      if (!userId) return;
+      setError("");
+      const response = await adminApi.getUserReassignments(userId);
+      if (!response?.success || !response?.data) {
+        setError(response?.error || response?.message || "Failed to fetch open records");
+        return;
+      }
+      const leadsCount = Number(response.count ?? response.data.leads?.length ?? 0);
+      const quotesCount = Number(response.quote_count ?? response.data.quotes?.length ?? 0);
+      const postProductionCount = Number(
+        response.post_production_count ?? response.data.post_production?.length ?? 0,
+      );
+      setOpenLeadsCount(leadsCount);
+      setOpenQuotesCount(quotesCount);
+      setOpenPostProductionCount(postProductionCount);
+
+      if (leadsCount + quotesCount + postProductionCount > 0) {
+        setIsOpenRecordsModalOpen(true);
+      } else {
+        setIsDeleteModalOpen(true);
+      }
+      return;
+    }
+    setIsDeleteModalOpen(true);
+  };
+
   const handleDelete = async () => {
     if (mode === "role") {
       await handleDeleteRole();
@@ -576,7 +617,9 @@ export default function AdminRoleEditDetailsRoute() {
   const deleteDescription =
     mode === "role"
       ? `Are you sure you want to delete ${roleName}? This action cannot be undone.`
-      : `Are you sure you want to delete ${userName}? This action cannot be undone.`;
+      : openLeadsCount === 0 && openQuotesCount === 0 && openPostProductionCount === 0
+        ? `This ${(pageRoleLabel || "user").replace(/[_-]+/g, " ")} has no open leads or quotes assigned to them. You can deactivate this user.`
+        : `Are you sure you want to delete ${userName}? This action cannot be undone.`;
   const deleteLabel = mode === "role" ? "Delete Role" : "Delete User";
   const primaryActionLabel = useMemo(() => {
     if (isSaving) return "Updating...";
@@ -608,7 +651,7 @@ export default function AdminRoleEditDetailsRoute() {
               {deleteLabel}
             </button> */}
             <button
-              onClick={() => setIsDeleteModalOpen(true)}
+              onClick={handleDeleteClick}
               disabled={!canDelete}
               title={
                 !canDelete
@@ -675,6 +718,19 @@ export default function AdminRoleEditDetailsRoute() {
         }}
         title={successTitle}
         description={successDescription}
+      />
+
+      <OpenRecordsReassignModal
+        isOpen={isOpenRecordsModalOpen}
+        onClose={() => setIsOpenRecordsModalOpen(false)}
+        onContinue={() => {
+          setIsOpenRecordsModalOpen(false);
+          router.push(`/admin/roles-permissions/reassign-records?user_id=${userId}`);
+        }}
+        roleName={(pageRoleLabel || "user").replace(/[_-]+/g, " ")}
+        openLeads={openLeadsCount}
+        openQuotes={openQuotesCount}
+        openPostProduction={openPostProductionCount}
       />
 
       <ActionModal

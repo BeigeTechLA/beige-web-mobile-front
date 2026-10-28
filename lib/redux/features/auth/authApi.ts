@@ -57,13 +57,12 @@ export const authApi = createApi({
     }),
 
     // Quick registration during booking flow
-    quickRegister: builder.mutation<LoginResponse, QuickRegisterData>({
+    quickRegister: builder.mutation<RegisterResponse & { email: string }, QuickRegisterData>({
       query: (data) => ({
         url: 'auth/quick-register',
         method: 'POST',
         body: data,
       }),
-      transformResponse: (response: LoginResponse) => response,
     }),
 
     // Send OTP to email for verification
@@ -277,6 +276,7 @@ export const {
   useVerifyEmailMutation,
   useGetCurrentUserQuery,
   useGetPermissionsQuery,
+  useLazyGetPermissionsQuery,
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useChangePasswordMutation,

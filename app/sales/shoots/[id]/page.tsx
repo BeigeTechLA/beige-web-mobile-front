@@ -232,6 +232,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
                   leadId={project?.lead_id}
                   assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
                   onRequestAssignment={handleAssignmentRequest}
+                  crewRoles={project?.crew_roles}
                 />
               </div>
               <MeetingSchedule role={effectiveRole} orderId={id} createPermissionModuleKey="shoots" />

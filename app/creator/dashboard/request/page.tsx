@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Calendar as CalendarIcon,
   MapPin,
@@ -14,11 +14,7 @@ import {
   CheckCircle2,
   Grid3X3,
   List,
-  ChevronRight,
-  Pencil,
-  Trash2,
-  Info,
-  Dot
+  ChevronRight
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -39,7 +35,8 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { getStatusCount, getPendingProjects, GetUpcomingShoots, acceptOrDeclineProject } from "@/lib/api";
+import { getStatusCount, getPendingProjects, GetUpcomingShoots } from "@/lib/api";
+import { agreementApi } from "@/lib/api/agreements";
 // import ProjectDetailsModal from "@/Crew/ProfileDetailsModal";
 import ProjectDetailsContainer from "@/Crew/ProjectDetailsContainer";
 import { getProject } from "@/lib/api";
@@ -49,7 +46,6 @@ import { MobileRow } from "@/components/creator-profile/MobileRow";
 import { StatCard } from "@/components/admin/StatCard";
 import Topbar from "@/components/admin/Topbar";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
-import Link from "next/link";
 import ActionMenu from "@/components/creator-profile/AgreementActionMenu";
 
 type ProjectItem = {
@@ -65,6 +61,8 @@ type ProjectItem = {
   location?: string;
   guest_email?: string;
   budget?: number | string;
+  compensation_amount?: number | string | null;
+  compensation_currency?: string | null;
   is_completed?: boolean | number | string;
   status?: "Pending" | "Confirmed" | "Completed" | "Rejected" | "Declined";
   project?: {
@@ -85,6 +83,7 @@ export default function RequestsShootsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const handledBookingDeepLink = useRef<string | null>(null);
 
   /* ---------------- VIEW TOGGLE STATE ---------------- */
   const view = (searchParams.get("view") as "grid" | "list") || "grid";
@@ -228,12 +227,12 @@ export default function RequestsShootsPage() {
     }
   };
 
-  const formatLocation = (locationInput) => {
+  const formatLocation = (locationInput?: string | null) => {
     if (!locationInput || locationInput === "Location TBD") return "Location TBD";
-    let addressStr = locationInput;
+    let addressStr: string = locationInput;
     try {
       const parsed = typeof locationInput === 'string' ? JSON.parse(locationInput) : locationInput;
-      if (parsed && parsed.address) addressStr = parsed.address;
+      if (parsed && typeof parsed.address === "string") addressStr = parsed.address;
     } catch { }
 
     const parts = addressStr.split(',').map(p => p.trim());
@@ -260,6 +259,17 @@ export default function RequestsShootsPage() {
       month: "short",
       year: "numeric",
     }).replace(/ /g, ' ').replace(/(\w{3}) (\d{4})/, '$1, $2');
+  };
+
+  const formatCompensation = (item: ProjectItem) => {
+    if (item.compensation_amount == null || item.compensation_amount === "") return "Not set";
+    const amount = Number(item.compensation_amount);
+    if (!Number.isFinite(amount)) return "Not set";
+    try {
+      return new Intl.NumberFormat("en-US", { style: "currency", currency: item.compensation_currency || "USD" }).format(amount);
+    } catch {
+      return `${amount.toFixed(2)} ${item.compensation_currency || "USD"}`;
+    }
   };
 
   const isCompletedFlag = (item: ProjectItem) => {
@@ -298,47 +308,16 @@ export default function RequestsShootsPage() {
   };
 
   /* ---------------- ACTIONS ---------------- */
-  const handleAcceptProject = async (projectId: number, accept: boolean) => {
-    const crew_member_id = getCrewMemberId();
-    if (!crew_member_id) {
-      toast.error("Invalid user session");
-      return;
-    }
-
+  const openProjectAgreement = async (projectId: number) => {
     try {
-      const response = await acceptOrDeclineProject({
-        project_id: projectId,
-        crew_member_id,
-        crew_accept: accept ? 1 : 2,
-      });
-
-      if (response && response.error === false) {
-        toast.success(accept ? "Shoot request accepted" : "Shoot request declined");
-        const acceptedItem = acceptShootEvent;
-        setAcceptShootEvent(null);
-        setDeclineShootEvent(null);
-        setDeclineReason("Schedule conflict");
-        setDeclineComments("");
-        if (accept && acceptedItem) {
-          setProjects((current) => current.filter((item) => item.project_id !== projectId));
-          setShoots((current) => {
-            const nextShoot = {
-              ...acceptedItem,
-              status: isCompletedFlag(acceptedItem) ? "Completed" : "Confirmed",
-              project_id: acceptedItem.project_id || acceptedItem.id,
-            };
-            const withoutDuplicate = current.filter((item) => item.project_id !== projectId);
-            return [nextShoot, ...withoutDuplicate];
-          });
-          handleTabChange("shoots");
-        }
-        await fetchData();
-      } else {
-        toast.error(response?.message || "Failed to update project status");
-      }
-    } catch (err) {
-      console.error("Action Error:", err);
-      toast.error("An unexpected error occurred");
+      const response = await agreementApi.listCreatorAgreements({ type: "shoot", status: "pending_acceptance", booking_id: projectId, limit: 1 });
+      const agreement = response.data[0];
+      if (!agreement) throw new Error("A shoot agreement has not been sent yet");
+      setAcceptShootEvent(null);
+      setDeclineShootEvent(null);
+      router.push(`/creator/dashboard/request/review-agreement?agreement_id=${agreement.agreement_document_id}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to open shoot agreement");
     }
   };
 
@@ -355,6 +334,23 @@ export default function RequestsShootsPage() {
       toast.error("Failed to load project details");
     }
   };
+
+  useEffect(() => {
+    const rawBookingId = searchParams.get("bookingId");
+    if (!rawBookingId) {
+      handledBookingDeepLink.current = null;
+      return;
+    }
+    const bookingId = Number(rawBookingId);
+    if (!Number.isSafeInteger(bookingId) || bookingId < 1) return;
+    if (handledBookingDeepLink.current === rawBookingId) return;
+    handledBookingDeepLink.current = rawBookingId;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("bookingId");
+    router.replace(`${pathname}${params.size ? `?${params.toString()}` : ""}`, { scroll: false });
+    void handleOpenProjectDetails(bookingId);
+  }, [pathname, router, searchParams]);
 
   const toggleDropdown = () => setIsOpen(!isOpen);
 
@@ -376,7 +372,7 @@ export default function RequestsShootsPage() {
   const filteredProjects = visibleProjects.filter((p) => {
     const title = (p.project_name || p.title || "").toLowerCase();
     const matchesSearch = title.includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || p.status.toLowerCase() === statusFilter;
+    const matchesStatus = statusFilter === "all" || p.status?.toLowerCase() === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -604,14 +600,12 @@ export default function RequestsShootsPage() {
               </div>
             </div>
           </div>
-        </div>
-
         {/* Main Content Area */}
         <div>
           {filteredProjects.length > 0 ? (
             view === "grid" ? (
               /* --- DYNAMIC GRID VIEW --- */
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 m-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {filteredProjects.map((item) => (
                   <div
                     key={item.project_id}
@@ -647,17 +641,17 @@ export default function RequestsShootsPage() {
                     </h3>
 
                     <div className="space-y-3 mb-4 lg:mb-6">
-                      <div className="flex gap-2 lg:gap-3 items-center">
+                      <div className="flex flex-wrap gap-x-3 gap-y-2 items-center">
                         <div className={`flex items-center gap-3 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                           <CalendarIcon size={16} className="text-[#E8D1AB]" />
                           <span>{formatDate(item.event_date || item.shoot_date || "TBD")}</span>
                         </div>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="1" height="17" viewBox="0 0 1 17" fill="none">
+                        <svg className="hidden sm:block" xmlns="http://www.w3.org/2000/svg" width="1" height="17" viewBox="0 0 1 17" fill="none">
                           <path d="M0.25 0V16.5" stroke="white" strokeOpacity="0.6" strokeWidth="0.5" />
                         </svg>
-                        <div className={`flex items-center gap-1 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+                        <div className={`flex min-w-0 items-center gap-1 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                           <span>Compensation:</span>
-                          <span className="text-[#E8D1AB]">$ 2000.00</span>
+                          <span className="whitespace-nowrap text-[#E8D1AB]">{formatCompensation(item)}</span>
                         </div>
                       </div>
 
@@ -671,19 +665,21 @@ export default function RequestsShootsPage() {
                         <svg className="hidden lg:block" xmlns="http://www.w3.org/2000/svg" width="1" height="17" viewBox="0 0 1 17" fill="none">
                           <path d="M0.25 0V16.5" stroke="white" strokeOpacity="0.6" strokeWidth="0.5" />
                         </svg>
+                        {/* Shoot agreement review is not live in production yet.
                         <div className={`flex items-center gap-1 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                           <span>Agreement:</span>
                           <p className="flex gap-0 items-center rounded-full bg-[#FEF9EC] text-[#D68910] text-[8px] font-medium px-1.5 py-[2px]">
                             ●  Pending Acceptance
                           </p>
                         </div>
+                        */}
                       </div>
                     </div>
 
-                    <div className={`flex items-center justify-between pt-4 border-t ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
-                      <div className="flex flex-col lg:flex-row gap-3">
+                    <div className={`flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between ${isDark ? "border-white/5" : "border-[#E5E5E5]"}`}>
+                      <div className="flex flex-col gap-3 sm:flex-row">
                         <Button
-                          onClick={() => handleOpenProjectDetails(item.project_id)}
+                          onClick={() => handleOpenProjectDetails(Number(item.project_id ?? item.id))}
                           className={`border hover:border-[#E8D1AB] hover:text-[#E8D1AB] px-6 ${isDark
                             ? "border-white/10 bg-transparent text-white hover:bg-white/5"
                             : "border-black/15 bg-white text-black hover:bg-[#FFFCF6]"
@@ -691,17 +687,19 @@ export default function RequestsShootsPage() {
                         >
                           View Details
                         </Button>
-                        <Link
-                          href={"/creator/dashboard/request/review-agreement"}
-                          className={`h-10 rounded-md text-sm flex items-center text-black px-6 bg-[#E8D1AB] font-semibold hover:bg-[#E5D5B8]`}
-                        >
-                          Review Agreement →
-                        </Link>
+                        {item.status === "Pending" && (
+                          <Button
+                            onClick={() => void openProjectAgreement(Number(item.project_id ?? item.id))}
+                            className="bg-[#E8D1AB] px-6 font-semibold text-black hover:bg-[#E5D5B8]"
+                          >
+                            Review Agreement →
+                          </Button>
+                        )}
                       </div>
 
 
                       {item.status === "Pending" && (
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 self-end">
                           <Button
                             size="icon"
                             onClick={() => setAcceptShootEvent(item)}
@@ -748,7 +746,9 @@ export default function RequestsShootsPage() {
                         <th className="w-[11%] px-3.5 py-5 font-semibold">Category</th>
                         <th className="w-[10%] px-3.5 py-5 font-semibold">Compensation</th>
                         <th className="w-[10%] px-3.5 py-5 font-semibold">Status</th>
+                        {/* Shoot agreement review is not live in production yet.
                         <th className="w-[11%] px-3.5 py-5 font-semibold">Agreement</th>
+                        */}
                         <th className="w-[9%] px-3.5 py-5 font-semibold text-right">Action</th>
                       </tr>
                     </thead>
@@ -831,7 +831,7 @@ export default function RequestsShootsPage() {
 
                             {/* Compensation */}
                             <td className={`px-3.5 py-5 text-sm truncate ${isDark ? "text-white/60" : "text-black/60"}`}>
-                              $2000.00
+                              {formatCompensation(item)}
                             </td>
 
                             {/* Status Pill Column */}
@@ -841,12 +841,13 @@ export default function RequestsShootsPage() {
                               </span>
                             </td>
 
-                            {/* Agreement Status */}
+                            {/* Shoot agreement review is not live in production yet.
                             <td className="px-3.5 py-5">
                               <p className="shrink-0 flex gap-0 items-center rounded-full bg-[#FEF9EC] text-[#D68910] text-xs font-medium px-4 py-1.5">
                                 Pending Acceptance
                               </p>
                             </td>
+                            */}
 
                             {/* Action Column */}
                             <td className="px-3.5 py-5 text-right">
@@ -854,7 +855,7 @@ export default function RequestsShootsPage() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   const rect = e.currentTarget.getBoundingClientRect();
-                                  setActiveProjectId(item.project_id);
+                                  setActiveProjectId(item.project_id ?? item.id ?? null);
                                   setMenuAnchor({
                                     x: rect.left - 150,
                                     y: rect.bottom + 6,
@@ -874,10 +875,8 @@ export default function RequestsShootsPage() {
                                     setActiveProjectId(null);
                                   }}
                                   leadId={item.project_id ?? item.id ?? ""}
-                                  onViewDetails={() => handleOpenProjectDetails(item.project_id)}
-                                  onReview={() => {
-                                    window.location.href = "/creator/dashboard/request/review-agreement";
-                                  }}
+                                  onViewDetails={() => handleOpenProjectDetails(Number(item.project_id ?? item.id))}
+                                  onReview={item.status === "Pending" ? () => { void openProjectAgreement(Number(item.project_id ?? item.id)); } : undefined}
                                   onApprove={() => {
                                     setAcceptShootEvent(item);
                                     setMenuAnchor(null);
@@ -903,10 +902,11 @@ export default function RequestsShootsPage() {
                   {filteredProjects.map((item) => (
                     <MobileRow
                       key={item.project_id}
-                      item={item}
+                      item={{ ...item, compensationLabel: formatCompensation(item) }}
                       onApprove={() => setAcceptShootEvent(item)}
                       onDecline={() => setDeclineShootEvent(item)}
-                      onViewDetails={() => handleOpenProjectDetails(item.project_id)}
+                      onViewDetails={() => handleOpenProjectDetails(Number(item.project_id ?? item.id))}
+                      onReview={() => void openProjectAgreement(Number(item.project_id ?? item.id))}
                       isDark={isDark}
                     />
                   ))}
@@ -923,6 +923,7 @@ export default function RequestsShootsPage() {
               No projects found matching your criteria.
             </div>
           )}
+        </div>
         </div>
 
         {/* Modals */}
@@ -962,9 +963,9 @@ export default function RequestsShootsPage() {
 
                 <Button
                   className={`flex-1 font-semibold transition-all bg-[#E8D1AB] text-black hover:bg-[#d4be9a]`}
-                  onClick={() => handleAcceptProject(acceptShootEvent.project_id, true)}
+                  onClick={() => acceptShootEvent && openProjectAgreement(Number(acceptShootEvent.project_id ?? acceptShootEvent.id))}
                 >
-                  Confirm
+                  Review Agreement
                 </Button>
               </div>
             </div>
@@ -1060,9 +1061,9 @@ export default function RequestsShootsPage() {
                 </Button>
                 <Button
                   className="flex-1 bg-red-600 text-white hover:bg-red-700 font-semibold transition-colors shadow-sm"
-                  onClick={() => handleAcceptProject(declineShootEvent.project_id, false)}
+                  onClick={() => declineShootEvent && openProjectAgreement(Number(declineShootEvent.project_id ?? declineShootEvent.id))}
                 >
-                  Decline Shoot
+                  Review Agreement
                 </Button>
               </div>
             </div>

@@ -97,6 +97,9 @@ export interface QuoteDraftPayload {
   discount_value?: number;
   tax_type?: string;
   tax_rate?: number;
+  sales_tax_rate?: number;
+  card_payment_charge_enabled?: boolean;
+  card_payment_method?: string | null;
   terms_conditions?: string;
   booking_type?: "single_day" | "multi_day" | null;
   time_zone?: string | null;
@@ -158,6 +161,9 @@ export interface BuildQuoteDraftPayloadInput {
   discountValue: number | string;
   taxLabel: string;
   normalizedTaxRate: number;
+  salesTaxRate?: number;
+  cardPaymentChargeEnabled?: boolean;
+  cardPaymentMethod?: string;
   selectedShootType: string;
   shootTypes: QuoteDraftShootType[];
   selectedEditingTypes: string[];
@@ -297,6 +303,11 @@ export function buildQuoteDraftPayload(
   if (includeTax) {
     payload.tax_type = input.taxLabel.trim() || "Sales Tax";
     payload.tax_rate = normalizeNumber(input.normalizedTaxRate);
+    if (input.salesTaxRate !== undefined) payload.sales_tax_rate = normalizeNumber(input.salesTaxRate);
+    if (input.cardPaymentChargeEnabled !== undefined) payload.card_payment_charge_enabled = input.cardPaymentChargeEnabled;
+    if (input.cardPaymentChargeEnabled !== undefined) {
+      payload.card_payment_method = input.cardPaymentChargeEnabled ? null : input.cardPaymentMethod || null;
+    }
     payload.pre_production_notes = input.preProductionNotes?.trim() || null;
 
     if (input.preProductionFile?.content) {
@@ -439,6 +450,11 @@ export function buildQuoteStepUpdatePayload(
       discount_value: input.discountEnabled ? normalizeNumber(input.discountValue) : 0,
       tax_type: input.taxLabel.trim() || "Sales Tax",
       tax_rate: normalizeNumber(input.normalizedTaxRate),
+      ...(input.salesTaxRate !== undefined ? { sales_tax_rate: normalizeNumber(input.salesTaxRate) } : {}),
+      ...(input.cardPaymentChargeEnabled !== undefined ? { card_payment_charge_enabled: input.cardPaymentChargeEnabled } : {}),
+      ...(input.cardPaymentChargeEnabled !== undefined
+        ? { card_payment_method: input.cardPaymentChargeEnabled ? null : input.cardPaymentMethod || null }
+        : {}),
     };
 
     if (step === "tax") {

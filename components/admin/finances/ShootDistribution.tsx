@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
 
 /* ------------------------------------------------------------------ */
 /* Dummy data                                                          */
@@ -30,8 +31,9 @@ const DUMMY_CLIENTS: ClientShoots[] = [
 /* ------------------------------------------------------------------ */
 
 interface ShootDistributionProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: ClientShoots[];
+  /** analytics.clients.top_by_shoots */
+  data?: FinanceAnalyticsData['clients']['top_by_shoots'] | null;
+  loading?: boolean;
   /** Max rows shown */
   limit?: number;
   title?: string;
@@ -40,28 +42,26 @@ interface ShootDistributionProps {
 }
 
 export default function ShootDistribution({
-  data,
+  data = null,
+  loading = false,
   limit = 8,
   title = 'Shoot Distribution',
   infoText,
 }: ShootDistributionProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
 
   useEffect(() => setMounted(true), []);
-
-  // Simulated fetch so the loading state matches the other dashboard components
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
 
   const isDark = !mounted || theme === "dark";
 
   // Sort by shoots (desc), keep top N, size bars against the busiest client
   const rows: (ClientShoots & { pct: number })[] = useMemo(() => {
-    const sorted = [...(data ?? DUMMY_CLIENTS)].sort((a, b) => b.shoots - a.shoots).slice(0, limit);
+    const sorted: ClientShoots[] = [...(data ?? [])]
+      .map((c) => ({ id: c.id, name: c.name, shoots: c.shoots }))
+      .sort((a, b) => b.shoots - a.shoots)
+      .slice(0, limit);
     const max = sorted[0]?.shoots || 1;
     return sorted.map((c) => ({ ...c, pct: Math.max(2, (c.shoots / max) * 100) }));
   }, [data, limit]);

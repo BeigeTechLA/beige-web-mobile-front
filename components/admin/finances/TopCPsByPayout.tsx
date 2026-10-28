@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Info } from 'lucide-react';
+import type { FinanceAnalyticsData } from '@/lib/api';
+import { ArrowUpRight, Info } from 'lucide-react';
 import { useTheme } from "next-themes";
 
 /* ------------------------------------------------------------------ */
@@ -15,13 +16,7 @@ export interface CPPayout {
   margin: number;  // %
 }
 
-const DUMMY_CPS: CPPayout[] = [
-  { id: 'cp_1', name: 'Marcus Reid', payout: 143_000_000, margin: 34.2 },
-  { id: 'cp_2', name: 'Priya Nair', payout: 128_000_000, margin: 31.8 },
-  { id: 'cp_3', name: 'Leon Vo', payout: 114_000_000, margin: 29.4 },
-  { id: 'cp_4', name: 'Cleo Dasha', payout: 99_000_000, margin: 32.1 },
-  { id: 'cp_5', name: 'Amara Sow', payout: 87_000_000, margin: 28.9 },
-];
+
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -39,22 +34,34 @@ const formatCompactUSD = (n: number) =>
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
+export interface SelectedPayoutCP {
+  id: string;
+  name: string;
+  payout: number;
+}
+
 interface TopCPsByPayoutProps {
-  data?: CPPayout[];
+  data?: FinanceAnalyticsData['creative_partners']['top_by_payout'] | null;
+  loading?: boolean;
   limit?: number; /** How many CPs to show */
   title?: string;
   infoText?: string;
+  selectedId?: string | null;
+  onSelectCP?: (cp: SelectedPayoutCP | null) => void;
 }
 
 export default function TopCPsByPayout({
   data,
+  loading = false,
   limit = 5,
   title = 'Top CPs By Payout',
   infoText = 'Top 5 CPs based on total payout',
+  selectedId = null,
+  onSelectCP,
 }: TopCPsByPayoutProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
 
   // Info tooltip: hover on desktop, tap on touch screens; position measured so it stays inside the card
   const cardRef = useRef<HTMLDivElement>(null);
@@ -93,17 +100,11 @@ export default function TopCPsByPayout({
     };
   }, [isInfoOpen, placeInfo]);
 
-  // Simulated fetch so the loading state matches the other dashboard components
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
-
   const isDark = !mounted || theme === "dark";
 
   // Sort by payout (desc), keep top N, and size bars relative to the #1 CP
   const rows = useMemo(() => {
-    const sorted = [...(data ?? DUMMY_CPS)].sort((a, b) => b.payout - a.payout).slice(0, limit);
+    const sorted = [...(data ?? [])].sort((a, b) => b.payout - a.payout).slice(0, limit);
     const max = sorted[0]?.payout || 1;
     return sorted.map((cp, i) => ({
       ...cp,
@@ -164,7 +165,12 @@ export default function TopCPsByPayout({
             </li>
           ))
           : rows.map((cp) => (
-            <li key={cp.id} className="flex items-center gap-3 sm:gap-4">
+            <li
+              key={cp.id}
+              className={`flex items-center gap-3 sm:gap-4 transition-opacity duration-300 ${
+                selectedId && selectedId !== cp.id ? 'opacity-40' : 'opacity-100'
+              }`}
+            >
               {/* Rank */}
               <span className={`w-6 shrink-0 text-xs  ${mutedText}`}>{cp.rank}</span>
 
@@ -198,6 +204,22 @@ export default function TopCPsByPayout({
               >
                 {cp.margin.toFixed(1)}% mg
               </span>
+
+              {/* Open / close arrow: ↗ closed, ↘ open */}
+              <button
+                type="button"
+                aria-label={selectedId === cp.id ? `Close ${cp.name} payout history` : `Open ${cp.name} payout history`}
+                aria-expanded={selectedId === cp.id}
+                onClick={() => onSelectCP?.(selectedId === cp.id ? null : { id: cp.id, name: cp.name, payout: cp.payout })}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
+                  isDark ? 'bg-[#2C2C2B] text-white hover:bg-[#3A3A39]' : 'bg-[#E8E8E8] text-[#171717] hover:bg-[#DADADA]'
+                }`}
+              >
+                <ArrowUpRight
+                  size={16}
+                  className={`transition-transform duration-300 ${selectedId === cp.id ? 'rotate-90' : 'rotate-0'}`}
+                />
+              </button>
             </li>
           ))}
 

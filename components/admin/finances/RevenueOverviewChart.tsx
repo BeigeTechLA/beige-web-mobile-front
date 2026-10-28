@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useId, useRef, useCallback } from 
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
+import { format, parseISO } from 'date-fns';
 import {
   Select,
   SelectContent,
@@ -11,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { FinanceAnalyticsData } from '@/lib/api'; 
 
 /* ------------------------------------------------------------------ */
 /* Icons                                                               */
@@ -83,22 +85,35 @@ const PayoutIcon = ({ size = 20 }: IconProps) => {
 };
 
 /* ------------------------------------------------------------------ */
-/* Dummy data                                                          */
+/* Metric metadata                                                     */
 /* ------------------------------------------------------------------ */
 
 type MetricId = 'gross' | 'pending' | 'payout';
-type Range = 'week' | 'month' | 'year' | 'all';
+type RevenueData = FinanceAnalyticsData['revenue'];
 
 interface Metric {
   id: MetricId;
   label: string;
   info: string;
-  value: number;   // raw USD
-  growth: number;  // %
+  value: number; // raw USD
+  note: string;
+  growth?: number; // % vs previous period (not in API yet)
   icon: React.ComponentType<IconProps>;
 }
 
-const METRIC_META: Record<MetricId, Omit<Metric, 'value' | 'growth'>> = {
+export type Range = 'week' | 'month' | 'year' | 'all' | 'custom';
+
+const growthLabel = (range: Range) => {
+  switch (range) {
+    case 'week': return 'from last week';
+    case 'month': return 'from last month';
+    case 'year': return 'from last year';
+    case 'all': return 'all time';
+    case 'custom': return 'selected period';
+  }
+};
+
+const METRIC_META: Record<MetricId, Omit<Metric, 'value' | 'note' | 'growth'>> = {
   gross: {
     id: 'gross',
     label: 'Gross Revenue',
@@ -119,74 +134,6 @@ const METRIC_META: Record<MetricId, Omit<Metric, 'value' | 'growth'>> = {
   },
 };
 
-// Summary values per range (USD) + growth vs previous period
-const SUMMARY: Record<Range, Record<MetricId, { value: number; growth: number }>> = {
-  week: {
-    gross: { value: 480_000, growth: 2 },
-    pending: { value: 61_000_000, growth: -1 },
-    payout: { value: 142_000_000, growth: 4 },
-  },
-  month: {
-    gross: { value: 1_900_000, growth: 3 },
-    pending: { value: 237_000_000, growth: 3 },
-    payout: { value: 571_000_000, growth: 3 },
-  },
-  year: {
-    gross: { value: 21_400_000, growth: 12 },
-    pending: { value: 1_820_000_000, growth: 8 },
-    payout: { value: 6_350_000_000, growth: 10 },
-  },
-  all: {
-    gross: { value: 58_700_000, growth: 0 },
-    pending: { value: 4_960_000_000, growth: 0 },
-    payout: { value: 17_200_000_000, growth: 0 },
-  },
-};
-
-// Chart series per range. Values are in the unit shown on the Y axis (e.g. $K).
-const CHART: Record<Range, { name: string; gross: number; pending: number; payout: number }[]> = {
-  week: [
-    { name: 'Mon', gross: 42, pending: 18, payout: 30 },
-    { name: 'Tue', gross: 55, pending: 22, payout: 34 },
-    { name: 'Wed', gross: 38, pending: 27, payout: 29 },
-    { name: 'Thu', gross: 61, pending: 20, payout: 41 },
-    { name: 'Fri', gross: 72, pending: 31, payout: 48 },
-    { name: 'Sat', gross: 49, pending: 25, payout: 36 },
-    { name: 'Sun', gross: 58, pending: 19, payout: 39 },
-  ],
-  // Two points per month (1st + 15th); only the 1st is labelled on the X axis
-  month: [
-    { name: 'Jan', gross: 35, pending: 22, payout: 28 },
-    { name: 'Jan 15', gross: 41, pending: 26, payout: 31 },
-    { name: 'Feb', gross: 21, pending: 30, payout: 25 },
-    { name: 'Feb 15', gross: 26, pending: 34, payout: 33 },
-    { name: 'Mar', gross: 28, pending: 29, payout: 37 },
-    { name: 'Mar 15', gross: 42, pending: 38, payout: 44 },
-    { name: 'Apr', gross: 40, pending: 41, payout: 40 },
-    { name: 'Apr 15', gross: 66, pending: 45, payout: 52 },
-    { name: 'May', gross: 64, pending: 43, payout: 57 },
-    { name: 'May 15', gross: 77, pending: 50, payout: 61 },
-    { name: 'Jun', gross: 56, pending: 47, payout: 55 },
-    { name: 'Jun 15', gross: 62, pending: 52, payout: 63 },
-    { name: 'Jul', gross: 48, pending: 49, payout: 58 },
-    { name: 'Jul 15', gross: 62, pending: 55, payout: 64 },
-  ],
-  year: [
-    { name: '2020', gross: 18, pending: 12, payout: 15 },
-    { name: '2021', gross: 29, pending: 21, payout: 24 },
-    { name: '2022', gross: 44, pending: 30, payout: 37 },
-    { name: '2023', gross: 52, pending: 41, payout: 46 },
-    { name: '2024', gross: 63, pending: 48, payout: 58 },
-    { name: '2025', gross: 74, pending: 55, payout: 66 },
-  ],
-  all: [
-    { name: 'Q1', gross: 30, pending: 20, payout: 24 },
-    { name: 'Q2', gross: 46, pending: 33, payout: 39 },
-    { name: 'Q3', gross: 58, pending: 41, payout: 50 },
-    { name: 'Q4', gross: 71, pending: 52, payout: 62 },
-  ],
-};
-
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
@@ -199,19 +146,6 @@ const formatCompactUSD = (n: number) =>
     maximumFractionDigits: 1,
   }).format(n);
 
-const growthLabel = (range: Range) => {
-  switch (range) {
-    case 'week': return 'from last week';
-    case 'month': return 'from last month';
-    case 'year': return 'from last year';
-    case 'all': return 'all time';
-  }
-};
-
-// Active point: ring dot + speech-bubble label drawn right above it (as in the design).
-// Drawn in SVG so it always sits on the point, unlike Recharts' floating tooltip box.
-// Recharts passes an Area's activeDot `value` as a [base, value] pair (not a number).
-// Read the real number from the data point instead.
 const pointValue = ({ payload, dataKey, value }: any): number => {
   const fromPayload = payload && dataKey != null ? payload[dataKey] : undefined;
   const raw = fromPayload ?? (Array.isArray(value) ? value[value.length - 1] : value);
@@ -222,7 +156,7 @@ const ActiveDotWithBubble = (props: any) => {
   const { cx, cy, isDark } = props;
   const value = pointValue(props);
   if (cx == null || cy == null || !Number.isFinite(value)) return null;
-  const text = String(value);
+  const text = formatCompactUSD(value);
   const w = Math.max(44, text.length * 9 + 26);
   const h = 28;
   const bubbleY = cy - h - 16;
@@ -333,35 +267,73 @@ function InfoTooltip({
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
-export default function RevenueOverviewChart() {
+interface RevenueOverviewChartProps {
+  data?: RevenueData | null;
+  loading?: boolean;
+  /** Growth % per card vs previous period (backend to provide later) */
+  growth?: Partial<Record<MetricId, number>>;
+  /** Controlled range (optional). If omitted, the component keeps its own state. */
+  range?: Range;
+  onRangeChange?: (range: Range) => void;
+}
+
+export default function RevenueOverviewChart({
+  data = null,
+  loading = false,
+  growth,
+  range: rangeProp,
+  onRangeChange,
+}: RevenueOverviewChartProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [activeMetric, setActiveMetric] = useState<MetricId>('gross');
-  const [range, setRange] = useState<Range>('month');
-  const [isLoading, setIsLoading] = useState(true);
+  const [rangeState, setRangeState] = useState<Range>('all');
+  const range = rangeProp ?? rangeState;
+  const handleRange = (r: Range) => {
+    setRangeState(r);
+    onRangeChange?.(r);
+  };
 
   useEffect(() => setMounted(true), []);
 
-  // Simulated fetch so the loading states from the original template still show
-  useEffect(() => {
-    setIsLoading(true);
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, [range]);
-
   const isDark = !mounted || theme === "dark";
 
-  const metrics: Metric[] = useMemo(
-    () => (Object.keys(METRIC_META) as MetricId[]).map((id) => ({
-      ...METRIC_META[id],
-      ...SUMMARY[range][id],
-    })),
-    [range]
+  const metrics: Metric[] = useMemo(() => {
+    const grossValue = data?.gross_revenue?.amount;
+    return [
+      {
+        ...METRIC_META.gross,
+        value: grossValue ?? 0,
+        note: `Refunds: ${formatCompactUSD(data?.refund_amount ?? 0)}`,
+        growth: growth?.gross,
+      },
+      {
+        ...METRIC_META.pending,
+        value: data?.pending_revenue?.amount ?? 0,
+        note: 'Outstanding balance',
+        growth: growth?.pending,
+      },
+      {
+        ...METRIC_META.payout,
+        value: data?.cp_payout?.total_amount ?? 0,
+        note: `Paid ${formatCompactUSD(data?.cp_payout?.paid_amount ?? 0)} · Payable ${formatCompactUSD(data?.cp_payout?.payable_amount ?? 0)}`,
+        growth: growth?.payout,
+      },
+    ];
+  }, [data, growth]);
+
+  const chartData = useMemo(
+    () =>
+      (data?.series ?? []).map((p) => ({
+        name: format(parseISO(p.date), 'MMM dd'),
+        gross: p.gross,
+        pending: p.pending,
+        payout: p.cp_payout,
+      })),
+    [data]
   );
 
-  const chartData = CHART[range];
-  // Pre-select a point (Apr in the month view) so the bubble shows on load like the design
-  const defaultIndex = range === 'month' ? 7 : Math.min(3, chartData.length - 1);
+  const defaultIndex = chartData.length ? Math.floor(chartData.length / 2) : undefined;
 
   const stopColor = isDark ? "#E5D5B8" : "#000000";
   const stopOpacityStart = isDark ? 0.12 : 0.15;
@@ -374,9 +346,9 @@ export default function RevenueOverviewChart() {
           <div className="w-[3px] h-6 bg-[#E5D5B8]" />
           <p className="font-medium text-sm lg:text-base">Overview</p>
         </div>
-        <Select value={range} onValueChange={(val: string) => setRange(val as Range)}>
+        <Select value={range} onValueChange={(val: string) => handleRange(val as Range)}>
           <SelectTrigger className={`w-[90px] rounded-full h-8 text-[10px] lg:text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-zinc-400" : "bg-[#E8E8E8] border-[#E3E3E3] text-[#323232]"}`}>
-            <SelectValue placeholder="Range" />
+            <SelectValue placeholder={range === 'custom' ? 'Custom' : 'Range'} />
           </SelectTrigger>
           <SelectContent className={`${isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]"}`}>
             <SelectItem value="week">Week</SelectItem>
@@ -426,16 +398,22 @@ export default function RevenueOverviewChart() {
               </div>
 
               <div className="text-base lg:text-[26px] font-semibold mb-2">
-                {isLoading
+                {loading
                   ? <div className={`h-8 w-20 animate-pulse rounded ${isActive ? 'bg-black/10' : (isDark ? "bg-white/10" : "bg-zinc-200")}`} />
                   : formatCompactUSD(m.value)}
               </div>
 
-              <div className={`text-xs flex gap-1 items-center ${isActive ? 'text-black/70' : (isDark ? 'text-white/70' : 'text-zinc-500')}`}>
-                <span className={`text-sm font-medium ${m.growth >= 0 ? (isActive ? 'text-[#047726]' : 'text-[#0DAE3D]') : 'text-red-500'}`}>
-                  {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`}
-                </span>
-                {growthLabel(range)}
+              <div className={`text-xs flex flex-wrap gap-x-1 items-center ${isActive ? 'text-black/70' : (isDark ? 'text-white/70' : 'text-zinc-500')}`}>
+                {!loading && typeof m.growth === 'number' && (
+                  <>
+                    <span className={`text-sm font-medium ${m.growth >= 0 ? (isActive ? 'text-[#047726]' : 'text-[#0DAE3D]') : 'text-red-500'}`}>
+                      {m.growth > 0 ? `+${m.growth}%` : `${m.growth}%`}
+                    </span>
+                    <span>{growthLabel(range)}</span>
+                    <span>·</span>
+                  </>
+                )}
+                <span>{loading ? '\u00A0' : m.note}</span>
               </div>
             </div>
           );
@@ -444,13 +422,18 @@ export default function RevenueOverviewChart() {
 
       {/* Chart */}
       <div className="h-[310px] lg:h-[350px] w-full relative">
-        {isLoading && (
+        {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-transparent z-10">
             <div className="h-8 w-8 border-2 border-[#E5D5B8] border-t-transparent rounded-full animate-spin" />
           </div>
         )}
+        {!loading && chartData.length === 0 && (
+          <div className={`absolute inset-0 flex items-center justify-center text-sm z-10 ${isDark ? 'text-white/50' : 'text-zinc-500'}`}>
+            No revenue data for this period
+          </div>
+        )}
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 40, right: 10, left: -10, bottom: 0 }}>
+          <AreaChart data={chartData} margin={{ top: 40, right: 10, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="revenueChartGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={stopColor} stopOpacity={stopOpacityStart} />
@@ -459,7 +442,8 @@ export default function RevenueOverviewChart() {
             </defs>
             <XAxis
               dataKey="name"
-              interval={range === 'month' ? 1 : 0}
+              interval="preserveStartEnd"
+              minTickGap={24}
               axisLine={false}
               tickLine={false}
               tick={{ fill: isDark ? '#ffffff66' : '#32323266', fontSize: 12 }}
@@ -468,8 +452,8 @@ export default function RevenueOverviewChart() {
             <YAxis
               axisLine={false}
               tickLine={false}
-              domain={[0, 80]}
-              ticks={[0, 20, 40, 60, 80]}
+              domain={[0, 'auto']}
+              tickFormatter={(v: number) => formatCompactUSD(v)}
               tick={{ fill: isDark ? '#ffffff66' : '#32323266', fontSize: 12 }}
             />
             {/* Tooltip only drives hover tracking; the visible label is the bubble on the active dot */}
@@ -479,7 +463,7 @@ export default function RevenueOverviewChart() {
               cursor={false}
             />
             <Area
-              key={`${range}-${activeMetric}`}
+              key={`${activeMetric}-${chartData.length}`}
               type="monotone"
               dataKey={activeMetric}
               stroke={isDark ? '#E5D5B8' : '#00000066'}

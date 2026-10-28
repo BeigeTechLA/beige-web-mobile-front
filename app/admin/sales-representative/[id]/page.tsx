@@ -352,7 +352,7 @@ export default function LeadDetailPage() {
   const [isEditAccessSubmitting, setIsEditAccessSubmitting] = useState(false);
   const [manualPaymentType, setManualPaymentType] = useState<"full" | "partial">("full");
   const [manualPaymentAmount, setManualPaymentAmount] = useState("");
-  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other" | "net30">("cash");
+  const [manualPaymentMode, setManualPaymentMode] = useState<"cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "payment_link" | "applepay" | "stripe" | "other" | "net30">("cash");
   const [manualPaymentOtherMode, setManualPaymentOtherMode] = useState("");
   const [manualPaymentProofUrl, setManualPaymentProofUrl] = useState("");
   const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
@@ -1677,7 +1677,8 @@ export default function LeadDetailPage() {
                     </>
                   )}
                   <div className={`w-[1px] h-4 hidden md:block ${isDark ? "bg-[#3D3D3D]" : "bg-[#D8D8D8]"}`} />
-                  <div className="relative inline-flex items-center gap-2 flex-nowrap overflow-visible">
+                  <div className="relative flex flex-col items-start gap-1">
+                    <div className="relative inline-flex items-center gap-2 flex-nowrap overflow-visible">
                     <p className="whitespace-nowrap">
                       Assigned Sales Rep : <span className={isDark ? "text-white" : "text-black"}>{lead.assigned_sales_rep?.name || "Unassigned"}</span>
                     </p>
@@ -1756,6 +1757,12 @@ export default function LeadDetailPage() {
                           )}
                         </div>
                       </>
+                    )}
+                    </div>
+                    {lead.previous_assigned_sales_rep?.name && (
+                      <p className={`text-xs ${isDark ? "text-white/55" : "text-black/55"}`}>
+                        Previously Assigned Sales Rep: <span className={isDark ? "text-white/80" : "text-black/80"}>{lead.previous_assigned_sales_rep.name}</span>
+                      </p>
                     )}
                   </div>
                 </div>
@@ -2594,7 +2601,7 @@ export default function LeadDetailPage() {
                       <Select
                         value={manualPaymentMode}
                         onValueChange={(value) => {
-                          const nextMode = value as "cash" | "wire" | "ach" | "zelle" | "venmo" | "cashapp" | "applepay" | "stripe" | "other" | "net30";
+                          const nextMode = value as typeof manualPaymentMode;
                           setManualPaymentMode(nextMode);
                           if (nextMode === "net30") {
                             setManualPaymentType("full");
@@ -2624,6 +2631,7 @@ export default function LeadDetailPage() {
                           <SelectItem value="zelle">Zelle</SelectItem>
                           <SelectItem value="venmo">Venmo</SelectItem>
                           <SelectItem value="cashapp">CashApp</SelectItem>
+                          <SelectItem value="payment_link">Payment Link</SelectItem>
                           <SelectItem value="applepay">ApplePay</SelectItem>
                           <SelectItem value="stripe">Stripe</SelectItem>
                           <SelectItem value="net30">Net 30</SelectItem>

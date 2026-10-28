@@ -39,6 +39,8 @@ interface FolderCardProps {
   showMenu?: boolean;
   onDownload?: () => void;
   onDelete?: () => void;
+  onMove?: () => void;
+  moveLabel?: string;
   onRename?: () => void;
   onShare?: () => void;
   onAccess?: () => void;
@@ -50,6 +52,8 @@ interface FolderCardProps {
   accessDisabled?: boolean;
   editVisibilityDisabled?: boolean;
   visibilityExpired?: boolean;
+  projectName?: string;
+  shootHref?: string;
 }
 
 export const FolderCard: React.FC<FolderCardProps> = ({
@@ -65,6 +69,8 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   showMenu = true,
   onDownload,
   onDelete,
+  onMove,
+  moveLabel,
   onRename,
   onShare,
   onAccess,
@@ -75,7 +81,9 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   shareDisabled = false,
   accessDisabled = false,
   editVisibilityDisabled = false,
-  visibilityExpired = false
+  visibilityExpired = false,
+  projectName,
+  shootHref,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -116,6 +124,10 @@ export const FolderCard: React.FC<FolderCardProps> = ({
     }
   };
 
+  const handleOpenShoot = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.stopPropagation();
+  };
+
   return (
     <div
       ref={cardRef}
@@ -146,6 +158,16 @@ export const FolderCard: React.FC<FolderCardProps> = ({
               <p className={`text-sm mt-1 ${isDark ? "text-[#E8D1AB]/60" : "text-[#000000]"}`}>
                 {fileCount.toString().padStart(2, '0')} Files
               </p>
+              {projectName && shootHref ? (
+                <a
+                  href={shootHref}
+                  onClick={handleOpenShoot}
+                  className={`mt-1 block truncate text-xs underline-offset-2 hover:underline ${isDark ? "text-[#E8D1AB]" : "text-[#725B38]"}`}
+                  title={`View shoot #${title ? shootHref.split('/').pop() : ''}: ${projectName}`}
+                >
+                  {projectName} #{shootHref.split('/').pop()}
+                </a>
+              ) : null}
             </div>
           </div>
           {showMenu ? (
@@ -228,6 +250,8 @@ export const FolderCard: React.FC<FolderCardProps> = ({
             onAccess={onAccess}
             onActivity={onActivity}
             onDelete={onDelete}
+            onMove={onMove}
+            moveLabel={moveLabel}
             onRename={onRename}
             onEditVisibility={onEditVisibility}
             downloadDisabled={downloadDisabled}

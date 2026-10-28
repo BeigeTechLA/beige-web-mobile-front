@@ -3298,7 +3298,8 @@ function CreateQuotePageContent() {
       : normalizedDiscountValue;
   const discountAmount = Math.min(rawDiscountAmount, quoteSubtotal);
   const discountedSubtotal = Math.max(quoteSubtotal - discountAmount, 0);
-  const normalizedTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
+  const configuredTaxRate = Math.max(0, Number(taxRate) || selectedTax || 0);
+  const normalizedTaxRate = configuredTaxRate + 4;
   const taxAmount = discountedSubtotal * (normalizedTaxRate / 100);
   const totalAfterTax = discountedSubtotal + taxAmount;
   const totalAfterDiscount = totalAfterTax;
@@ -3347,9 +3348,12 @@ function CreateQuotePageContent() {
   }, [discountValue, maxDiscountValue]);
 
   // const taxLabel = taxType.trim() || "Sales Tax";
-  const taxLabel = (selectedTax === -1 && taxType.trim())
+  const configuredTaxLabel = (selectedTax === -1 && taxType.trim())
     ? taxType.trim()
     : "Sales Tax";
+  const taxLabel = configuredTaxRate > 0
+    ? `${configuredTaxLabel} (${configuredTaxRate}%) + Card Payment Charges (4%)`
+    : "Card Payment Charges (4%)";
   const canOpenQuoteSummary = hasQuoteSummaryContent({
     selectedClient,
     clientName,
@@ -7433,21 +7437,13 @@ function CreateQuotePageContent() {
                       {formatCurrency(discountedSubtotal)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center ">
-                    <span className="text-sm lg:text-base text-[#9F9FA9]">{`${taxLabel} (${normalizedTaxRate}%)`}</span>
+                  {normalizedTaxRate > 0 ? <div className="flex justify-between items-center ">
+                    <span className="text-sm lg:text-base text-[#9F9FA9]">{taxLabel}</span>
                     <span className="text-sm lg:text-base text-[#9F9FA9] tracking-tight">
                       {formatCurrency(taxAmount)}
                     </span>
-                  </div>
+                  </div> : null}
 
-                  <div className="flex justify-between items-center mt-2 mb-2">
-                    <span className="text-sm lg:text-base text-white font-medium">
-                      Amount After Tax
-                    </span>
-                    <span className="text-sm lg:text-base text-white font-medium tracking-tight">
-                      {formatCurrency(totalAfterTax)}
-                    </span>
-                  </div>
                   {showQuoteRevisionSummary ? (
                     <>
                       <div className="my-4 lg:my-6 border-t border-[#FFFFFF33]" />
