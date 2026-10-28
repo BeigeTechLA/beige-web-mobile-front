@@ -121,7 +121,8 @@ export default function OverdueShootBreakdownPanel({
   const [mounted, setMounted] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [menu, setMenu] = useState<{ id: string; top: number; left: number } | null>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const prevCpIdRef = useRef<string | null>(null);
+  const [snapOut, setSnapOut] = useState(false); // card parked off-screen (no transition) before sliding in again
   const itemsPerPage = 10;
   const [isFetching, setIsFetching] = useState(false);
   const [rows, setRows] = useState<OverdueShootRow[]>([]);
@@ -182,15 +183,31 @@ export default function OverdueShootBreakdownPanel({
     setRows([]);
     setSummary(null);
     setError(null);
-    // expand thay pachi panel screen ma scroll thai ne dekhay
-    const t = setTimeout(
-      () => panelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
-      520,
-    );
-    return () => clearTimeout(t);
   }, [open, cpId, cpName, totalOverdue, shootCount, avatarUrl]);
 
-  // Row menu bahar click thi band
+  // Panel already open and user clicks a different CP: park the card on the right, then slide it in again
+  useEffect(() => {
+    if (!open) {
+      prevCpIdRef.current = null;
+      setSnapOut(false);
+      return;
+    }
+    const isSwitch = prevCpIdRef.current !== null && prevCpIdRef.current !== cpId;
+    prevCpIdRef.current = cpId;
+    if (!isSwitch) return;
+
+    setSnapOut(true); // instantly translate-x-full, transition disabled
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setSnapOut(false)); // transition back on, slides to translate-x-0
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      setSnapOut(false);
+    };
+  }, [open, cpId]);
+
   useEffect(() => {
     if (!menu) return;
     const close = () => setMenu(null);
@@ -227,14 +244,13 @@ export default function OverdueShootBreakdownPanel({
 
   return (
     <div
-      ref={panelRef}
       aria-hidden={!open}
       className={`grid w-full transition-[grid-template-rows] duration-500 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr] !mt-0"}`}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="min-h-0 overflow-hidden">
         <section
-          className={`w-full overflow-hidden rounded-2xl border transition-transform duration-500 ease-out ${open ? "translate-x-0" : "translate-x-full"} ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}
+          className={`w-full overflow-hidden rounded-2xl border ${snapOut ? "transition-none" : "transition-transform duration-500 ease-out"} ${open && !snapOut ? "translate-x-0" : "translate-x-full"} ${isDark ? "border-[#3D3D3D] bg-[#171717]" : "border-[#E3E3E3] bg-white"}`}
         >
           {/* Header */}
           <div

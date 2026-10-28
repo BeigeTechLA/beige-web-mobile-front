@@ -142,6 +142,7 @@ interface OutstandingPaymentProps {
   endDate?: string | null;
   title?: string;
   infoText?: string;
+  onHistoryOpenChange?: (open: boolean) => void;
 }
 
 export default function OutstandingPayment({
@@ -151,6 +152,7 @@ export default function OutstandingPayment({
   endDate = null,
   title = 'Outstanding Payment',
   infoText = 'Total payment pending from clients against gross revenue.',
+  onHistoryOpenChange,
 }: OutstandingPaymentProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -189,7 +191,7 @@ export default function OutstandingPayment({
 
   return (
     <div className="contents">
-    <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full overflow-hidden ${cardCls}`}>
+    <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full h-full overflow-hidden ${cardCls}`}>
       {/* Header */}
       <div className={`flex items-center gap-1.5 p-5 pt-6 border-b ${divider}`}>
         <p className="text-sm lg:text-base">{title}</p>
@@ -212,7 +214,11 @@ export default function OutstandingPayment({
               type="button"
               aria-label={historyOpen ? 'Close payment history' : 'Open payment history'}
               aria-expanded={historyOpen}
-              onClick={() => setHistoryOpen((open) => !open)}
+              onClick={() => setHistoryOpen((open) => {
+                const nextOpen = !open;
+                onHistoryOpenChange?.(nextOpen);
+                return nextOpen;
+              })}
               className={`inline-flex h-6 w-6 items-center justify-center rounded-full transition-colors ${isDark ? 'bg-white/15 text-white/80 hover:bg-white/25' : 'bg-black/10 text-[#323232] hover:bg-black/15'}`}
             >
               <ArrowUpRight size={13} className={`transition-transform duration-300 ${historyOpen ? 'rotate-90' : ''}`} />

@@ -46,6 +46,8 @@ const pageList = (current: number, total: number): (number | '…')[] => {
 };
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
+const capitalizeFirstLetter = (value: string) =>
+  value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
 
 /* ------------------------------------------------------------------ */
 /* Info tooltip                                                        */
@@ -226,13 +228,13 @@ export default function TopDisputeReasons({
                 return (
                   <tr key={r.id} className={`border-b ${divider} transition-colors ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.02]'}`}>
                     <td className={`py-3 pl-5 pr-2.5 text-xs lg:text-sm ${isDark ? 'text-[#999999]' : 'text-black/40'}`}>{pad2(rank)}</td>
-                    <td className="p-3 text-xs lg:text-sm truncate max-w-[220px]">{r.name}</td>
+                    <td className="p-3 text-xs lg:text-sm truncate max-w-[220px]">{capitalizeFirstLetter(r.name)}</td>
                     <td className="p-3 text-xs lg:text-sm text-center">{pad2(r.cases)}</td>
                     <td className="py-3 pl-2.5 pr-5">
                       <div
                         className={`h-0.5 w-full rounded-full overflow-hidden ${track}`}
                         role="progressbar"
-                        aria-label={`${r.name}: ${r.cases} cases`}
+                        aria-label={`${capitalizeFirstLetter(r.name)}: ${r.cases} cases`}
                         aria-valuenow={Math.round(pct)}
                         aria-valuemin={0}
                         aria-valuemax={100}

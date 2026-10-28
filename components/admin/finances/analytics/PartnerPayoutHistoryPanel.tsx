@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { adminApi } from "@/lib/api";
 import { AlertCircle, ChevronLeft, ChevronRight, Loader2, Search, X } from "lucide-react";
@@ -120,9 +120,25 @@ export default function PartnerPayoutHistoryPanel({
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
+  const previousCpId = useRef(cpId);
   const itemsPerPage = 10;
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const cpChanged = previousCpId.current !== cpId;
+    previousCpId.current = cpId;
+    if (!open || !cpChanged || !panelRef.current) return;
+
+    panelRef.current.animate(
+      [
+        { transform: "translateY(-2rem)", opacity: 0 },
+        { transform: "translateY(0)", opacity: 1 },
+      ],
+      { duration: 300, easing: "ease-out" },
+    );
+  }, [cpId, open]);
 
   // Navo CP khule tyare reset
   useEffect(() => {
@@ -213,6 +229,7 @@ export default function PartnerPayoutHistoryPanel({
       <div className="min-h-0 overflow-hidden">
         {/* top → bottom */}
         <section
+          ref={panelRef}
           className={`w-full overflow-hidden rounded-2xl border transition-all duration-500 ease-out ${open ? "translate-y-0 opacity-100" : "-translate-y-8 opacity-0"} ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-[#E3E3E3] bg-white"}`}
         >
           {/* CP header */}

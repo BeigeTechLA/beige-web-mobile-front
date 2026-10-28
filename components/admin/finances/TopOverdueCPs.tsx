@@ -19,6 +19,7 @@ export interface OverdueCP {
   avatarUrl?: string;     // optional – falls back to initials
   amount: number;         // USD
   daysOverdue: number;
+  shoots: number;
   roles: string[];
 }
 
@@ -143,6 +144,7 @@ interface TopOverdueCPsProps {
   infoText?: string;
   selectedId?: string | null;
   onSelectCP?: (cp: OverdueCP | null) => void;
+  dimmed?: boolean;
 }
 
 export default function TopOverdueCPs({
@@ -154,6 +156,7 @@ export default function TopOverdueCPs({
   infoText = 'CPs with overdue payments, ranked by highest outstanding amount.',
   selectedId = null,
   onSelectCP,
+  dimmed = false,
 }: TopOverdueCPsProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -180,6 +183,7 @@ export default function TopOverdueCPs({
         name: cp.name,
         amount: cp.amount,
         daysOverdue: cp.days_overdue,
+        shoots: cp.shoots,
         roles: cp.roles || [],
       }))
       .filter((cp) => age === 'all' || (age === '1_30' && cp.daysOverdue <= 30) || (age === '31_60' && cp.daysOverdue >= 31 && cp.daysOverdue <= 60) || (age === '61_90' && cp.daysOverdue >= 61 && cp.daysOverdue <= 90) || (age === '90_plus' && cp.daysOverdue > 90))
@@ -199,7 +203,8 @@ export default function TopOverdueCPs({
   const contentCls = isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]";
 
   return (
-    <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full overflow-hidden ${cardCls}`}>
+    <div data-tooltip-bounds className={`relative transition-colors duration-300 border rounded-2xl w-full h-full flex flex-col overflow-hidden ${cardCls}`}>
+      <div aria-hidden="true" className={`pointer-events-none absolute inset-0 z-20 transition-opacity duration-300 ${dimmed ? 'opacity-100' : 'opacity-0'} ${isDark ? 'bg-black/55' : 'bg-slate-900/35'}`} />
       {/* Header + filters */}
       <div className="p-5 pt-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
@@ -268,7 +273,7 @@ export default function TopOverdueCPs({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto flex-1">
         <table className="w-full min-w-[460px] border-collapse">
           <thead>
             <tr className={`border-y ${divider}`}>
@@ -306,7 +311,12 @@ export default function TopOverdueCPs({
                           {initials(cp.name)}
                         </div>
                       )}
-                      <span className="text-xs lg:text-sm font-medium truncate">{cp.name}</span>
+                      <span className="min-w-0">
+                        <span className="block text-xs lg:text-sm font-medium truncate">{cp.name}</span>
+                        <span className={`block text-[11px] lg:text-xs underline underline-offset-2 ${isDark ? 'text-white/50 decoration-white/30' : 'text-zinc-500 decoration-zinc-300'}`}>
+                          Total {cp.shoots} {cp.shoots === 1 ? 'Shoot' : 'Shoots'}
+                        </span>
+                      </span>
                     </div>
                   </td>
                   <td className={`px-5 py-2 ${i === 0 ? 'pt-5' : ''} ${i === rows.length - 1 ? 'pb-5' : ''} text-sm lg:text-base ${amountCls}`}>

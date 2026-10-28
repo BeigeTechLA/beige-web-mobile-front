@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Fragment, useEffect, useState } from "react";
+import React, { Fragment, useEffect, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { adminApi } from "@/lib/api";
 import {
@@ -138,8 +138,24 @@ export default function PartnerShootHistoryPanel({
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
+  const previousEntityId = useRef(entityId);
   const itemsPerPage = 10;
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const entityChanged = previousEntityId.current !== entityId;
+    previousEntityId.current = entityId;
+    if (!open || !entityChanged || !panelRef.current) return;
+
+    panelRef.current.animate(
+      [
+        { transform: "translateY(-2rem)", opacity: 0 },
+        { transform: "translateY(0)", opacity: 1 },
+      ],
+      { duration: 300, easing: "ease-out" },
+    );
+  }, [entityId, open]);
 
   // Reset when a different CP / client is opened
   useEffect(() => {
@@ -245,6 +261,7 @@ export default function PartnerShootHistoryPanel({
       <div className="min-h-0 overflow-hidden">
         {/* top → bottom: drops down from above while fading in */}
         <section
+          ref={panelRef}
           className={`w-full overflow-hidden rounded-2xl border transition-all duration-500 ease-out ${open ? "translate-y-0 opacity-100" : "-translate-y-8 opacity-0"} ${isDark ? "border-[#3D3D3D] bg-[#101010]" : "border-[#E3E3E3] bg-white"}`}
         >
           {/* Header + filters */}

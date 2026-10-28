@@ -151,6 +151,7 @@ interface CPPayoutTimelineProps {
   infoText?: string;
   selectedId?: string | null;
   onSelectBucket?: (bucket: SelectedPayoutBucket | null) => void;
+  dimmed?: boolean;
 }
 
 export default function CPPayoutTimeline({
@@ -160,6 +161,7 @@ export default function CPPayoutTimeline({
   infoText = 'Timeline of payments made or due to Content Partners (CPs).',
   selectedId = null,
   onSelectBucket,
+  dimmed = false,
 }: CPPayoutTimelineProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -184,7 +186,8 @@ export default function CPPayoutTimeline({
   const mutedText = isDark ? 'text-white/40' : 'text-zinc-500';
 
   return (
-    <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full h-full flex flex-col overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+    <div data-tooltip-bounds className={`relative transition-colors duration-300 border rounded-2xl w-full h-full flex flex-col overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+      <div aria-hidden="true" className={`pointer-events-none absolute inset-0 z-20 transition-opacity duration-300 ${dimmed ? 'opacity-100' : 'opacity-0'} ${isDark ? 'bg-black/55' : 'bg-slate-900/35'}`} />
       {/* Header */}
       <div className={`shrink-0 flex items-center gap-1.5 px-5 py-5 lg:py-6 ${isDark ? "bg-[#090909]" : "bg-[#F4F5F7]"}`}>
         <p className="text-sm lg:text-base">{title}</p>
@@ -196,9 +199,9 @@ export default function CPPayoutTimeline({
           />
       </div>
 
-      <div className={`p-4`}>
+      <div className="p-4 flex-1 flex flex-col">
         {/* Bars */}
-        <ul className="space-y-5 lg:space-y-7">
+        <ul className="space-y-5 lg:space-y-7 mb-4 lg:mb-8">
           {rows.map((row) => (
             <li
               key={row.id}
@@ -273,7 +276,7 @@ export default function CPPayoutTimeline({
         </ul>
 
         {/* Legend */}
-        <div className={`mt-4 lg:mt-8 rounded-lg border p-3 ${isDark ? 'bg-black border-[#363636]' : 'bg-[#F4F5F7] border-[#E3E3E3]'}`}>
+        <div className={`mt-auto rounded-lg border p-3 ${isDark ? 'bg-black border-[#363636]' : 'bg-[#F4F5F7] border-[#E3E3E3]'}`}>
           <p className="font-semibold text-base lg:text-lg mb-1.5">Color Legend</p>
           <ul className="flex flex-wrap gap-x-4 gap-y-2 justify-between">
             {SEGMENTS.map((s) => (

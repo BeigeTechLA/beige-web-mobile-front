@@ -188,6 +188,7 @@ interface AvgClientSpendPerShootProps {
   loading?: boolean;
   title?: string;
   infoText?: string;
+  dimmed?: boolean;
 }
 
 export default function AvgClientSpendPerShoot({
@@ -196,6 +197,7 @@ export default function AvgClientSpendPerShoot({
   loading = false,
   title = 'Average Client Spend Per Shoot',
   infoText = 'Average amount a client spends per shoot.',
+  dimmed = false,
 }: AvgClientSpendPerShootProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -225,7 +227,8 @@ export default function AvgClientSpendPerShoot({
   const skeleton = isDark ? 'bg-white/10' : 'bg-zinc-200';
 
   return (
-    <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+    <div data-tooltip-bounds className={`relative transition-colors duration-300 border rounded-2xl w-full overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+      <div aria-hidden="true" className={`pointer-events-none absolute inset-0 z-20 transition-opacity duration-300 ${dimmed ? 'opacity-100' : 'opacity-0'} ${isDark ? 'bg-black/55' : 'bg-slate-900/35'}`} />
       {/* Header */}
       <div className={`shrink-0 flex items-center gap-1.5 p-5 ${isDark ? "bg-[#090909]" : "bg-[#F4F5F7]"}`}>
         <p className="text-sm lg:text-base">{title}</p>
