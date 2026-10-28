@@ -37,10 +37,29 @@ const isPdf = (contentType?: string, fileName?: string) => {
   return /\.pdf$/i.test(fileName || "");
 };
 
+const isText = (contentType?: string, fileName?: string) => {
+  if (contentType === "text/plain") return true;
+  return /\.txt$/i.test(fileName || "");
+};
+
+const isOffice = (contentType?: string, fileName?: string) => {
+  if (
+    contentType &&
+    /(msword|wordprocessingml|ms-excel|spreadsheetml|ms-powerpoint|presentationml)/i.test(contentType)
+  ) {
+    return true;
+  }
+  return /\.(docx?|xlsx?|pptx?)$/i.test(fileName || "");
+};
+
 const getFileTypeLabel = (contentType?: string, fileName?: string) => {
   if (isImage(contentType, fileName)) return "Image";
   if (isVideo(contentType, fileName)) return "Video";
   if (isPdf(contentType, fileName)) return "PDF";
+  if (isText(contentType, fileName)) return "Text";
+  if (/\.docx?$/i.test(fileName || "")) return "Word";
+  if (/\.xlsx?$/i.test(fileName || "")) return "Excel";
+  if (/\.pptx?$/i.test(fileName || "")) return "PowerPoint";
   const extension = String(fileName || "").split(".").pop();
   return extension && extension !== fileName ? extension.toUpperCase() : "File";
 };
@@ -62,6 +81,43 @@ export default function MediaLightboxModal({
   const isVideoFile = isVideo(contentType, fileName);
   const isPdfFile = isPdf(contentType, fileName);
   const fileTypeLabel = getFileTypeLabel(contentType, fileName);
+  const isTextFile = isText(contentType, fileName);
+  const isOfficeFile = isOffice(contentType, fileName);
+
+  const [textContent, setTextContent] = useState("");
+  const [loadingText, setLoadingText] = useState(false);
+  const [textError, setTextError] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !fileUrl || !isTextFile) return;
+
+    const controller = new AbortController();
+    setLoadingText(true);
+    setTextError(false);
+    setTextContent("");
+
+    fetch(fileUrl, { signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load text file");
+        return res.text();
+      })
+      .then((text) => {
+        const MAX_CHARS = 500_000;
+        setTextContent(
+          text.length > MAX_CHARS
+            ? `${text.slice(0, MAX_CHARS)}\n\n… (truncated, download to see the full file)`
+            : text
+        );
+      })
+      .catch((error: unknown) => {
+        if ((error as { name?: string })?.name !== "AbortError") setTextError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingText(false);
+      });
+
+    return () => controller.abort();
+  }, [isOpen, fileUrl, isTextFile]);
 
   const resetTransform = useCallback(() => {
     setZoom(1);
@@ -301,6 +357,27 @@ export default function MediaLightboxModal({
             <iframe
               src={fileUrl}
               title={fileName || "PDF preview"}
+              className="h-full w-full border-none bg-white"
+            />
+          </div>
+        ) : isTextFile ? (
+          <div className="h-[84vh] w-[92vw] max-w-6xl overflow-auto rounded-2xl border border-white/15 bg-[#0e0e0e] p-6 shadow-2xl">
+            {loadingText ? (
+              <div className="flex h-full items-center justify-center gap-2 text-sm text-white/60">
+                <Loader2 className="h-5 w-5 animate-spin text-[#E5D5B8]" />
+                Loading text...
+              </div>
+            ) : textError ? (
+              <p className="text-sm text-white/60">Could not load text preview. Try downloading the file.</p>
+            ) : (
+              <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-white/85">{textContent}</pre>
+            )}
+          </div>
+        ) : isOfficeFile ? (
+          <div className="h-[84vh] w-[92vw] max-w-6xl overflow-hidden rounded-2xl border border-white/15 bg-[#1a1a1a] shadow-2xl">
+            <iframe
+              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`}
+              title={fileName || "Document preview"}
               className="h-full w-full border-none bg-white"
             />
           </div>
