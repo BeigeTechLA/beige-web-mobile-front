@@ -852,12 +852,16 @@ export default function AddCompensationModal({
                 </div>
               </div>
 
-              <aside aria-label="Compensation note" className={`flex items-start gap-3 rounded-xl border p-4 ${isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/5 text-white/80" : "border-[#B89B6C]/35 bg-[#E8D1AB]/20 text-black/75"}`}>
-                <Info size={18} aria-hidden="true" className={`mt-0.5 shrink-0 ${isDark ? "text-[#E8D1AB]" : "text-[#806439]"}`} />
-                <div className="min-w-0 space-y-2 text-sm leading-relaxed [&_strong]:font-semibold">
-                  <p className={`font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#634B28]"}`}>
+              <aside aria-label="Compensation note" className={`overflow-hidden rounded-xl border border-l-[3px] border-l-[#C5A572] ${isDark ? "border-[#E8D1AB]/20 bg-[#25221D]" : "border-[#DDCBAE] bg-[#FBF5EB]"}`}>
+                <div className={`flex items-center gap-2.5 border-b px-4 py-3 ${isDark ? "border-[#E8D1AB]/10 bg-[#E8D1AB]/[0.04]" : "border-[#DDCBAE]/60 bg-[#E8D1AB]/20"}`}>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#E8D1AB]/70 text-[#71552F]"}`}>
+                    <Info size={16} aria-hidden="true" />
+                  </span>
+                  <p className={`text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-[#634B28]"}`}>
                     {compensationMethod === "equal" ? "Equal split & assignments" : "Manual compensation & assignments"}
                   </p>
+                </div>
+                <div className={`space-y-3 px-4 py-4 text-[13px] leading-6 sm:text-sm [&_strong]:font-semibold ${isDark ? "text-[#D3CDC3] [&_strong]:text-[#F0DDBD]" : "text-[#6A5C49] [&_strong]:text-[#4D3921]"}`}>
                   {compensationMethod === "equal" ? (
                     requiredCPCount > 0 ? (
                       <>
@@ -865,7 +869,7 @@ export default function AddCompensationModal({
                           The total CP budget (25%) is <strong>{formatCurrency(compensationReference.budget)}</strong>, divided equally among <strong>{requiredCPCount} required CP{requiredCPCount === 1 ? "" : "s"}</strong>, with an offer of <strong>{formatCurrency(compensationReference.perCreator)} per CP</strong>.
                         </p>
                         <p>You can invite more CPs, but the offer amount remains the same regardless of how many you invite.</p>
-                        <p>Positions are filled on a <strong>first-come, first-served</strong> basis, subject to the required roles.</p>
+                        <p className={`border-t pt-3 ${isDark ? "border-[#E8D1AB]/15" : "border-[#DDCBAE]/70"}`}>Positions are filled on a <strong>first-come, first-served</strong> basis, subject to the required roles.</p>
                       </>
                     ) : (
                       <p>Set the shoot's CP requirements before using Equal Split, or choose Manual to enter your own amounts.</p>
@@ -874,7 +878,7 @@ export default function AddCompensationModal({
                     <>
                       <p>Enter the compensation for each CP. The shoot amount and CP budget are <strong>for reference only and remain unchanged</strong>; the final payout and margin may vary based on the number of CPs and their compensation.</p>
                       <p>Only CPs who accept will be submitted to <strong>Finance for approval</strong>.</p>
-                      <p>Assignments are <strong>first-come, first-served</strong>, based on required roles.</p>
+                      <p className={`border-t pt-3 ${isDark ? "border-[#E8D1AB]/15" : "border-[#DDCBAE]/70"}`}>Assignments are <strong>first-come, first-served</strong>, based on required roles.</p>
                     </>
                   )}
                 </div>
