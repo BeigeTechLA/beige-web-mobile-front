@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { BasicDropdown } from "@/components/admin/BasicDropdown";
-import { Search, SlidersHorizontal, ChevronDown, Pen, Trash2 } from "lucide-react";
+import { Search, ChevronDown, Pen, Trash2 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
@@ -35,16 +34,10 @@ export default function AdminAgreementsPage() {
 
   const [, setAgreementsCurrentPage] = useState(1);
   const [, setUsersCurrentPage] = useState(1);
-  const [showBookingGridFilters, setShowBookingGridFilters] = useState(false);
-
-  // Filters state
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [cpFilter, setCpFilter] = useState<string>("");
-  const [projectFilter, setProjectFilter] = useState<string>("");
-  const [dateFilter, setDateFilter] = useState<string>("");
-  const [agreementVersionFilter, setAgreementVersionFilter] = useState<string>("");
-  const [adminFilter, setAdminFilter] = useState<string>("");
   const [agreements, setAgreements] = useState<AgreementDocument[]>([]);
+  const [isLoadingAgreements, setIsLoadingAgreements] = useState(true);
+  const [loadedTab, setLoadedTab] = useState<TabType | null>(null);
+  const [agreementsError, setAgreementsError] = useState<string | null>(null);
   const [activeGeneralAgreement, setActiveGeneralAgreement] = useState<AgreementTemplate | null>(null);
   const [isGeneralAgreementMenuOpen, setIsGeneralAgreementMenuOpen] = useState(false);
 
@@ -53,24 +46,48 @@ export default function AdminAgreementsPage() {
   }, []);
 
   useEffect(() => {
+    let ignore = false;
     const load = async () => {
+      setIsLoadingAgreements(true);
+      setAgreementsError(null);
       try {
-        const [documents, templates] = await Promise.all([
-          agreementApi.listAdminAgreements({
-            status: activeTab === "All" ? undefined : activeTab === "Pending" ? "pending_acceptance" : activeTab.toLowerCase(),
-            limit: 100,
-          }),
-          agreementApi.listGeneralTemplates(),
-        ]);
+        const documents = await agreementApi.listAdminAgreements({
+          status: activeTab === "All" ? undefined : activeTab === "Pending" ? "pending_acceptance" : activeTab.toLowerCase(),
+          limit: 100,
+        });
+        if (ignore) return;
         setAgreements(documents.data);
-        const published = templates.data.find((template) => template.status === "published");
-        setActiveGeneralAgreement(published || null);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Unable to load agreements");
+        if (ignore) return;
+        const message = error instanceof Error ? error.message : "Unable to load agreements";
+        setAgreements([]);
+        setAgreementsError(message);
+        toast.error(message);
+      } finally {
+        if (!ignore) {
+          setLoadedTab(activeTab);
+          setIsLoadingAgreements(false);
+        }
       }
     };
     void load();
+    return () => { ignore = true; };
   }, [activeTab]);
+
+  useEffect(() => {
+    let ignore = false;
+    const loadTemplate = async () => {
+      try {
+        const templates = await agreementApi.listGeneralTemplates();
+        if (ignore) return;
+        setActiveGeneralAgreement(templates.data.find((template) => template.status === "published") || null);
+      } catch (error) {
+        if (!ignore) toast.error(error instanceof Error ? error.message : "Unable to load general agreement");
+      }
+    };
+    void loadTemplate();
+    return () => { ignore = true; };
+  }, []);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
   const formatAgreementDate = (value?: string | null) => {
@@ -212,7 +229,7 @@ export default function AdminAgreementsPage() {
             />
 
             {/* New Section  */}
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-3">
               {/* Search field */}
               <div
                 className={`relative flex w-full items-center gap-1 rounded-xl border transition-all duration-300 ${isDark ? "bg-[#202020] border-white/20" : "bg-[#fff] border-[#E5E5E5]"
@@ -233,96 +250,14 @@ export default function AdminAgreementsPage() {
                     }`}
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  className={`h-12 px-3 lg:px-5 transition-colors text-sm font-medium border rounded-lg lg:rounded-xl ${isDark
-                    ? "border-white/20 bg-[#202020] text-white hover:bg-[#333]"
-                    : "bg-[#E5E5E5] text-black hover:bg-[#D9D9D9]"
-                    }`}
-                  onClick={() => setShowBookingGridFilters((prev) => !prev)}
-                >
-                  <SlidersHorizontal
-                    size={24}
-                    className={`mr-1 transition-colors ${isDark ? "text-white" : "text-black"
-                      }`}
-                  />
-                  Filter
-                </Button>
-              </div>
             </div>
-
-            {/* Filters Dropdown Bar */}
-            {
-              showBookingGridFilters &&
-              <div className={`flex flex-wrap items-center gap-3 p-4 rounded-2xl ${isDark ? "bg-[#121212] border border-white/5" : "bg-gray-100 border border-gray-200"}`}>
-                <BasicDropdown
-                  label="CP"
-                  value={cpFilter}
-                  options={["All CP", "CP 1", "CP 2"]}
-                  onChange={(val) => setCpFilter(val)}
-                />
-
-                <BasicDropdown
-                  label="Project"
-                  value={projectFilter}
-                  options={[
-                    "All Projects",
-                    "Corporate Video",
-                    "Product Launch",
-                    "Animated Video",
-                  ]}
-                  onChange={(val) => setProjectFilter(val)}
-                />
-
-                <BasicDropdown
-                  label="Date"
-                  value={dateFilter}
-                  options={[
-                    "All Time",
-                    "Today",
-                    "This Week",
-                    "This Month",
-                    "Custom Date",
-                  ]}
-                  onChange={(val) => setDateFilter(val)}
-                />
-
-                <BasicDropdown
-                  label="Agreement Version"
-                  value={agreementVersionFilter}
-                  options={["All Versions", "v1.0", "v2.0", "v3.0"]}
-                  onChange={(val) => setAgreementVersionFilter(val)}
-                />
-
-                <BasicDropdown
-                  label="Admin"
-                  value={adminFilter}
-                  options={["All Admins", "John Smith", "Sarah Johnson", "Michael Chen"]}
-                  searchable
-                  searchPlaceholder="Search admin..."
-                  onChange={(val) => setAdminFilter(val)}
-                />
-
-                <BasicDropdown
-                  label="Status"
-                  value={statusFilter}
-                  options={[
-                    "All Statuses",
-                    "Pending",
-                    "Converted to Booking",
-                    "Sent",
-                    "Accepted",
-                  ]}
-                  onChange={(val) => setStatusFilter(val)}
-                  openAlign="right"
-                />
-              </div>
-            }
           </div>
         </div>
 
         {/* History Table */}
         <GeneralAgreementHistoryTable
+          isLoading={isLoadingAgreements || loadedTab !== activeTab}
+          errorMessage={agreementsError}
           generalData={agreements.filter((agreement) => agreement.agreement_type === "general").map((agreement) => ({
             id: String(agreement.agreement_document_id),
             creativePartnerName: agreement.snapshot?.creative_partner?.name || "Unknown Creative Partner",

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { useTheme } from "next-themes";
 
 export interface AgreementData {
@@ -103,6 +103,8 @@ const DEFAULT_DUMMY_AGREEMENTS: AgreementData[] = [
 ];
 
 interface AgreementHistoryTableProps {
+  isLoading?: boolean;
+  errorMessage?: string | null;
   generalData?: AgreementData[];
   shootData?: AgreementData[];
   onActionClick?: (item: AgreementData, e: React.MouseEvent) => void;
@@ -111,6 +113,8 @@ interface AgreementHistoryTableProps {
 }
 
 export default function GeneralAgreementHistoryTable({
+  isLoading = false,
+  errorMessage = null,
   generalData = [],
   shootData = [],
   onActionClick,
@@ -264,6 +268,17 @@ export default function GeneralAgreementHistoryTable({
         </div>
       </div>
 
+      {isLoading ? (
+        <div role="status" className={`flex min-h-64 items-center justify-center gap-3 p-6 text-sm ${isDark ? "text-white/70" : "text-black/60"}`}>
+          <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin text-[#B89B6A]" />
+          Loading agreements...
+        </div>
+      ) : errorMessage ? (
+        <div role="alert" className={`flex min-h-64 items-center justify-center p-6 text-center text-sm ${isDark ? "text-red-400" : "text-red-600"}`}>
+          {errorMessage}
+        </div>
+      ) : (
+        <>
       {/* Desktop Table */}
       <div className="hidden lg:block w-full overflow-x-auto">
         <table className="w-full text-left border-collapse">
@@ -549,6 +564,8 @@ export default function GeneralAgreementHistoryTable({
           </button>
         </div>
       </div>}
+        </>
+      )}
     </div>
   );
 }
