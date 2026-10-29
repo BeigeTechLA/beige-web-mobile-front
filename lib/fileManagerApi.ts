@@ -68,6 +68,7 @@ interface ProjectFilesResponse {
 interface ExternalWorkspaceSummary {
   externalId: string;
   folderName: string;
+  projectName?: string;
   displayName?: string;
   storageFolderName?: string;
   rootPath: string;
@@ -604,6 +605,8 @@ export interface UiFolderItem {
   updatedAtRaw?: string;
   visibleUntil?: string | null;
   rawName?: string;
+  projectName?: string;
+  shootHref?: string;
 }
 
 const DEFAULT_FILE_MANAGER_BASE_PATH = "/production-manager/file-manager";
@@ -713,7 +716,7 @@ const prettifyExternalFolderName = (name?: string) => {
   if (!normalized) return "Folder";
   if (normalized === "Pre-Production") return "Pre Production";
   if (normalized === "Post-Production") return "Post Production";
-  if (normalized === "Raw Footage") return "Raw Footages";
+  if (normalized === "Raw Footage") return "Raw Footage";
   if (normalized === "Revisions") return "Revision";
   return normalized.replace(/-/g, " ");
 };
@@ -1345,6 +1348,27 @@ export const fileManagerApi = {
     return response.data;
   },
 
+  async moveExternalEntries(payload: {
+    externalId: string;
+    phase: "pre" | "post";
+    targetPath: string;
+    sourcePaths: string[];
+    cursor?: string;
+  }) {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        total: number;
+        successCount: number;
+        failureCount: number;
+        hasMore?: boolean;
+        nextCursor?: string | null;
+        items: Array<{ sourcePath: string; destinationPath?: string; success: boolean; error?: string }>;
+      };
+    }>("external-file-manager/move-entries", payload);
+    return response.data;
+  },
+
   async reviewRevisionFile(payload: {
     externalId: string | number;
     filepath: string;
@@ -1687,7 +1711,7 @@ export const buildPostProductionFolders = (
   return [
     {
       id: `${projectId}-raw`,
-      title: "Raw Footages",
+      title: "Raw Footage",
       fileCount: byCategories(files, RAW_FOOTAGE_CATEGORIES).length,
       lastOpened,
       userInitials,
@@ -1816,6 +1840,8 @@ export const mapExternalWorkspaceToFolderCard = (
     updatedAtRaw: workspace.updatedAt || workspace.createdAt,
     visibleUntil: workspace.visibleUntil || null,
     rawName: getExternalWorkspaceStorageName(workspace),
+    projectName: workspace.isCommonEvent ? undefined : workspace.projectName,
+    shootHref: workspace.isCommonEvent ? undefined : `/admin/shoots/${workspace.externalId}`,
   };
 };
 

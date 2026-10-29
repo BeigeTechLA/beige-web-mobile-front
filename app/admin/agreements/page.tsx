@@ -333,7 +333,9 @@ export default function AdminAgreementsPage() {
             role: agreement.snapshot?.creative_partner?.role || "—",
             version: agreement.display_version,
             compensation: Number(agreement.compensation_amount || 0),
-            status: agreement.status === "accepted" ? "Accepted" : agreement.status === "rejected" ? "Not Accepted" : "Pending",
+            status: agreement.status === "accepted" ? "Accepted" : agreement.status === "rejected" ? "Not Accepted" : agreement.status === "draft" ? "Draft" : agreement.status === "cancelled" ? "Cancelled" : agreement.status === "expired" ? "Expired" : "Pending",
+            rawStatus: agreement.status,
+            isCurrent: agreement.is_current,
           }))}
           shootData={agreements.filter((agreement) => agreement.agreement_type === "shoot").map((agreement) => ({
             id: String(agreement.agreement_document_id),
@@ -345,9 +347,28 @@ export default function AdminAgreementsPage() {
             role: agreement.snapshot?.creative_partner?.role || "—",
             version: agreement.display_version,
             compensation: Number(agreement.compensation_amount || 0),
-            status: agreement.status === "accepted" ? "Accepted" : agreement.status === "rejected" ? "Not Accepted" : "Pending",
+            status: agreement.status === "accepted" ? "Accepted" : agreement.status === "rejected" ? "Not Accepted" : agreement.status === "draft" ? "Draft" : agreement.status === "cancelled" ? "Cancelled" : agreement.status === "expired" ? "Expired" : "Pending",
+            rawStatus: agreement.status,
+            isCurrent: agreement.is_current,
+            bookingId: agreement.booking_id,
+            assignmentId: agreement.assignment_id,
           }))}
           onActionClick={(item) => router.push(`/admin/agreements/agreement-details?agreement_id=${item.id}`)}
+          onRevise={(item) => {
+            if (item.bookingId && item.assignmentId) router.push(`/admin/shoots/${item.bookingId}/shoot-agreement?revise_from=${item.id}`);
+          }}
+          onCancel={async (item) => {
+            const verb = item.rawStatus === "draft" ? "discard this draft" : "cancel this pending agreement";
+            if (!window.confirm(`Are you sure you want to ${verb}?`)) return;
+            try {
+              await agreementApi.cancelAgreement(Number(item.id));
+              setAgreements((current) => current.map((agreement) => agreement.agreement_document_id === Number(item.id)
+                ? { ...agreement, status: "cancelled", is_current: false } : agreement));
+              toast.success(item.rawStatus === "draft" ? "Draft discarded" : "Pending agreement cancelled");
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Unable to cancel agreement");
+            }
+          }}
         />
 
         {/* Floating Mobile Button */}

@@ -4,7 +4,7 @@ import React, { useState, useEffect, use } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Topbar from "@/components/admin/Topbar";
 import ShootHeader from "@/components/admin/shoot-details/ShootHeader";
-import ProjectTeam from "@/components/admin/shoot-details/ProjectTeam";
+import ProjectTeam from "@/components/admin/shoot-details/ProjectTeam_old";
 import AssignedCP from "@/components/admin/shoot-details/AssignedCP";
 import MeetingSchedule from "@/components/admin/shoot-details/MeetingSchedule";
 import ProjectTimeline from "@/components/admin/shoot-details/ProjectTimeline";
@@ -232,6 +232,7 @@ export default function SalesShootDetailsPage({ params }: { params: Promise<{ id
                   leadId={project?.lead_id}
                   assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
                   onRequestAssignment={handleAssignmentRequest}
+                  crewRoles={project?.crew_roles}
                 />
               </div>
               <MeetingSchedule role={effectiveRole} orderId={id} createPermissionModuleKey="shoots" />

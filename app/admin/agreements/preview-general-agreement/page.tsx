@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, History } from "lucide-react";
 import { useTheme } from "next-themes";
 import Topbar from "@/components/admin/Topbar";
-import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
+import { agreementApi, AgreementDocument, type AgreementResponse } from "@/lib/api/agreements";
+import { AgreementSignatureEvidence } from "@/components/creator-profile/AgreementSignatureEvidence";
 import { format } from "date-fns";
 
 interface Section {
@@ -39,6 +40,7 @@ export default function AdminGeneralAgreementPreviewPage() {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [liveAgreement, setLiveAgreement] = useState<AgreementDocument | null>(null);
+  const [signatureResponse, setSignatureResponse] = useState<AgreementResponse | null>(null);
   const [isAgreementLoading, setIsAgreementLoading] = useState(true);
 
   // Form Metadata State
@@ -134,7 +136,7 @@ export default function AdminGeneralAgreementPreviewPage() {
     }
     setIsAgreementLoading(true);
     agreementApi.getAdminAgreement(agreementId)
-      .then((response) => setLiveAgreement(response.data.agreement))
+      .then((response) => { setLiveAgreement(response.data.agreement); setSignatureResponse(response.data.responses.find((item) => item.action === "accepted") || null); })
       .catch(() => setLiveAgreement(null))
       .finally(() => setIsAgreementLoading(false));
   }, [searchParams]);
@@ -296,6 +298,8 @@ export default function AdminGeneralAgreementPreviewPage() {
             </>}
           </div>
         </div>
+
+        <AgreementSignatureEvidence response={signatureResponse} />
 
         {/* Floating Mobile Sticky Action Bar */}
         <div className={`lg:hidden fixed flex flex-wrap gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"}`}>

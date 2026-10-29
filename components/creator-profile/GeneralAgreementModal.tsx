@@ -61,7 +61,7 @@ export function GeneralAgreementModal({
               Before you get started
             </h3>
             <p className={`text-sm leading-relaxed ${isDark ? "text-[#a0a0a0]" : "text-gray-600"}`}>
-             Please review and accept Beige's Creative Partner Agreement to start receiving and working on assignments.
+             Please review and accept Beige&apos;s Creative Partner Agreement to start receiving and working on assignments.
             </p>
 
             {/* View Agreement Button */}
@@ -104,7 +104,7 @@ export function GeneralAgreementModal({
                 : "bg-[#E8D1AB]/50 cursor-not-allowed"
               }`}
           >
-            {isSubmitting ? "Accepting..." : "Accept & Continue"}
+            {isSubmitting ? "Opening..." : "Review and Sign"}
           </button>
         </div>
       </div>

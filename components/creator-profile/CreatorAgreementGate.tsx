@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { GeneralAgreementModal } from "./GeneralAgreementModal";
 import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
 
@@ -13,7 +12,6 @@ export function CreatorAgreementGate() {
   const [agreement, setAgreement] = useState<AgreementDocument | null>(null);
   const [isRequired, setIsRequired] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -51,19 +49,7 @@ export function CreatorAgreementGate() {
       isOpen
       // Deliberately no close action: a mandatory agreement cannot be dismissed.
       onViewAgreement={() => router.push(`/creator/dashboard/agreements/general-agreement?agreement_id=${agreement.agreement_document_id}`)}
-      onAccept={async () => {
-        try {
-          setSubmitting(true);
-          await agreementApi.acceptGeneralAgreement(agreement.agreement_document_id);
-          setIsRequired(false);
-          toast.success("General agreement accepted");
-        } catch (error) {
-          toast.error(error instanceof Error ? error.message : "Unable to accept the agreement");
-        } finally {
-          setSubmitting(false);
-        }
-      }}
-      isSubmitting={submitting}
+      onAccept={() => router.push(`/creator/dashboard/agreements/general-agreement?agreement_id=${agreement.agreement_document_id}`)}
     />
   );
 }

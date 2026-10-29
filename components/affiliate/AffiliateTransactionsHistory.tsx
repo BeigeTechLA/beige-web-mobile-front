@@ -534,6 +534,23 @@ export default function AffiliateTransactionsHistory({
   const itemsPerPage = 10;
 
   React.useEffect(() => {
+    const bookingId = new URLSearchParams(window.location.search).get("booking_id");
+    if (bookingId) setSearchValue(bookingId);
+  }, []);
+
+  React.useEffect(() => {
+    const disputeId = new URLSearchParams(window.location.search).get("dispute_id");
+    if (!disputeId) return;
+    let cancelled = false;
+    financeTransactionsApi.getClientDisputeDetails(disputeId).then((response) => {
+      if (cancelled) return;
+      setSelectedDisputeId(disputeId);
+      setSelectedDispute(mapClientDisputeDetails(response.data));
+    }).catch((error) => console.error("Failed to open linked client dispute:", error));
+    return () => { cancelled = true; };
+  }, []);
+
+  React.useEffect(() => {
     let isCancelled = false;
 
     const fetchPayments = async () => {

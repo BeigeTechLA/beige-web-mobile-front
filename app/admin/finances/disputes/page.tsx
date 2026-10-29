@@ -330,6 +330,16 @@ export default function AdminDisputesPage() {
   const [actionLoading, setActionLoading] = useState<"review" | "resolve" | "reject" | "escalate" | "comment" | "attachment" | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  useEffect(() => {
+    const disputeId = new URLSearchParams(window.location.search).get("dispute_id");
+    if (!disputeId) return;
+    let cancelled = false;
+    financeTransactionsApi.getAdminDisputeDetails(disputeId).then((response) => {
+      if (!cancelled) setSelectedDispute(mapDisputeDetails(response.data));
+    }).catch((error) => console.error("Failed to open linked dispute:", error));
+    return () => { cancelled = true; };
+  }, []);
+
   // Resolution modal states
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const [confirmResolveOpen, setConfirmResolveOpen] = useState(false);

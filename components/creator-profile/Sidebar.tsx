@@ -10,6 +10,7 @@ import {
   FolderOpen,
   CalendarClock,
   MessageCircle,
+  Bell,
   Calendar,
   User,
   CircleDollarSign,
@@ -199,6 +200,7 @@ export default function Sidebar({ onClose, permissionsVersion }: SidebarProps) {
     { href: "/creator/dashboard/file-manager", icon: FolderOpen, label: "File Manager", isPublic: false },
     { href: "/creator/dashboard/meetings", icon: CalendarClock, label: "Meetings", isPublic: false },
     { href: "/creator/dashboard/messages", icon: MessageCircle, label: "Messages", isPublic: false },
+    { href: "/creator/dashboard/notifications", icon: Bell, label: "Notifications", isPublic: true },
     { href: "/creator/dashboard/affiliate", icon: LayoutDashboard, label: "Affiliate", isPublic: false },
     { href: "/creator/dashboard/availability", icon: Calendar, label: "Availability", isPublic: false },    {
       label: 'Finances',

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { X, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminApi } from "@/lib/api";
+import { toast } from "sonner";
 
 interface AddPostProductionTeamModalProps {
   isOpen: boolean;
@@ -98,7 +99,7 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
       if (response.success || !response.error) {
         onSuccess();
       } else {
-        console.error("Failed to assign member:", response.error || "Unknown error");
+        toast.error(response?.message || "Failed to assign member");
       }
     } catch (error) {
       console.error("Error assigning member:", error);
@@ -117,7 +118,7 @@ const AddPostProductionTeamModal: React.FC<AddPostProductionTeamModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <h2 className={`text-2xl font-bold transition-colors ${isDark ? "text-white" : "text-[#171717]"}`}>
-            Add Producer Team
+            Add Post Production Team
           </h2>
           <button
             onClick={onClose}

@@ -53,6 +53,13 @@ export interface ExternalChatRoom {
   updatedAt?: string;
 }
 
+export interface ExternalChatMention {
+  id?: string | number;
+  user_id?: string | number;
+  name?: string;
+  email?: string | null;
+}
+
 export interface ExternalChatMessage {
   id?: string;
   _id?: string;
@@ -74,6 +81,7 @@ export interface ExternalChatMessage {
     target_names?: string[];
   } | null;
   reply_to?: ExternalChatMessage | string | null;
+  mentions?: ExternalChatMention[];
   reactions?: Array<{
     emoji?: string;
     user_id?: string | number;
@@ -353,20 +361,35 @@ export const externalChatApi = {
     return response.data?.data || response.data || null;
   },
 
-  async sendMessage(roomId: string, message: string, options?: { sender?: ExternalChatUser | null; replyTo?: string | null }) {
+  async sendMessage(
+    roomId: string,
+    message: string,
+    options?: { sender?: ExternalChatUser | null; replyTo?: string | null; mentions?: ExternalChatMention[] }
+  ) {
+    const mentions = (options?.mentions || []).filter((item) => item?.id != null && String(item.id).trim());
     const response = await apiClient.post<SendMessageResponse>(`external-chat/messages/${roomId}`, {
       message,
       sender: options?.sender,
       replyTo: options?.replyTo,
+      ...(mentions.length
+        ? { mentions, mentionedUserIds: mentions.map((item) => String(item.id)) }
+        : {}),
     });
     return response.data || null;
   },
 
-  async editMessage(messageId: string, content: string, sender?: ExternalChatUser | null, roomId?: string | null) {
+  async editMessage(
+    messageId: string,
+    content: string,
+    sender?: ExternalChatUser | null,
+    roomId?: string | null,
+    mentions?: ExternalChatMention[]
+  ) {
     const response = await apiClient.post<MessageResponse>(`external-chat/messages/${messageId}/edit`, {
       content,
       roomId: roomId || undefined,
       sender,
+      mentions: mentions || [],
     });
     return response.data || null;
   },
@@ -413,6 +436,11 @@ export const externalChatApi = {
       status,
       sender,
     });
+    return this.extractRoom(response);
+  },
+
+  async renameRoom(roomId: string, name: string) {
+    const response = await apiClient.patch<RoomResponse>(`external-chat/room/${encodeURIComponent(roomId)}/name`, { name });
     return this.extractRoom(response);
   },
 

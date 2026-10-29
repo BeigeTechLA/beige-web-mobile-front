@@ -35,6 +35,7 @@ type UserSignupFormValues = z.infer<typeof userSignupSchema>
 type AuthError = {
   data?: {
     message?: string
+    conflicts?: string[]
   }
   message?: string
 }
@@ -91,12 +92,6 @@ export function UserSignupForm() {
 
       toast.success("Account created! Please verify your email.")
 
-      // Store credentials temporarily for auto-login after verification
-      sessionStorage.setItem('temp_login_credentials', JSON.stringify({
-        email: data.email,
-        password: data.password
-      }));
-
       // --- GA4 SIGNUP TRACKING ---
       // pushToDataLayer("sign_up_completed_user", {
       //   custom_user_id: result?.userId || null,
@@ -124,6 +119,13 @@ export function UserSignupForm() {
       if (bookingEmail) verifyParams.set("bookingEmail", bookingEmail)
       router.push(`/verify-email?${verifyParams.toString()}`)
     } catch (error: unknown) {
+      const conflicts = (error as AuthError)?.data?.conflicts || []
+      if (conflicts.includes('email')) {
+        form.setError('email', { type: 'server', message: 'Email already exists.' })
+      }
+      if (conflicts.includes('phone_number')) {
+        form.setError('phone', { type: 'server', message: 'Phone number already exists.' })
+      }
       toast.error(getAuthErrorMessage(error, "Registration failed. Please try again."))
     }
   }

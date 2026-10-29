@@ -242,6 +242,11 @@ export default function AdminTransactionsPage() {
   const { isDark } = useResolvedTheme();
 
   useEffect(() => {
+    const bookingId = new URLSearchParams(window.location.search).get("booking_id");
+    if (bookingId) setSearchQuery(bookingId);
+  }, []);
+
+  useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearch, selectedDate, statusFilter, monthFilter, typeFilter, view]);
 

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, MouseEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Users, ChevronDown, X, Settings, Calendar, Search, type LucideIcon, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Camera, LogOut, FolderOpen, CalendarClock, MessageCircle, Bell, Users, ChevronDown, X, Settings, Calendar, Search, type LucideIcon, DollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from "@/lib/hooks/useAuth";
 import Image from "next/image";
@@ -50,6 +50,7 @@ const menuItems = [
   { name: 'Find Yourself', icon: Search, link: '/affiliate/find-yourself', permissionKeys: ['shoots'] },
   { name: 'Meetings', icon: Calendar, link: '/affiliate/meetings', permissionKeys: ['meetings'] },
   { name: 'Messages', icon: MessageCircle, link: '/affiliate/messages', permissionKeys: ['messages'] },
+  { name: 'Notifications', icon: Bell, link: '/affiliate/notifications' },
   { name: 'Shoots', icon: Camera, link: '/affiliate/shoots', permissionKeys: ['shoots'] },
   { name: 'Quotes', icon: CustomQuotesIcon, link: '/affiliate/quotes', permissionKeys: ['quotes'] },
   { name: 'Book A Shoot', icon: CalendarClock, link: '/book-a-shoot', permissionKeys: ['shoots'] },

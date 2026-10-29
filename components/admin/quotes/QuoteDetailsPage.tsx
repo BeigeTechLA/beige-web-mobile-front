@@ -41,7 +41,7 @@ import {
   type SalesQuoteDetailData,
 } from "@/lib/api";
 import { salesApi as salesRtkApi, useGetLeadByIdQuery } from "@/lib/redux/features/sales/salesApi";
-import { useAppDispatch } from "@/lib/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import {
   persistQuoteEditorEditReason,
   persistQuoteEditorNavigationCache,
@@ -156,6 +156,7 @@ type ManualPaymentMode =
   | "zelle"
   | "venmo"
   | "cashapp"
+  | "payment_link"
   | "applepay"
   | "stripe"
   | "other"
@@ -881,6 +882,10 @@ export default function QuoteDetailsPage({
 }: QuoteDetailsPageProps) {
   const dispatch = useAppDispatch();
   const { canEdit, canDelete } = usePermissions("admin_quotes_all_quotes");
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const currentRoles = [currentUser?.userRole, currentUser?.role]
+    .map((role) => String(role || "").trim().toLowerCase().replace(/[\s-]+/g, "_"));
+  const isSuperAdmin = currentRoles.some((role) => ["super_admin", "superadmin"].includes(role));
   const { isDark } = useResolvedTheme();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -921,6 +926,9 @@ export default function QuoteDetailsPage({
   const [manualPaymentProofFileName, setManualPaymentProofFileName] = useState("");
   const [isUploadingManualProof, setIsUploadingManualProof] = useState(false);
   const [isSubmittingManualPayment, setIsSubmittingManualPayment] = useState(false);
+  const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
+  const [editingPaymentAmount, setEditingPaymentAmount] = useState("");
+  const [isSavingPaymentEdit, setIsSavingPaymentEdit] = useState(false);
   const paymentSectionRef = useRef<HTMLDivElement | null>(null);
   const hasTriggeredPaymentActionRef = useRef(false);
   const [isChangeDetailsModalOpen, setIsChangeDetailsModalOpen] = useState(false);
@@ -1277,16 +1285,17 @@ export default function QuoteDetailsPage({
     : 0;
   const discountAmount = Math.min(rawDiscountAmount, subtotal);
   const discountedSubtotal = Math.max(subtotal - discountAmount, 0);
-  // Tax is hidden from quote details for now.
-  // const taxRate = quote ? getQuoteNumber(quote.tax_rate) ?? 0 : 0;
-  // const taxType = quote ? getQuoteText(quote.tax_type, "Sales Tax") || "Sales Tax" : "Sales Tax";
-  // const taxAmount = quote
-  //   ? getQuoteNumber(quote.tax_amount, quote.sales_tax) ?? discountedSubtotal * (taxRate / 100)
-  //   : 0;
-  // const amountAfterTax = quote
-  //   ? getQuoteNumber(quote.amount_after_tax, quote.total_after_tax) ?? discountedSubtotal + taxAmount
-  //   : 0;
-  const finalTotal = discountedSubtotal;
+  const taxRate = quote ? getQuoteNumber(quote.tax_rate) ?? 0 : 0;
+  const taxType = quote
+    ? (getQuoteText(quote.tax_type, "Sales Tax") || "Sales Tax")
+      .replace(/\bTax\s*\(4%\)/gi, "Card Payment Charges (4%)")
+    : "Sales Tax";
+  const taxAmount = quote
+    ? getQuoteNumber(quote.tax_amount, quote.sales_tax) ?? discountedSubtotal * (taxRate / 100)
+    : 0;
+  const finalTotal = quote
+    ? getQuoteNumber(quote.final_total, quote.amount_after_tax, quote.total_after_tax, quote.total_amount, quote.total) ?? discountedSubtotal + taxAmount
+    : discountedSubtotal;
 
   const clientName = getQuoteText(quote?.client_name, "Client");
   const clientEmail = getQuoteText(quote?.client_email, quote?.guest_email, "N/A") || "N/A";
@@ -1817,6 +1826,31 @@ export default function QuoteDetailsPage({
       dispatch(salesRtkApi.util.invalidateTags([{ type: "Lead", id: "LIST" }]));
     } finally {
       setIsSubmittingManualPayment(false);
+    }
+  };
+
+  const handleSavePaymentEdit = async () => {
+    if (!quoteLeadId || !editingPaymentId) return;
+    const amount = Number(editingPaymentAmount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    setIsSavingPaymentEdit(true);
+    try {
+      const response = await salesApi.editLeadManualPayment(quoteLeadId, editingPaymentId, { amount });
+      if (!response?.success) {
+        toast.error(response?.error || response?.message || "Failed to update payment");
+        return;
+      }
+      toast.success("Payment amount updated");
+      setEditingPaymentId(null);
+      setEditingPaymentAmount("");
+      await refreshQuotePrimaryContext();
+      await refetchLeadDetails();
+      dispatch(salesRtkApi.util.invalidateTags([{ type: "Lead", id: "LIST" }]));
+    } finally {
+      setIsSavingPaymentEdit(false);
     }
   };
 
@@ -2645,6 +2679,7 @@ export default function QuoteDetailsPage({
                               <SelectItem value="zelle">Zelle</SelectItem>
                               <SelectItem value="venmo">Venmo</SelectItem>
                               <SelectItem value="cashapp">CashApp</SelectItem>
+                              <SelectItem value="payment_link">Payment Link</SelectItem>
                               <SelectItem value="applepay">ApplePay</SelectItem>
                               <SelectItem value="stripe">Stripe</SelectItem>
                               <SelectItem value="net30">Net 30</SelectItem>
@@ -2747,12 +2782,59 @@ export default function QuoteDetailsPage({
                                       ? "Net 30 initiated"
                                       : entry.data.payment_type === "partial"
                                         ? `Partial paid ${formatQuoteCurrency(Number(entry.data.amount || 0))}`
-                                        : "Full payment marked"}{" "}
+                                        : isSuperAdmin
+                                          ? `Full payment ${formatQuoteCurrency(Number(entry.data.amount || 0))} marked`
+                                          : "Full payment marked"}{" "}
                                     via {paidMode}
+                                    {isSuperAdmin && (entry.data as Record<string, unknown>).edited_from_amount != null
+                                      ? ` (edited from ${formatQuoteCurrency(Number((entry.data as Record<string, unknown>).edited_from_amount))})`
+                                      : ""}
                                   </p>
                                   <p className="mt-1 text-white/45">
                                     {entry.createdAt ? formatQuoteDate(entry.createdAt) : "Date unavailable"}
                                   </p>
+                                  {(() => {
+                                    const entryPaymentId = Number(
+                                      (entry.data as Record<string, unknown>).booking_manual_payment_id
+                                    );
+                                    if (!isSuperAdmin || !Number.isInteger(entryPaymentId) || entryPaymentId <= 0) return null;
+                                    return editingPaymentId === entryPaymentId ? (
+                                      <div className="mt-2 flex items-center gap-2">
+                                        <input
+                                          type="number"
+                                          value={editingPaymentAmount}
+                                          onChange={(e) => setEditingPaymentAmount(e.target.value)}
+                                          className="h-8 w-28 rounded-md border border-white/20 bg-transparent px-2 text-xs text-white outline-none"
+                                        />
+                                        <button
+                                          type="button"
+                                          disabled={isSavingPaymentEdit}
+                                          onClick={() => void handleSavePaymentEdit()}
+                                          className="rounded-md bg-[#E8D1AB] px-2 py-1 text-xs font-semibold text-black disabled:opacity-50"
+                                        >
+                                          {isSavingPaymentEdit ? "Saving..." : "Save"}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingPaymentId(null)}
+                                          className="text-xs text-white/60 underline"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingPaymentId(entryPaymentId);
+                                          setEditingPaymentAmount(String(Number(entry.data.amount || 0)));
+                                        }}
+                                        className="mt-1 mr-3 inline-block text-xs text-[#E8D1AB] underline underline-offset-2"
+                                      >
+                                        Edit Amount
+                                      </button>
+                                    );
+                                  })()}
                                   {proofUrl ? (
                                     <a
                                       href={proofUrl}
@@ -2976,16 +3058,24 @@ export default function QuoteDetailsPage({
                     />
                   </div>
                 ) : (
-                  /* Tax details hidden while tax is disabled.
+                  /* Tax details */
                   <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
                     <DetailRow label="Tax Type" value={taxType} isDark={isDark} />
                     <div className="border-t border-[#2B2B2B]" />
                     <DetailRow label="Tax Rate" value={`${taxRate}%`} isDark={isDark} />
                     <div className="border-t border-[#2B2B2B]" />
                     <DetailRow label="Tax Amount" value={formatQuoteCurrency(taxAmount)} isDark={isDark} />
+                    {!quote?.card_payment_charge_enabled ? (
+                      <>
+                        <div className="border-t border-[#2B2B2B]" />
+                        <DetailRow
+                          label="Payment Method"
+                          value={String(quote.card_payment_method || "Not selected").replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}
+                          isDark={isDark}
+                        />
+                      </>
+                    ) : null}
                   </div>
-                  */
-                  null
                 )}
 
                 <div className="rounded-lg lg:rounded-[22px] border border-[#2B2B2B] bg-[#111111] px-4 lg:px-5 py-2">
@@ -2994,6 +3084,12 @@ export default function QuoteDetailsPage({
                     <>
                       <div className="border-t border-[#2B2B2B]" />
                       <DetailRow label="Total After Discount" value={formatQuoteCurrency(discountedSubtotal)} isDark={isDark} />
+                    </>
+                  ) : null}
+                  {taxAmount > 0 ? (
+                    <>
+                      <div className="border-t border-[#2B2B2B]" />
+                      <DetailRow label={taxType} value={formatQuoteCurrency(taxAmount)} isDark={isDark} />
                     </>
                   ) : null}
                   <div className="border-t border-[#2B2B2B]" />

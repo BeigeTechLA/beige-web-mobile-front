@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Navbar } from "@/src/components/landing/Navbar";
@@ -470,6 +470,10 @@ export const BookAShootV4 = () => {
   );
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
   const [draftBookingId, setDraftBookingId] = useState<number | null>(null);
+  const draftBookingIdRef = useRef<number | null>(null);
+  const leadProgressQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const finalizingRef = useRef(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [pricingPreview, setPricingPreview] =
     useState<(QuoteCalculation & { creators?: unknown[] }) | null>(null);
 
@@ -525,7 +529,7 @@ export const BookAShootV4 = () => {
   const [trackEarlyInterest] = useTrackEarlyInterestV4Mutation();
 
   const isSubmitting =
-    isBookingLoading || isUpdatingBooking || isQuoteLoading || isPreviewLoading;
+    isFinalizing || isBookingLoading || isUpdatingBooking || isQuoteLoading || isPreviewLoading;
 
   const isStudioOnlyBooking = journey === "studio-only";
   const isCombinedStudioBooking = journey === "combined";
@@ -797,25 +801,33 @@ export const BookAShootV4 = () => {
     photoVideoCreator: Number(creativeTeam.photoVideoCreator || 0),
   });
 
-  const saveLeadProgress = async (payload: LeadProgressPayload) => {
+  const saveLeadProgress = (payload: LeadProgressPayload) => {
     const guestEmail = payload.guest_email || bookingState.email;
-    if (!guestEmail) return;
+    if (!guestEmail || finalizingRef.current) return Promise.resolve();
 
-    try {
-      const result = await trackEarlyInterest({
-        booking_id: draftBookingId,
-        guest_email: guestEmail,
-        user_id: user?.id,
-        client_name:
-          user?.name || bookingState.contactInformation?.fullName || undefined,
-        role_counts: getLeadRoleCounts(),
-        ...payload,
-      }).unwrap();
+    // Progress requests must share one draft ID and finish before final submission.
+    const save = leadProgressQueueRef.current.then(async () => {
+      try {
+        const result = await trackEarlyInterest({
+          booking_id: draftBookingIdRef.current,
+          guest_email: guestEmail,
+          user_id: user?.id,
+          client_name:
+            user?.name || bookingState.contactInformation?.fullName || undefined,
+          role_counts: getLeadRoleCounts(),
+          ...payload,
+        }).unwrap();
 
-      if (result?.data?.booking_id) setDraftBookingId(result.data.booking_id);
-    } catch (error) {
-      console.error("BookAShootV4 lead tracking failed:", error);
-    }
+        if (result?.data?.booking_id) {
+          draftBookingIdRef.current = result.data.booking_id;
+          setDraftBookingId(result.data.booking_id);
+        }
+      } catch (error) {
+        console.error("BookAShootV4 lead tracking failed:", error);
+      }
+    });
+    leadProgressQueueRef.current = save;
+    return save;
   };
 
   const handleEmailSubmitted = (email: string) => {
@@ -1851,6 +1863,12 @@ export const BookAShootV4 = () => {
       video_edit_types: bookingState.editsConfig.videoEditTypes,
       photo_edit_types: bookingState.editsConfig.photoEditTypes,
       crew_size: crewSize > 0 ? String(crewSize) : undefined,
+      crew_roles: crewSize > 0 ? {
+        photographer: Number(creativeTeam.photographer || 0),
+        videographer: Number(creativeTeam.videographer || 0),
+        hybrid: Number(creativeTeam.photoVideoCreator || 0),
+        cinematographer: Number(creativeTeam.cinematographer || 0),
+      } : undefined,
       matching_method: letBeigeChoose ? "ai_matchmaker" : "choose_own",
       selected_crew_ids: letBeigeChoose
         ? []
@@ -1864,9 +1882,13 @@ export const BookAShootV4 = () => {
   };
 
   const handleConfirmAndPay = async (paymentAmount?: number) => {
-    if (isSubmitting) return;
+    if (isSubmitting || finalizingRef.current) return;
+    finalizingRef.current = true;
+    setIsFinalizing(true);
 
     try {
+      await leadProgressQueueRef.current;
+      const bookingId = draftBookingIdRef.current;
       const pricingInputs = buildPricingInputs();
       let savedQuoteId: number | null = null;
       let savedQuoteTotal: number | null = null;
@@ -1882,7 +1904,7 @@ export const BookAShootV4 = () => {
           shootHours: pricingInputs.shootHours,
           eventType: bookingState.selectedOccasion || "general",
           guestEmail: bookingState.email,
-          bookingId: draftBookingId || undefined,
+          bookingId: bookingId || undefined,
           notes: bookingState.shootDetailsData?.notes || undefined,
           shoot_start_date: pricingInputs.shootStartDate,
           studio_total: selectedStudiosTotal,
@@ -1902,9 +1924,9 @@ export const BookAShootV4 = () => {
       }
 
       const finalBookingData = buildBookingPayload(savedQuoteId);
-      const submissionResult = draftBookingId
+      const submissionResult = bookingId
         ? await updateGuestBooking({
-          id: draftBookingId,
+          id: bookingId,
           data: finalBookingData,
         }).unwrap()
         : await createGuestBooking(finalBookingData).unwrap();
@@ -1955,6 +1977,8 @@ export const BookAShootV4 = () => {
       toast.error("Submission failed", {
         description: message,
       });
+      finalizingRef.current = false;
+      setIsFinalizing(false);
     }
   };
 

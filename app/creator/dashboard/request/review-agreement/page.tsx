@@ -8,14 +8,15 @@ import { useTheme } from "next-themes";
 import Topbar from "@/components/admin/Topbar";
 import SuccessModal from "@/components/creator-profile/AgreementAcceptedSuccess";
 import { toast } from "sonner";
-import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
+import { agreementApi, AgreementDocument, type AgreementResponse } from "@/lib/api/agreements";
+import { AgreementSignatureModal } from "@/components/creator-profile/AgreementSignatureModal";
+import { AgreementSignatureEvidence } from "@/components/creator-profile/AgreementSignatureEvidence";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+import { formatAgreementDate } from "@/lib/utils/agreementDate";
 
 type AgreementSection = { id?: string; num?: string; title?: string; content?: string };
 
-const formatDate = (value?: string | null) => value
-  ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value))
-  : "—";
+const formatDate = formatAgreementDate;
 
 const getAgreementSections = (content: unknown): AgreementSection[] => {
   const parsed = typeof content === "string" ? (() => {
@@ -41,13 +42,20 @@ export default function AgreementReviewPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [agreement, setAgreement] = useState<AgreementDocument | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSignOpen, setIsSignOpen] = useState(false);
+  const [signatureResponse, setSignatureResponse] = useState<AgreementResponse | null>(null);
 
   // Form Metadata State
   const snapshot = agreement?.snapshot;
   const agreementType = "SHOOT ASSIGNMENT AGREEMENT";
   const agreementTitle = snapshot?.shoot?.name || agreement?.title || "Shoot Agreement";
   const version = agreement?.display_version || "v1";
-  const status = agreement?.status === "pending_acceptance" ? "Pending Acceptance" : (agreement?.status || "Pending Acceptance").replace(/_/g, " ");
+  const status = agreement?.status === "pending_acceptance" ? "Pending Acceptance" : agreement?.status === "accepted" ? "Accepted" : agreement?.status === "rejected" ? "Rejected" : "Pending Acceptance";
+  const statusClass = agreement?.status === "accepted"
+    ? "bg-[#D4FFE4] text-[#16803F]"
+    : agreement?.status === "rejected"
+      ? "bg-[#FFDADA] text-[#A31616]"
+      : "bg-[#FEF9EC] text-[#D68910]";
 
   // Project Information
   const projectInfo = {
@@ -71,7 +79,7 @@ export default function AgreementReviewPage() {
 
   // Detailed Specifications
   const asText = (value: unknown) => Array.isArray(value) ? value.join(", ") : String(value || "—");
-  const fallbackSections = [
+  const fallbackSections: AgreementSection[] = [
     { title: "Scope of Services", content: asText(snapshot?.shoot?.scope) },
     { title: "Equipment Requirements", content: asText(snapshot?.shoot?.equipment) },
     { title: "Deliverables / Media Transfer", content: asText(snapshot?.shoot?.deliverables) },
@@ -100,7 +108,7 @@ export default function AgreementReviewPage() {
           : (await agreementApi.listCreatorAgreements({ type: "shoot", status: "pending_acceptance", limit: 1 })).data[0]?.agreement_document_id;
         if (!agreementId) throw new Error("No shoot agreement is awaiting your response");
         const response = await agreementApi.getCreatorAgreement(agreementId);
-        if (active) setAgreement(response.data.agreement);
+        if (active) { setAgreement(response.data.agreement); setSignatureResponse(response.data.responses.find((item) => item.action === "accepted") || null); }
       } catch (error) {
         if (active) toast.error(error instanceof Error ? error.message : "Unable to load shoot agreement");
       }
@@ -109,12 +117,14 @@ export default function AgreementReviewPage() {
     return () => { active = false; };
   }, [searchParams]);
 
-  const handleAccept = async () => {
-    if (!agreement) return;
+  const handleAccept = async (signatureDataUrl: string, signerName: string) => {
+    if (!agreement || agreement.status !== "pending_acceptance") return;
     try {
       setIsSubmitting(true);
-      await agreementApi.acceptShootAgreement(agreement.agreement_document_id);
+      await agreementApi.acceptShootAgreement(agreement.agreement_document_id, signerName, signatureDataUrl);
       setAgreement({ ...agreement, status: "accepted" });
+      setSignatureResponse({ agreement_response_id: 0, action: "accepted", signer_name: signerName, signature_data_url: signatureDataUrl, content_hash_at_response: "", responded_at: new Date().toISOString() });
+      setIsSignOpen(false);
       setIsModalOpen(true);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to accept the shoot agreement");
@@ -124,7 +134,7 @@ export default function AgreementReviewPage() {
   };
 
   const handleReject = async () => {
-    if (!agreement) return;
+    if (!agreement || agreement.status !== "pending_acceptance") return;
     const rejectionReason = window.prompt("Why are you rejecting this agreement?");
     if (!rejectionReason?.trim()) return;
     try {
@@ -184,8 +194,8 @@ export default function AgreementReviewPage() {
                 {version}
               </span>
 
-              <span className="shrink-0 w-fit flex gap-1 items-center rounded-full bg-[#FEF9EC] text-[#D68910] text-[10px] lg:text-xs font-medium px-2 py-0.5 lg:px-4 lg:py-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#D68910]" />
+              <span className={`shrink-0 w-fit flex gap-1 items-center rounded-full text-[10px] lg:text-xs font-medium px-2 py-0.5 lg:px-4 lg:py-1.5 ${statusClass}`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
                 {status}
               </span>
             </div>
@@ -350,8 +360,9 @@ export default function AgreementReviewPage() {
           </div>
         </div>
 
+        <AgreementSignatureEvidence response={signatureResponse} />
         {/* Bottom Assignment Acceptance Action Card */}
-        <div
+        {agreement?.status === "pending_acceptance" && <div
           className={`border rounded-2xl p-6 space-y-4 ${isDark
               ? "bg-[#171717] border-[#3d3d3d]"
               : "bg-white border-[#E2E8F0]"
@@ -387,9 +398,9 @@ export default function AgreementReviewPage() {
                     ? "bg-[#123E28] text-[#3D7C5D] cursor-not-allowed"
                     : "bg-gray-200 text-gray-400 cursor-not-allowed"
                 }`}
-              onClick={handleAccept}
+              onClick={() => setIsSignOpen(true)}
             >
-              {isSubmitting ? "Submitting..." : "Accept Assignment"}
+              {isSubmitting ? "Signing..." : "Sign and Accept Assignment"}
             </button>
             <button
               disabled={!agreement || agreement.status !== "pending_acceptance" || isSubmitting}
@@ -402,13 +413,14 @@ export default function AgreementReviewPage() {
               Reject
             </button>
           </div>
-        </div>
+        </div>}
 
         <SuccessModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
         />
       </div>
+      {isSignOpen && agreement?.status === "pending_acceptance" && <AgreementSignatureModal title={agreement.title} initialName={projectInfo.creativePartner === "—" ? "" : projectInfo.creativePartner} isSubmitting={isSubmitting} onClose={() => setIsSignOpen(false)} onSubmit={handleAccept} />}
     </>
   );
 }

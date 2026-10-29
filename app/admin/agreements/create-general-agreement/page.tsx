@@ -8,7 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   GripVertical,
-  MoreHorizontal,
+  Trash2,
   Plus,
   Bold,
   Italic,
@@ -22,7 +22,7 @@ import { DatePickerFloating } from "@/components/admin/DatePickerFloating";
 import SuccessModal from "@/components/admin/agreements/AgreementSendSuccess";
 import { toast } from "sonner";
 import { agreementApi } from "@/lib/api/agreements";
-import { format } from "date-fns";
+import { format, startOfDay } from "date-fns";
 
 interface Section {
   id: string;
@@ -52,6 +52,15 @@ const parseAgreementContent = (value: unknown): { lead_paragraphs?: unknown[]; s
 const contentToEditorHtml = (content: string) => /<\/?[a-z][\s\S]*>/i.test(content)
   ? content
   : content ? content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br />") : "";
+
+const hasSectionContent = (content: string) => {
+  const element = document.createElement("div");
+  element.innerHTML = content;
+  return Boolean(element.textContent?.replace(/\u00a0/g, " ").trim());
+};
+
+const isPastEffectiveDate = (date: Date) => Number.isNaN(date.getTime())
+  || format(date, "yyyy-MM-dd") < format(new Date(), "yyyy-MM-dd");
 
 function RichTextEditor({ value, onChange, isDark }: { value: string; onChange: (value: string) => void; isDark: boolean }) {
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -178,7 +187,8 @@ export default function AdminCreateGeneralAgreementPage() {
         setAgreementName(savedDraft.agreementName);
         setAgreementTitle(savedDraft.agreementTitle);
         setDescription(savedDraft.description);
-        setEffectiveDate(savedDraft.effectiveDate ? new Date(`${savedDraft.effectiveDate}T12:00:00`) : null);
+        const draftDate = savedDraft.effectiveDate ? new Date(`${savedDraft.effectiveDate}T12:00:00`) : null;
+        setEffectiveDate(draftDate && !isPastEffectiveDate(draftDate) ? draftDate : null);
         setSections(savedDraft.sections.map((section, index) => ({ ...section, isExpanded: index === 0 })));
         return;
       }
@@ -195,7 +205,10 @@ export default function AdminCreateGeneralAgreementPage() {
 
         setAgreementName(source.description || source.title);
         setAgreementTitle(source.title);
-        if (source.effective_at && !Number.isNaN(new Date(source.effective_at).getTime())) setEffectiveDate(new Date(source.effective_at));
+        if (source.effective_at) {
+          const sourceDate = new Date(`${source.effective_at.slice(0, 10)}T12:00:00`);
+          setEffectiveDate(!isPastEffectiveDate(sourceDate) ? sourceDate : null);
+        }
         const sourceContent = parseAgreementContent(source.content_json);
         const sourceLeadParagraphs = sourceContent?.lead_paragraphs;
         if (Array.isArray(sourceLeadParagraphs) && sourceLeadParagraphs.every((paragraph) => typeof paragraph === "string")) {
@@ -245,16 +258,30 @@ export default function AdminCreateGeneralAgreementPage() {
 
 
   const handleAddSection = () => {
-    const newId = String(sections.length + 1);
+    const newId = globalThis.crypto?.randomUUID?.() || `section-${Date.now()}`;
     setSections((prev) => [
       ...prev,
       {
         id: newId,
-        title: `Section ${newId.padStart(2, "0")}`,
+        title: `Section ${String(prev.length + 1).padStart(2, "0")}`,
         content: "",
         isExpanded: true,
       },
     ]);
+  };
+
+  const validateSections = () => {
+    if (!sections.length) {
+      toast.error("Add at least one agreement section with a title and content.");
+      return false;
+    }
+    const invalidIndex = sections.findIndex((section) => !section.title.trim() || !hasSectionContent(section.content));
+    if (invalidIndex !== -1) {
+      setSections((previous) => previous.map((section, index) => index === invalidIndex ? { ...section, isExpanded: true } : section));
+      toast.error(`Section ${invalidIndex + 1} needs a title and content.`);
+      return false;
+    }
+    return true;
   };
 
   const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => ({
@@ -272,6 +299,11 @@ export default function AdminCreateGeneralAgreementPage() {
   ].join("\n");
 
   const openPreview = () => {
+    if (effectiveDate && isPastEffectiveDate(effectiveDate)) {
+      toast.error("Effective date cannot be in the past.");
+      return;
+    }
+    if (!validateSections()) return;
     const sourceTemplateId = Number(searchParams.get("clone_from") || 0);
     const effectiveDateValue = effectiveDate ? format(effectiveDate, "yyyy-MM-dd") : "";
     const draft: GeneralAgreementDraft = {
@@ -295,6 +327,11 @@ export default function AdminCreateGeneralAgreementPage() {
       toast.error("Agreement name and title are required");
       return;
     }
+    if (effectiveDate && isPastEffectiveDate(effectiveDate)) {
+      toast.error("Effective date cannot be in the past.");
+      return;
+    }
+    if (!validateSections()) return;
     try {
       setIsSubmitting(true);
       const created = await agreementApi.createGeneralTemplate({
@@ -339,7 +376,7 @@ export default function AdminCreateGeneralAgreementPage() {
             <Button
               onClick={saveAndPublish}
               disabled={isSubmitting}
-              title="Save & Send"
+              title="Save & Publish"
               className={`h-12 px-4 lg:px-7 font-medium transition-colors ${isDark
                 ? "bg-[#E5D5B8] text-black hover:bg-[#D4C3A3]"
                 : "bg-[#E8D1AB] text-black hover:bg-[#D9C19A]"
@@ -467,6 +504,7 @@ export default function AdminCreateGeneralAgreementPage() {
               <DatePickerFloating
                 selectedDate={effectiveDate}
                 onDateChange={setEffectiveDate}
+                minDate={startOfDay(new Date())}
                 width="w-full"
                 classnames={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] relative rounded-xl border ${isDark ? "text-white placeholder:text-white/20" : "text-black placeholder:text-gray-400"}`}
                 labelClasses={`${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"} text-sm lg:text-base z-10 px-1`}
@@ -474,7 +512,7 @@ export default function AdminCreateGeneralAgreementPage() {
                 displayFormat="dd-MM-yyyy"
               />
               <p className={`text-xs mt-1.5 ${isDark ? "text-white/40" : "text-gray-500"}`}>
-                The date from which this agreement becomes effective.
+                Select today or a future effective date.
               </p>
             </div>
           </div>
@@ -530,12 +568,7 @@ export default function AdminCreateGeneralAgreementPage() {
                   </div>
 
                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className={`transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/60"}`}
-                    >
-                      <MoreHorizontal size={18} />
-                    </button>
+                    <button type="button" onClick={() => setSections((previous) => previous.filter((item) => item.id !== section.id))} aria-label={`Remove ${section.title || "section"}`} className="text-red-400 hover:text-red-300"><Trash2 size={18} /></button>
                     <button
                       type="button"
                       onClick={() => toggleSection(section.id)}
@@ -608,8 +641,9 @@ export default function AdminCreateGeneralAgreementPage() {
             Preview
           </Button>
           <Button
-            onClick={() => router.push("/admin/agreements")}
-            title="Save & Send"
+            onClick={saveAndPublish}
+            disabled={isSubmitting}
+            title="Save & Publish"
             className="w-full bg-[#E5D5B8] text-black hover:bg-[#D4C3A3] h-14 rounded-md font-semibold text-sm shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex items-center justify-center gap-2 border border-white/20 active:scale-[0.98] transition-transform"
           >
             {isSubmitting ? "Publishing..." : "Save & Publish"}

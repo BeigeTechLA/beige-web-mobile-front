@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { adminApi, type AdminUserRoleRecord } from "@/lib/api";
+import { adminApi, salesApi, type AdminUserRoleRecord } from "@/lib/api";
 import {
   PermissionStatus,
   PermissionUser,
@@ -86,7 +86,7 @@ const buildPaginationItems = (currentPage: number, totalPages: number) => {
 
 function StatusPill({ status }: { status: PermissionStatus }) {
   const active = status === "Active";
-  const displayStatus = active ? "Active" : "Archived";
+  const displayStatus = active ? "Active" : "Inactive";
 
   return (
     <span
@@ -198,6 +198,7 @@ export function PermissionUsersTable({
   const { isDark } = useResolvedTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [salesRepStatusFilter, setSalesRepStatusFilter] = useState("all");
   const [monthFilter, setMonthFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
@@ -207,6 +208,7 @@ export function PermissionUsersTable({
   const [serverLoading, setServerLoading] = useState(false);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [historyUser, setHistoryUser] = useState<PermissionUser | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [bulkRoleId, setBulkRoleId] = useState("");
   const [isBulkRoleModalOpen, setIsBulkRoleModalOpen] = useState(false);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
@@ -276,14 +278,60 @@ export function PermissionUsersTable({
 
       const response = await adminApi.getUsersWithRoles(queryParams);
 
+      // Load both sales rep statuses only when the dedicated filter is selected.
+      const salesRepsResponse = salesRepStatusFilter === "all"
+        ? null
+        : await salesApi.getSalesReps({ includeInactive: true });
+
       if (!mounted) return;
 
       if (response?.success && Array.isArray(response.data)) {
-        setServerUsers(
-          response.data.map((user: AdminUserRoleRecord, index: number) =>
-            mapApiUserToPermissionUser(user, index),
-          ),
-        );
+        if (salesRepStatusFilter !== "all" && !Array.isArray(salesRepsResponse?.data)) {
+          setServerUsers([]);
+          setServerError(salesRepsResponse?.error || salesRepsResponse?.message || "Failed to load sales reps");
+          setServerLoading(false);
+          return;
+        }
+
+        const usersById = new Map<number, PermissionUser>();
+        if (salesRepStatusFilter === "all") {
+          response.data.forEach((user: AdminUserRoleRecord, index: number) => {
+            const mappedUser = mapApiUserToPermissionUser(user, index);
+            usersById.set(mappedUser.id, mappedUser);
+          });
+        }
+
+        if (Array.isArray(salesRepsResponse?.data)) {
+          salesRepsResponse.data.forEach((rep: any, index: number) => {
+            const id = Number(rep?.user_id ?? rep?.id ?? rep?.sales_rep_id);
+            const name = String(rep?.name ?? rep?.sales_rep_name ?? "").trim();
+            if (!Number.isFinite(id) || !name) return;
+
+            const active = rep?.is_active === 0 || rep?.is_active === false
+              ? false
+              : rep?.is_active === 1 || rep?.is_active === true
+                ? true
+                : String(rep?.status ?? rep?.status_label ?? "").toLowerCase() === "active";
+            const status: PermissionStatus = active ? "Active" : "In-Active";
+            if (salesRepStatusFilter === "active" && !active) return;
+            if (salesRepStatusFilter === "inactive" && active) return;
+
+            usersById.set(id, {
+              id,
+              name,
+              subtitle: String(rep?.email ?? ""),
+              role_id: rep?.role_id == null ? null : Number(rep.role_id),
+              role: String(rep?.role_name ?? rep?.role ?? "Sales Rep"),
+              created: String(rep?.created_at ?? ""),
+              updated: String(rep?.updated_at ?? rep?.created_at ?? ""),
+              status,
+              badge: name.split(" ").filter(Boolean).slice(0, 2).map((part: string) => part[0]?.toUpperCase() ?? "").join("") || "NA",
+              badgeTone: USER_BADGE_TONES[(response.data.length + index) % USER_BADGE_TONES.length],
+            });
+          });
+        }
+
+        setServerUsers(Array.from(usersById.values()));
       } else {
         setServerUsers([]);
         setServerError(response?.error || response?.message || "Failed to load users");
@@ -297,16 +345,16 @@ export function PermissionUsersTable({
     return () => {
       mounted = false;
     };
-  }, [queryParams]);
+  }, [queryParams, salesRepStatusFilter]);
 
   useEffect(() => {
     const hasActiveFilters =
       debouncedSearchQuery || statusFilter !== "all" || monthFilter !== "all" || roleFilter !== "all";
 
-    if (!hasActiveFilters) {
+    if (!hasActiveFilters && salesRepStatusFilter === "all") {
       setServerUsers(users);
     }
-  }, [debouncedSearchQuery, monthFilter, roleFilter, statusFilter, users]);
+  }, [debouncedSearchQuery, monthFilter, roleFilter, salesRepStatusFilter, statusFilter, users]);
 
   const filteredUsers = useMemo(() => {
     return serverUsers.filter((user) => {
@@ -376,6 +424,20 @@ export function PermissionUsersTable({
       })
       .slice(0, 20);
   }, [historyUser]);
+  const selectedUserReassignmentEvents = useMemo(() => (historyUser?.archive_history || [])
+    .filter((entry) => entry.action === "reassigned")
+    .sort((first, second) => new Date(second.created_at || "").getTime() - new Date(first.created_at || "").getTime())
+    .slice(0, 100), [historyUser]);
+
+  const openArchiveHistory = async (user: PermissionUser) => {
+    setHistoryUser(user);
+    setIsLoadingHistory(true);
+    const response = await adminApi.getArchiveHistory("internal_user", user.id);
+    setHistoryUser((current) => current?.id === user.id
+      ? { ...user, archive_history: Array.isArray(response?.data) ? response.data : [] }
+      : current);
+    setIsLoadingHistory(false);
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -538,7 +600,28 @@ export function PermissionUsersTable({
                 <SelectContent className={selectContentClass}>
                   <SelectItem value="all">Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="in-active">Archived</SelectItem>
+                  <SelectItem value="in-active">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={salesRepStatusFilter} onValueChange={setSalesRepStatusFilter}>
+                <SelectTrigger className={`w-fit h-7 lg:h-9 min-w-[110px] rounded-full px-4 text-xs lg:text-sm transition focus:ring-0 focus:ring-offset-0 ${selectTriggerClass}`}>
+                  <SelectValue placeholder="Sales Rep" />
+                </SelectTrigger>
+                <SelectContent className={selectContentClass}>
+                  <SelectItem value="all">Sales Rep</SelectItem>
+                  <SelectItem value="active" onSelect={(event) => {
+                    if (salesRepStatusFilter === "active") {
+                      event.preventDefault();
+                      setSalesRepStatusFilter("all");
+                    }
+                  }}>Active</SelectItem>
+                  <SelectItem value="inactive" onSelect={(event) => {
+                    if (salesRepStatusFilter === "inactive") {
+                      event.preventDefault();
+                      setSalesRepStatusFilter("all");
+                    }
+                  }}>Inactive</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -710,8 +793,8 @@ export function PermissionUsersTable({
         {!showLoading && !showError && filteredUsers.length > 0 && (
           <>
             {/* DESKTOP TABLE VIEW (≥ 1024px) */}
-            <div className="hidden lg:block w-full">
-              <table className={`w-full table-fixed border-collapse border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E3E3E3]"}`}>
+            <div className="hidden lg:block w-full overflow-x-auto">
+              <table className={`w-full min-w-[1100px] table-auto border-collapse border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E3E3E3]"}`}>
                 <thead>
                   <tr className={`border-b text-left text-sm font-medium ${isDark ? "border-[#3D3D3D] bg-[#101010] text-[#E8D1AB]" : "border-[#E3E3E3] bg-[#FFFCF6] text-[#101010]"}`}>
                     <th className="w-[5%] px-4 py-4 rounded-bl-xl">
@@ -803,11 +886,11 @@ export function PermissionUsersTable({
                           <UserLoginHistoryAction user={{ id: user.id, name: user.name, email: user.subtitle }} />
                           <button
                             type="button"
-                            title="View archive history"
+                            title="View inactive history"
                             className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition ${isDark ? "bg-white/5 text-white/60 hover:bg-[#E8D1AB]/10 hover:text-[#E8D1AB]" : "bg-black/[0.04] text-[#32323299] hover:bg-[#E8D1AB]/10 hover:text-[#8E6A2A]"}`}
                             onClick={(event) => {
                               event.stopPropagation();
-                              setHistoryUser(user);
+                              void openArchiveHistory(user);
                             }}
                           >
                             <History size={16} />
@@ -815,7 +898,7 @@ export function PermissionUsersTable({
                           <button
                             type="button"
                             disabled={!onEdit || user.status !== "Active"}
-                            title={user.status === "Active" ? "Edit user" : "Archived users cannot be edited"}
+                            title={user.status === "Active" ? "Edit user" : "Inactive users cannot be edited"}
                             className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white" : "bg-black/[0.04] text-[#32323299] hover:bg-black/[0.08] hover:text-[#101010]"}`}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -855,7 +938,7 @@ export function PermissionUsersTable({
                           <button
                             type="button"
                             disabled={!canOpenUser || user.status !== "Active"}
-                            title={user.status === "Active" ? "Open details" : "Archived users do not open details"}
+                            title={user.status === "Active" ? "Open details" : "Inactive users do not open details"}
                             className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${isDark ? "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white" : "bg-black/[0.04] text-[#32323299] hover:bg-black/[0.08] hover:text-[#101010]"}`}
                             onClick={(event) => {
                               event.stopPropagation();
@@ -966,11 +1049,11 @@ export function PermissionUsersTable({
                               <UserLoginHistoryAction user={{ id: user.id, name: user.name, email: user.subtitle }} />
                               <button
                                 type="button"
-                                title="View archive history"
+                                title="View inactive history"
                                 className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  setHistoryUser(user);
+                                  void openArchiveHistory(user);
                                 }}
                               >
                                 <History size={20} />
@@ -979,7 +1062,7 @@ export function PermissionUsersTable({
                               <button
                                 type="button"
                                 disabled={!onEdit || user.status !== "Active"}
-                                title={user.status === "Active" ? "Edit user" : "Archived users cannot be edited"}
+                                title={user.status === "Active" ? "Edit user" : "Inactive users cannot be edited"}
                                 className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
                                 onClick={(event) => {
                                   event.stopPropagation();
@@ -1019,7 +1102,7 @@ export function PermissionUsersTable({
                               <button
                                 type="button"
                                 disabled={!canOpenUser || user.status !== "Active"}
-                                title={user.status === "Active" ? "Open details" : "Archived users do not open details"}
+                                title={user.status === "Active" ? "Open details" : "Inactive users do not open details"}
                                 className={`flex h-9 items-center justify-center gap-2 transition ${isDark ? "text-white" : "text-black/80"}`}
                                 onClick={(event) => {
                                   event.stopPropagation();
@@ -1128,7 +1211,7 @@ export function PermissionUsersTable({
         }}
         onConfirm={handleBulkDelete}
         title="Delete Selected Users"
-        description={`Are you sure you want to delete ${selectedRows.length} selected user${selectedRows.length === 1 ? "" : "s"}? This will move ${selectedRows.length === 1 ? "the user" : "them"} to the archived user list.`}
+        description={`Are you sure you want to delete ${selectedRows.length} selected user${selectedRows.length === 1 ? "" : "s"}? This will move ${selectedRows.length === 1 ? "the user" : "them"} to the inactive user list.`}
         tone="danger"
         confirmLabel="Delete"
         cancelLabel="Cancel"
@@ -1156,7 +1239,7 @@ export function PermissionUsersTable({
           >
             {/* Header */}
             <div className={`flex items-center justify-between px-[22px] pb-5 pt-[22px] border-b ${isDark ? "border-white/[0.08]" : "border-[#E3E3E3]"}`}>
-              <h2 className="text-[19px] font-bold tracking-[-0.3px]">Archive Users History</h2>
+              <h2 className="text-[19px] font-bold tracking-[-0.3px]">Inactive Users History</h2>
               <button
                 type="button"
                 onClick={() => setHistoryUser(null)}
@@ -1170,8 +1253,11 @@ export function PermissionUsersTable({
 
             {/* List */}
             <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-3.5">
-              {selectedUserHistoryGroups.length > 0 ? (
-                selectedUserHistoryGroups.map(({ deleted, restored }) => {
+              {isLoadingHistory ? (
+                <div className={`py-10 text-center text-sm ${isDark ? "text-white/50" : "text-[#32323280]"}`}>Loading history...</div>
+              ) : selectedUserHistoryGroups.length > 0 || selectedUserReassignmentEvents.length > 0 ? (
+                <>
+                {selectedUserHistoryGroups.map(({ deleted, restored }) => {
                   const deletedTime = formatDateParts(deleted.created_at || "");
                   const restoredTime = restored ? formatDateParts(restored.created_at || "") : null;
                   const deletedBy = deleted.performed_by_name || "Admin";
@@ -1245,11 +1331,42 @@ export function PermissionUsersTable({
                       </div>
                     </div>
                   );
-                })
+                })}
+                {selectedUserReassignmentEvents.map((entry) => {
+                  const metadata = entry.metadata || {};
+                  const records = Array.isArray(metadata.records) ? metadata.records : [];
+                  const reassignedTime = formatDateParts(entry.created_at || "");
+                  return (
+                    <div key={entry.history_id} className={`rounded-[14px] border p-4 ${isDark ? "border-white/[0.07] bg-[#1a1a1a]" : "border-[#E3E3E3] bg-[#FAFAFA]"}`}>
+                      <p className={`text-[13.5px] font-medium leading-[1.5] ${isDark ? "text-white/90" : "text-[#101010]"}`}>
+                        {records.length} {records.length === 1 ? "record" : "records"} reassigned
+                      </p>
+                      <div className={`mt-3 divide-y rounded-lg border px-3 ${isDark ? "divide-white/[0.07] border-white/[0.07]" : "divide-[#E3E3E3] border-[#E3E3E3]"}`}>
+                        {records.map((record: any, index: number) => (
+                          <div key={`${record.record_type}-${record.record_id}-${index}`} className="py-2.5">
+                            <p className={`text-[11.5px] font-medium ${isDark ? "text-white/80" : "text-[#101010]"}`}>
+                              {String(record.record_type || "Record").replace(/[_-]+/g, " ").replace(/\b\w/g, (letter: string) => letter.toUpperCase())} - {String(record.record_id || "").replace(/^[LPQ]-/, "")}
+                              {record.client_name ? <span className={`ml-2 font-normal ${isDark ? "text-white/45" : "text-[#32323280]"}`}>{record.client_name}</span> : null}
+                            </p>
+                            <dl className={`mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[11px] ${isDark ? "text-white/60" : "text-[#32323299]"}`}>
+                              <dt>Previous Sales Rep</dt><dd>{record.previous_sales_rep || "Unknown user"}</dd>
+                              <dt>New Sales Rep</dt><dd>{record.new_sales_rep || "Unknown user"}</dd>
+                            </dl>
+                          </div>
+                        ))}
+                      </div>
+                      <p className={`mt-2 text-[11.5px] ${isDark ? "text-white/60" : "text-[#32323299]"}`}>Reassigned by {metadata.performed_by || entry.performed_by_name || "Admin"}</p>
+                      <p className={`mt-2 text-[11.5px] ${isDark ? "text-white/32" : "text-[#32323266]"}`}>
+                        {reassignedTime.date} <span className="mx-1 opacity-50">•</span> {reassignedTime.time || "N/A"}
+                      </p>
+                    </div>
+                  );
+                })}
+                </>
               ) : (
                 <div className={`flex h-full flex-col items-center justify-center rounded-lg border px-6 text-center ${isDark ? "border-[#333] bg-white/[0.02]" : "border-[#E3E3E3] bg-white"}`}>
                   <History size={28} className="text-[#C9A96E]" />
-                  <p className={`mt-3 text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>No archive history found</p>
+                  <p className={`mt-3 text-sm font-semibold ${isDark ? "text-white" : "text-[#101010]"}`}>No inactive history found</p>
                   <p className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-[#32323266]"}`}>This user has not been deleted or restored yet.</p>
                 </div>
               )}

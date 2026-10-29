@@ -753,6 +753,8 @@ export default function AdminFolderManagerPage() {
                   category={folder.category}
                   isLinked={folder.isLinked}
                   visibilityExpired={isVisibilityExpiredFolder(folder)}
+                  projectName={folder.projectName}
+                  shootHref={folder.shootHref}
                   lastOpened={folder.lastOpened}
                   userInitials={folder.userInitials}
                   onOpenLinkModal={() => {
@@ -806,6 +808,8 @@ export default function AdminFolderManagerPage() {
                   category={folder.category}
                   isLinked={folder.isLinked}
                   visibilityExpired={isVisibilityExpiredFolder(folder)}
+                  projectName={folder.projectName}
+                  shootHref={folder.shootHref}
                   lastOpened={folder.lastOpened}
                   userInitials={folder.userInitials}
                   onOpenLinkModal={() => {
@@ -890,9 +894,21 @@ export default function AdminFolderManagerPage() {
                           <div className={`h-10 w-10 flex items-center justify-center rounded-md transition-colors ${isDark ? "bg-white/10" : "bg-transparent"}`}>
                             <FolderOpen className={"text-[#E8D1AB] fill-[#E8D1AB]/20"} size={24} />
                           </div>
-                          <span className="text-sm font-semibold truncate max-w-[220px]" title={folder.title}>
-                            {folder.title}
-                          </span>
+                          <div className="min-w-0">
+                            <span className="block text-sm font-semibold truncate max-w-[220px]" title={folder.title}>
+                              {folder.title}
+                            </span>
+                            {folder.projectName && folder.shootHref ? (
+                              <a
+                                href={folder.shootHref}
+                                onClick={(event) => event.stopPropagation()}
+                                className={`block truncate max-w-[220px] text-xs hover:underline ${isDark ? "text-[#E8D1AB]" : "text-[#725B38]"}`}
+                                title={`View shoot #${folder.id}: ${folder.projectName}`}
+                              >
+                                {folder.projectName} #{folder.id}
+                              </a>
+                            ) : null}
+                          </div>
                         </td>
 
                         {/* Category Field */}

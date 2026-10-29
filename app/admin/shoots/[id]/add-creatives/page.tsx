@@ -4,23 +4,23 @@ import React, { useCallback, useMemo, useState, useEffect, use } from "react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useRouter, usePathname } from "next/navigation";
-import { ArrowLeft, Camera, Send, Video } from "lucide-react";
+import { ArrowLeft, Camera, Send, Video, Clapperboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAssignCrewFromShootMutation } from "@/lib/redux/features/sales/salesApi";
 import { CreativeProfileSelectorAdd } from "@/components/sales/creativeProfileSelectorAdd";
-import { AssignmentConfirmationModal } from "@/components/sales/AssignmentConfirmationModal";
 import { adminApi } from "@/lib/api";
 import Topbar from "@/components/admin/Topbar";
 import AddCompensationModal from "@/components/admin/finances/AddCompensationModal";
-import { cpCompensationApi, type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
+import { type AddCpCompensationPayload, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
+import { shootAgreementPlanKey, type ShootAgreementPlan } from "@/lib/shootAgreementPlan";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { formatCurrency } from "@/lib/utils";
+import { getCPRequirements } from "@/lib/utils/cpRequirements";
 
 type FulfillmentStats = {
   fulfillment_stats?: {
     videographer?: string;
     photographer?: string;
   };
-  cp_compensation_locked?: boolean;
   cp_compensation_has_pending?: boolean;
   cp_compensation_status?: string | null;
   location?: string;
@@ -44,7 +44,6 @@ type SelectedCreative = {
   hourly_rate?: number | string;
 };
 
-type ConfirmAction = "assign" | "compensation";
 
 const toNumber = (value: unknown, fallback = 0) => {
   const numeric = Number(value);
@@ -142,20 +141,15 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
   const [selectedCreativeIds, setSelectedCreativeIds] = useState<number[]>([]);
-  const [selectionCounts, setSelectionCounts] = useState({ videographer: 0, photographer: 0 });
-  const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0 });
+  const [selectionCounts, setSelectionCounts] = useState({ videographer: 0, photographer: 0, hybrid: 0 });
+  const [reqCounts, setReqCounts] = useState({ videographer: 0, photographer: 0, hybrid: 0 });
   const [projectLocation, setProjectLocation] = useState<string>("");
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction>("assign");
   const [isAddCompOpen, setIsAddCompOpen] = useState(false);
   const [selectedCreatives, setSelectedCreatives] = useState<SelectedCreative[]>([]);
-  const [isSubmittingCompensation, setIsSubmittingCompensation] = useState(false);
 
   const [roleType, setRoleType] = useState<string>('videographer');
   const [stats, setStats] = useState<FulfillmentStats | null>(null);
 
-  const [assignCrew, { isLoading }] = useAssignCrewFromShootMutation();
-  const cpCompensationLocked = Boolean(stats?.cp_compensation_locked);
   const cpCompensationHasPending = Boolean(stats?.cp_compensation_has_pending);
 
   useEffect(() => {
@@ -196,7 +190,20 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           // Parse fulfillment stats like "0/2" => videographer needed = 2
           const vReq = parseInt(mergedStats.fulfillment_stats?.videographer?.split('/')[1] || "0");
           const pReq = parseInt(mergedStats.fulfillment_stats?.photographer?.split('/')[1] || "0");
-          setReqCounts({ videographer: vReq, photographer: pReq });
+          const requested = new URLSearchParams(window.location.search);
+          const savedRoles = getCPRequirements(projectDetails.crew_roles);
+          const requestedCount = (role: "photographer" | "videographer" | "hybrid", fallback: number) => {
+            const value = Number(requested.get(role));
+            return Number.isInteger(value) && value > 0 && value <= 10 ? value : fallback;
+          };
+          setReqCounts({
+            videographer: requestedCount("videographer", savedRoles?.videographer ?? vReq),
+            photographer: requestedCount("photographer", savedRoles?.photographer ?? pReq),
+            hybrid: requestedCount("hybrid", savedRoles?.hybrid ?? 0),
+          });
+          if (requested.has("hybrid") || (savedRoles?.hybrid && !savedRoles.videographer && !savedRoles.photographer)) setRoleType("hybrid");
+          else if ((requested.has("photographer") && !requested.has("videographer")) ||
+            (savedRoles?.photographer && !savedRoles.videographer)) setRoleType("photographer");
 
           // Also grab location for the crew search
           if (mergedStats.location) setProjectLocation(mergedStats.location);
@@ -237,7 +244,9 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       }));
     const creatorsById = new Map<number, PendingCompensationShoot["creators"][number]>();
 
-    [...getAssignedCompensationCreators(stats), ...selectedCreatorsForCompensation].forEach((creator) => {
+    [...getAssignedCompensationCreators(stats), ...selectedCreatorsForCompensation]
+      .filter((creator) => selectedCreativeIds.includes(Number(creator.creator_id)))
+      .forEach((creator) => {
       creatorsById.set(
         Number(creator.creator_id),
         mergeCompensationCreator(creatorsById.get(Number(creator.creator_id)), creator)
@@ -275,7 +284,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     });
   }, [selectedCreativeIds]);
 
-  const validateSelectedCounts = (action: ConfirmAction) => {
+  const validateSelectedCounts = () => {
     if (!canEdit) return;
 
     if (selectedCreativeIds.length === 0) {
@@ -283,127 +292,49 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
       return false;
     }
 
-    const isOverVideographers = selectionCounts.videographer > reqCounts.videographer;
-    const isOverPhotographers = selectionCounts.photographer > reqCounts.photographer;
-
-    if (isOverVideographers || isOverPhotographers) {
-      setConfirmAction(action);
-      setIsConfirmModalOpen(true);
-      return false;
-    }
-
     return true;
   };
 
-  const handleAssign = async () => {
-    if (cpCompensationLocked) {
-      toast.error("CP compensation is already approved for this shoot. You cannot assign more CPs.");
-      return;
-    }
-    if (cpCompensationHasPending) {
-      toast.error("This shoot has pending CP compensation. Use Continue to Compensation so the payout stays updated.");
-      return;
-    }
-    if (!validateSelectedCounts("assign")) return;
-    executeAssignment();
-  };
-
   const handleContinueToCompensation = () => {
-    if (cpCompensationLocked) {
-      toast.error("CP compensation is already approved for this shoot. You cannot assign more CPs.");
-      return;
-    }
-    if (!validateSelectedCounts("compensation")) return;
+    if (!validateSelectedCounts()) return;
     openCompensationDrawer();
   };
 
   const handleCreativeSelectionChange = useCallback((ids: number[]) => {
-    if (cpCompensationLocked) {
-      toast.error("CP compensation is already approved for this shoot. You cannot assign more CPs.");
-      return;
-    }
     setSelectedCreativeIds(ids);
-  }, [cpCompensationLocked]);
+  }, []);
 
   const openCompensationDrawer = () => {
     if (!selectedCompensationShoot?.creators.length) {
       toast.error("Selected CP details are still loading. Please try again.");
       return;
     }
-    setIsConfirmModalOpen(false);
     setIsAddCompOpen(true);
   };
 
-  const executeAssignment = async () => {
-    if (!canEdit) return;
-
-    setIsConfirmModalOpen(false);
-    try {
-      const response = await assignCrew({
-        project_id: Number(projectId),
-        crew_member_ids: selectedCreativeIds,
-      }).unwrap();
-
-      if (response.success) {
-        toast.success("Crew assigned successfully");
-        router.back();
-      } else {
-        if (response.errors && Array.isArray(response.errors)) {
-          toast.error(response.errors.join(", "));
-        } else {
-          toast.error(response.message || "Failed to assign crew");
-        }
-      }
-    } catch (error: unknown) {
-      console.error("Failed to assign crew", error);
-      const data = typeof error === "object" && error !== null && "data" in error
-        ? (error as { data?: { errors?: string[]; message?: string } }).data
-        : undefined;
-      if (data?.errors && Array.isArray(data.errors)) {
-        toast.error(data.errors.join(", "));
-      } else if (data?.message) {
-        toast.error(data.message);
-      } else {
-        toast.error("An error occurred while assigning crew");
-      }
-    }
+  const prepareShootAgreement = async (compensation: AddCpCompensationPayload, creators: PendingCompensationShoot["creators"]) => {
+    const plan: ShootAgreementPlan = { compensation, creators };
+    sessionStorage.setItem(shootAgreementPlanKey(projectId), JSON.stringify(plan));
+    setIsAddCompOpen(false);
+    router.push(`/admin/shoots/${projectId}/shoot-agreement`);
   };
 
-  const handleCompensationSubmit = async (payload: AddCpCompensationPayload) => {
-    setIsSubmittingCompensation(true);
-    try {
-      const assignResponse = await assignCrew({
-        project_id: Number(projectId),
-        crew_member_ids: selectedCreativeIds,
-        allow_pending_compensation_assignment: true,
-        defer_new_shoot_request_email: true,
-      }).unwrap();
-
-      if (!assignResponse.success) {
-        const message = Array.isArray(assignResponse.errors)
-          ? assignResponse.errors.join(", ")
-          : assignResponse.message || "Failed to assign crew";
-        toast.error(message);
-        return;
-      }
-
-      await cpCompensationApi.submitForApproval({ ...payload, new_shoot_request_creator_ids: selectedCreativeIds });
-      toast.success("CP assigned and compensation sent for finance approval");
-      setIsAddCompOpen(false);
-      // The assignment now exists, so the agreement wizard can safely create
-      // one document per selected CP using its assigned_crew record.
-      router.push(`/admin/shoots/${projectId}/shoot-agreement`);
-    } catch (error: unknown) {
-      console.error("Failed to submit CP compensation", error);
-      const data = typeof error === "object" && error !== null && "data" in error
-        ? (error as { data?: { errors?: string[]; message?: string } }).data
-        : undefined;
-      const message = data?.errors?.join(", ") || data?.message || "Failed to submit compensation for approval";
-      toast.error(message);
-    } finally {
-      setIsSubmittingCompensation(false);
-    }
-  };
+  const statsRecord = (stats || {}) as Record<string, unknown>;
+  const shootAmount = selectedCompensationShoot?.shoot_amount || toNumber(
+    statsRecord.shoot_amount ?? statsRecord.total_amount ?? statsRecord.total_value_amount ??
+    statsRecord.budget ?? statsRecord.project_budget ?? statsRecord.converted_quote_amount,
+    0
+  );
+  const assignments = Array.isArray(stats?.assignedCrew) ? stats.assignedCrew :
+    Array.isArray(stats?.assigned_crews) ? stats.assigned_crews : [];
+  const compensationAmounts = assignments
+    .map(asRecord)
+    .filter((assignment): assignment is Record<string, unknown> => Boolean(assignment))
+    .map((assignment) => assignment.total_compensation ?? assignment.compensation_amount)
+    .filter((amount) => amount != null && Number.isFinite(Number(amount)));
+  const allocatedCompensation = compensationAmounts.reduce<number>((total, amount) => total + Number(amount), 0);
+  const compensationBudget = statsRecord.cp_compensation_budget;
+  const hasCompensationBudget = compensationBudget != null && Number.isFinite(Number(compensationBudget));
 
   if (!mounted || isPermissionsLoading || !canEdit) {
     return (
@@ -425,8 +356,9 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
             <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
               <div className="flex flex-col lg:flex-row gap-2 lg:gap-3">
                 {[
-                  { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer, target: reqCounts.videographer || '0' },
-                  { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer, target: reqCounts.photographer || '0' }
+                  { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer },
+                  { type: 'photographer', icon: Camera, label: 'Photographer(s)', count: selectionCounts.photographer },
+                  { type: 'hybrid', icon: Clapperboard, label: 'Hybrid Shooter(s)', count: selectionCounts.hybrid }
                 ].map((btn) => (
                   <div
                     key={btn.type}
@@ -437,35 +369,26 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
                       }`}
                   >
                     <btn.icon size={16} />
-                    <span>{btn.label} : {btn.count}/{btn.target}</span>
+                    <span>{btn.label} : {btn.count} selected</span>
                   </div>
                 ))}
               </div>
 
-              {/* <Button
-                onClick={handleAssign}
-                disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked || cpCompensationHasPending}
-                className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
-              >
-                {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
-              </Button> */}
             </div>
           }
         />
 
         {/* Conditional Message Banner Block */}
-        {(cpCompensationLocked || cpCompensationHasPending) && (
+        {cpCompensationHasPending && (
           <div className="w-full px-6 py-3 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
             <p className="font-['Instrument_Sans'] text-sm leading-5 text-[#E8D1AB]">
-              {cpCompensationLocked
-                ? "CP compensation is approved for this shoot. Adding more CPs is locked."
-                : "This shoot has pending CP compensation. Add CPs through compensation so payout records stay updated."}
+              This shoot has pending CP compensation. You can still add CPs and send their agreements.
             </p>
           </div>
         )}
 
         {/* Pinned Creative Counter Action Tray Bar */}
-        {selectedCreativeIds.length > 0 && !cpCompensationLocked && (
+        {selectedCreativeIds.length > 0 && (
           <div className="w-full flex flex-col items-start pt-3 px-6 bg-[rgba(232,209,171,0.1)] border-b-[0.5px] border-[#E8D1AB]">
             <div className="w-full flex flex-col lg:flex-row justify-between items-start lg:items-center mb-3">
               {/* Left Side: Count */}
@@ -490,7 +413,6 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
                 {/* Continue to Compensation Button */}
                 <button
                   onClick={() => { handleContinueToCompensation(); }}
-                  disabled={cpCompensationLocked}
                   className="w-[232px] pt-[5px] pb-[7px] px-4 bg-black rounded flex items-center justify-center gap-1.5 hover:bg-black/90 transition-colors cursor-pointer"
                 >
                   <Send size={14} className="text-[#E8D1AB]" strokeWidth={1.5} />
@@ -514,6 +436,26 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
           <span className="text-sm font-medium">Back to Shoot Details</span>
         </Button>
 
+        <div className={`w-full rounded-2xl mb-5 lg:mb-9 p-5 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between ${isDark ? "bg-[#E8D1AB]/20" : "bg-[#F6EDDD] border border-[#EADBC0]"}`}>
+          {/* Left: two stats */}
+          <div className="grid grid-cols-2 gap-4 lg:flex lg:gap-18">
+            <div className="min-w-0">
+              <p className={`text-xs lg:text-sm font-semibold leading-tight text-[#E8D1AB]`}>Total Shoot Amount</p>
+              <p className="mt-1.5 text-xs lg:text-sm font-medium leading-tight">{shootAmount > 0 ? formatCurrency(shootAmount) : "—"}</p>
+            </div>
+            <div className="min-w-0">
+              <p className={`text-xs lg:text-sm font-semibold leading-tight text-[#E8D1AB]`}>CP Compensation Budget</p>
+              <p className="mt-1.5 text-xs lg:text-sm font-medium leading-tight">{hasCompensationBudget ? formatCurrency(Number(compensationBudget)) : "Set during compensation"}</p>
+            </div>
+          </div>
+
+          {/* Right: allocated pill */}
+          <div className="w-full lg:w-auto shrink-0 rounded-xl bg-white px-5 h-10 whitespace-nowrap text-black italic flex items-center gap-1">
+            <span className="text-xs lg:text-sm font-bold">{compensationAmounts.length ? formatCurrency(allocatedCompensation) : "—"}</span>{" "}
+            <span className={`text-[10px] lg:text-xs text-black/70`}>Compensation Allocated</span>
+          </div>
+        </div>
+
         <CreativeProfileSelectorAdd
           projectId={projectId}
           selectedIds={selectedCreativeIds}
@@ -531,8 +473,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
             isOpen={isAddCompOpen}
             onClose={() => setIsAddCompOpen(false)}
             shoots={compensationShootOptions}
-            isSubmitting={isSubmittingCompensation || isLoading}
-            onSubmit={handleCompensationSubmit}
+            onPrepareAgreement={prepareShootAgreement}
           />
         )}
 
@@ -540,8 +481,9 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
         <div className={`lg:hidden fixed flex flex-col gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-black" : "bg-[#F4F5F7]"}`}>
           <div className="flex gap-2 w-full">
             {[
-              { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer, target: reqCounts.videographer || '0' },
-              { type: 'photographer', icon: Camera, label: 'Photographers(s)', count: selectionCounts.photographer, target: reqCounts.photographer || '0' }
+              { type: 'videographer', icon: Video, label: 'Videographer(s)', count: selectionCounts.videographer },
+              { type: 'photographer', icon: Camera, label: 'Photographer(s)', count: selectionCounts.photographer },
+              { type: 'hybrid', icon: Clapperboard, label: 'Hybrid Shooter(s)', count: selectionCounts.hybrid }
             ].map((btn) => (
               <div
                 key={btn.type}
@@ -552,29 +494,16 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
                   }`}
               >
                 <btn.icon size={16} />
-                <span>{btn.label} : {btn.count}/{btn.target}</span>
+                <span>{btn.label} : {btn.count} selected</span>
               </div>
             ))}
           </div>
 
-          <Button
-            onClick={handleAssign}
-            disabled={isLoading || selectedCreativeIds.length === 0 || cpCompensationLocked || cpCompensationHasPending}
-            className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50"
-          >
-            {isLoading ? "Assigning..." : `Assign (${selectedCreativeIds.length}) CPs`}
-          </Button>
+          <Button onClick={handleContinueToCompensation} disabled={selectedCreativeIds.length === 0} className="h-12 px-4 lg:px-7 bg-[#E8D1AB] text-black disabled:opacity-50">Continue to Compensation</Button>
         </div>
       </div>
 
       {/* Modals outside the flow rules container layout */}
-      <AssignmentConfirmationModal
-        isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={confirmAction === "compensation" ? openCompensationDrawer : executeAssignment}
-        videographerCount={{ selected: selectionCounts.videographer, required: reqCounts.videographer }}
-        photographerCount={{ selected: selectionCounts.photographer, required: reqCounts.photographer }}
-      />
     </div>
   );
 }

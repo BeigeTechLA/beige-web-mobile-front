@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { CircleDollarSign, Clock, ShieldAlert, TrendingUp } from "lucide-react";
+import { CalendarDays, CircleDollarSign, Clock, List, ShieldAlert, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
 import Topbar from "@/components/admin/Topbar";
@@ -22,17 +22,27 @@ import PaymentMethodSelectionModal from "@/components/admin/finances/PaymentMeth
 import AddReceiptModal, { ReceiptPayload } from "@/components/admin/finances/AddReceiptModal";
 import AddCompendationModal from "@/components/admin/finances/AddCompensationModal";
 import AdvancePaymentModal from "@/components/admin/finances/AdvancePaymentModal";
+import CpCompensationCalendarView from "@/components/admin/finances/CpCompensationCalendarView";
 import {
   cpCompensationApi,
   type AddCpCompensationPayload,
+  type CpCalendarItem,
   type CpCompensationDetails,
+  type CpCompensationOverview,
   type PendingCompensationShoot,
 } from "@/lib/api/cpCompensation";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useAppSelector } from "@/lib/redux/hooks";
 import { getFirstAllowedAdminPath } from "@/lib/permissions";
 
-const metricDropdownOptions = ["Month", "Last 30 Days", "This Quarter", "This Year"];
+const metricDropdownOptions = ["All time", "This month", "Last 3 months", "This year"];
+
+const overviewPeriodByLabel = {
+  "All time": "all_time",
+  "This month": "this_month",
+  "Last 3 months": "last_3_months",
+  "This year": "this_year",
+} as const;
 
 const MOCK_SHOOT_DATA: ShootCPRow[] = [
   {
@@ -177,6 +187,7 @@ const MOCK_CREATORS_DATA: ShootCPRow[] = [
 ];
 
 type TabType = "shoots" | "creators";
+type ViewMode = "list" | "calendar";
 
 const tabs: { label: string; value: TabType }[] = [
   { label: "Shoots", value: "shoots" },
@@ -209,6 +220,14 @@ export default function AdminFinancesPage() {
 
   const [tableData, setTableData] = useState<ShootCPRow[]>([]);
   const [overviewRows, setOverviewRows] = useState<ShootCPRow[]>([]);
+  const [compensationOverview, setCompensationOverview] = useState<CpCompensationOverview>({
+    total_amount: 0,
+    paid_amount: 0,
+    payable_amount: 0,
+    paid_assignments: 0,
+    payable_assignments: 0,
+    total_assignments: 0,
+  });
   const [pendingTableData, setPendingTableData] = useState<ShootCPRow[]>([]);
   const [pendingTableLoading, setPendingTableLoading] = useState(false);
   const [pendingShoots, setPendingShoots] = useState<PendingCompensationShoot[]>([]);
@@ -219,8 +238,12 @@ export default function AdminFinancesPage() {
   const [pendingShootsLoading, setPendingShootsLoading] = useState(false);
   const [isAddSubmitting, setIsAddSubmitting] = useState(false);
   const [activeMetricId, setActiveMetricId] = useState("available");
-  const [metricRange, setMetricRange] = useState("Month");
+  const [metricRange, setMetricRange] = useState("All time");
   const [dataType, setDataType] = useState<TabType>("shoots");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [calendarItems, setCalendarItems] = useState<CpCalendarItem[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarRange, setCalendarRange] = useState<{ start: string; end: string; status?: string } | null>(null);
   const [selectedRow, setSelectedRow] = useState<ShootCPRow | null>(null);
   const [selectedPaymentEarningId, setSelectedPaymentEarningId] = useState<number | null>(null);
   const [selectedPaymentScope, setSelectedPaymentScope] = useState<"advance" | "final" | null>(null);
@@ -260,10 +283,8 @@ export default function AdminFinancesPage() {
           currency: "USD",
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
-        }).format(
-          overviewRows.reduce((sum, row) => sum + Number(row.cpPayout || 0), 0)
-        ),
-      helperText: "Paid",
+        }).format(compensationOverview.total_amount),
+      helperText: `Paid ${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(compensationOverview.paid_amount)} · Payable ${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(compensationOverview.payable_amount)}`,
       icon: CircleDollarSign,
     },
     {
@@ -292,6 +313,11 @@ export default function AdminFinancesPage() {
   const loadHistory = useCallback(async (view: TabType) => {
     setLoading(true);
     try {
+      const overview = await cpCompensationApi.overview(
+        overviewPeriodByLabel[metricRange as keyof typeof overviewPeriodByLabel] || "all_time",
+      );
+      setCompensationOverview(overview);
+
       if (view === "shoots") {
         const shoots = (await cpCompensationApi.list("shoots")).map((row) => ({
           ...row,
@@ -325,6 +351,26 @@ export default function AdminFinancesPage() {
       setOverviewRows([]);
     } finally {
       setLoading(false);
+    }
+  }, [metricRange]);
+
+  const loadCalendar = useCallback(async (range: { start: string; end: string; status?: string }) => {
+    setCalendarLoading(true);
+    try {
+      const items = await cpCompensationApi.calendarItems(range);
+      setCalendarItems(
+        items.map((item) => ({
+          ...item,
+          shootName: normalizeCustomShootName(item.shootName),
+        })),
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load compensation calendar",
+      );
+      setCalendarItems([]);
+    } finally {
+      setCalendarLoading(false);
     }
   }, []);
 
@@ -420,6 +466,28 @@ export default function AdminFinancesPage() {
     }
   };
 
+  const handleCalendarItemClick = (item: CpCalendarItem) => {
+    void handleRowClick({
+      id: String(item.bookingId),
+      bookingId: item.bookingId,
+      creatorEarningId: item.creatorEarningId,
+      creatorId: item.creatorId,
+      shootId: String(item.bookingId),
+      shootName: item.shootName,
+      creatorName: item.creatorName,
+      creatorRoles: item.creatorRoles,
+      customerName: item.customerName,
+      customerEmail: "",
+      shootBudget: 0,
+      cpPayout: item.amount,
+      margin: 0,
+      status: item.status,
+      category: item.category,
+      avatarImage: "",
+      date: "",
+    });
+  };
+
   const handleViewHistory = (row: ShootCPRow) => {
     const bookingId = row.bookingId || Number(row.id);
     if (!bookingId) {
@@ -472,7 +540,12 @@ export default function AdminFinancesPage() {
       toast.error("Edit permission not allowed");
       return;
     }
-    setSelectedActionEarningIds(creatorEarningIds?.filter(Boolean) || []);
+    const earningIds = creatorEarningIds?.filter(Boolean) || [];
+    if (!earningIds.length) {
+      toast.error("Select at least one Creative Partner to approve");
+      return;
+    }
+    setSelectedActionEarningIds(earningIds);
     setIsApproveOpen(true);
   };
 
@@ -481,7 +554,12 @@ export default function AdminFinancesPage() {
       toast.error("Edit permission not allowed");
       return;
     }
-    setSelectedActionEarningIds(creatorEarningIds?.filter(Boolean) || []);
+    const earningIds = creatorEarningIds?.filter(Boolean) || [];
+    if (!earningIds.length) {
+      toast.error("Select at least one Creative Partner to reject");
+      return;
+    }
+    setSelectedActionEarningIds(earningIds);
     setIsRejectOpen(true);
   };
 
@@ -584,6 +662,23 @@ export default function AdminFinancesPage() {
   const getSelectedActionCreator = () => {
     const earningId = getActionEarningIds()[0];
     return details?.creators.find((creator) => creator.creator_earning_id === earningId) || null;
+  };
+
+  const getSelectedActionCreators = () => {
+    const earningIds = new Set(getActionEarningIds());
+    return (details?.creators || [])
+      .filter((creator) => earningIds.has(creator.creator_earning_id))
+      .map((creator) => ({
+        name: creator.creator_name || "Unknown Creator",
+        totalCompensation: Number(creator.total_compensation || 0),
+      }));
+  };
+
+  const getSelectedActionPayout = () => {
+    const earningIds = new Set(selectedActionEarningIds);
+    return (details?.creators || [])
+      .filter((creator) => earningIds.has(creator.creator_earning_id))
+      .reduce((total, creator) => total + Number(creator.total_compensation || 0), 0);
   };
 
   // --- SUBMISSION LIFECYCLE INTERCEPTORS ---
@@ -804,6 +899,11 @@ export default function AdminFinancesPage() {
   }, [canView, loadPendingCompensation]);
 
   useEffect(() => {
+    if (!canView || viewMode !== "calendar" || !calendarRange) return;
+    void loadCalendar(calendarRange);
+  }, [canView, viewMode, tableData, calendarRange, loadCalendar]);
+
+  useEffect(() => {
     if (isPermissionLoading || canView) return;
 
     const fallbackPath = getFirstAllowedAdminPath(permissions) || "/admin/dashboard";
@@ -894,29 +994,74 @@ export default function AdminFinancesPage() {
           metrics={metrics}
           activeId={activeMetricId}
           onSelect={setActiveMetricId}
-          dropdownLabel="Month"
+          dropdownLabel="Period"
           dropdownValue={metricRange}
           dropdownOptions={metricDropdownOptions}
           onDropdownChange={setMetricRange}
           gridSize={4}
         />
 
-        <TabsSwitcher
-          tabs={tabs}
-          activeTab={dataType}
-          buttonSize="large"
-          className="rounded-md"
-          onChange={(tab) => setDataType(tab)}
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {viewMode === "list" ? (
+            <TabsSwitcher
+              tabs={tabs}
+              activeTab={dataType}
+              buttonSize="large"
+              className="rounded-md"
+              onChange={(tab) => setDataType(tab)}
+            />
+          ) : (
+            <p className={`text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
+              View creator compensation scheduled by due date.
+            </p>
+          )}
 
-        <CPPayoutTable
-          rows={tableData}
-          loading={loading}
-          onRowClick={handleRowClick}
-          onViewHistory={handleViewHistory}
-          onDueDateChange={handleDueDateChange}
-          type={dataType}
-        />
+          <div
+            className={`flex h-11 overflow-hidden rounded-lg border ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}
+          >
+            {(
+              [
+                { value: "list", label: "List", Icon: List },
+                { value: "calendar", label: "Calendar", Icon: CalendarDays },
+              ] as const
+            ).map(({ value, label, Icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setViewMode(value)}
+                className={`flex items-center gap-2 px-4 text-xs font-medium transition-colors ${
+                  viewMode === value
+                    ? "bg-[#E5D5B8] text-black"
+                    : isDark
+                      ? "text-white/50 hover:text-white"
+                      : "text-[#666] hover:text-black"
+                }`}
+              >
+                <Icon size={15} />
+                {/* {label} */}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {viewMode === "list" ? (
+          <CPPayoutTable
+            rows={tableData}
+            loading={loading}
+            onRowClick={handleRowClick}
+            onViewHistory={handleViewHistory}
+            onDueDateChange={handleDueDateChange}
+            type={dataType}
+          />
+        ) : (
+          <CpCompensationCalendarView
+            isDark={isDark}
+            items={calendarItems}
+            loading={calendarLoading}
+            onItemClick={handleCalendarItemClick}
+            onRangeChange={setCalendarRange}
+          />
+        )}
 
         <div className="pt-4 lg:pt-6">
           <div className="mb-4 lg:mb-5">
@@ -984,6 +1129,7 @@ export default function AdminFinancesPage() {
           isSubmitting={isAddSubmitting}
           initialShootId={selectedPendingShootId}
           enableAdvanceProofUpload
+          showAgreementAction={false}
           onSubmit={handleAddSubmit}
         />
 
@@ -1013,6 +1159,8 @@ export default function AdminFinancesPage() {
           isOpen={isApproveOpen}
           onClose={() => setIsApproveOpen(false)}
           rowContext={selectedRow}
+          creators={getSelectedActionCreators()}
+          payoutAmount={getSelectedActionPayout()}
           isSubmitting={isApproveSubmitting}
           onSubmit={handleApproveSubmit}
         />

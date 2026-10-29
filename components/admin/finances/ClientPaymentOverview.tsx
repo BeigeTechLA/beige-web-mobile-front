@@ -1,10 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Info } from 'lucide-react';
 import { useTheme } from "next-themes";
-
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 /* ------------------------------------------------------------------ */
 /* Dummy data                                                          */
 /* ------------------------------------------------------------------ */
@@ -18,11 +25,7 @@ export interface PaymentStatusSlice {
 }
 
 // Order = clockwise order around the donut (green → yellow → purple, like the design)
-const DUMMY_SLICES: PaymentStatusSlice[] = [
-  { id: 'fully_paid', label: 'Fully Paid', clients: 52 },
-  { id: 'pending', label: 'Pending', clients: 30 },
-  { id: 'partially_paid', label: 'Partially Paid', clients: 18 },
-];
+const SLICE_ORDER: PaymentStatusId[] = ['fully_paid', 'pending', 'partially_paid'];
 
 // Legend order from the design
 const LEGEND_ORDER: PaymentStatusId[] = ['fully_paid', 'partially_paid', 'pending'];
@@ -41,38 +44,129 @@ const INNER = 56;                     // % of radius
 const OUTER = 92;
 
 /* ------------------------------------------------------------------ */
+/* Info tooltip                                                        */
+/* ------------------------------------------------------------------ */
+
+// Hover on desktop, tap on touch screens (tap again / tap elsewhere closes).
+// Position is measured so the tooltip always stays inside the card marked [data-tooltip-bounds].
+interface InfoTooltipProps {
+  text: string;
+  label: string;
+  isDark: boolean;
+  iconClassName: string;
+  iconSize?: number;
+  width?: number;
+  placement?: 'top' | 'bottom';
+  textClassName?: string;
+}
+
+function InfoTooltip({
+  text,
+  label,
+  isDark,
+  iconClassName,
+  iconSize = 13,
+  width = 224,
+  placement = 'bottom',
+  textClassName = 'text-xs',
+}: InfoTooltipProps) {
+  const wrapRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ left: number; width: number } | null>(null);
+
+  const place = useCallback(() => {
+    const anchor = wrapRef.current?.getBoundingClientRect();
+    const boundsEl = wrapRef.current?.closest('[data-tooltip-bounds]') ?? document.documentElement;
+    const bounds = boundsEl.getBoundingClientRect();
+    if (!anchor) return;
+    const gutter = 12;
+    const w = Math.min(width, bounds.width - gutter * 2);
+    // Centred on the icon, then pulled back inside the card if it would overflow
+    const desired = anchor.left + anchor.width / 2 - w / 2;
+    const clamped = Math.max(bounds.left + gutter, Math.min(desired, bounds.right - gutter - w));
+    const left = clamped - anchor.left; // relative to the icon wrapper
+    setPos((prev) => (prev?.left === left && prev?.width === w ? prev : { left, width: w }));
+  }, [width]);
+
+  // While open: re-measure on resize / rotate, close on a tap anywhere else
+  useEffect(() => {
+    if (!open) return;
+    place();
+    const onResize = () => place();
+    const onPointerDown = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [open, place]);
+
+  return (
+    <span
+      ref={wrapRef}
+      onMouseEnter={place}
+      onClick={(e) => e.stopPropagation()}
+      className="relative group/info inline-flex"
+    >
+      <button
+        type="button"
+        aria-label={`About ${label}`}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex p-1 -m-1 rounded-full focus:outline-none focus-visible:ring-1 focus-visible:ring-[#E8D1AB]"
+      >
+        <Info size={iconSize} className={iconClassName} />
+      </button>
+      <span
+        role="tooltip"
+        style={{ left: pos?.left ?? -(width / 2) + iconSize / 2, width: pos?.width ?? width }}
+        className={`absolute ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} rounded-lg border px-3 py-2 ${textClassName} leading-snug font-normal text-left transition-all duration-200 z-50 pointer-events-none shadow-2xl ${open ? 'opacity-100 visible' : 'opacity-0 invisible [@media(hover:hover)]:group-hover/info:opacity-100 [@media(hover:hover)]:group-hover/info:visible'} ${isDark ? "bg-[#1A1A1A] border-[#3D3D3D] text-zinc-300" : "bg-white border-[#E3E3E3] text-zinc-600"}`}
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
 interface ClientPaymentOverviewProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: PaymentStatusSlice[];
+  /** analytics.clients.payment_overview */
+  data?: FinanceAnalyticsData['clients']['payment_overview'] | null;
+  loading?: boolean;
   title?: string;
   infoText?: string;
 }
 
 export default function ClientPaymentOverview({
-  data,
+  data = null,
+  loading = false,
   title = 'Client Payment Overview',
   infoText = 'Breakdown of client payments by status: paid, partially paid, and pending.',
 }: ClientPaymentOverviewProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const isLoading = loading;
   // Hovered slice (or legend row); null = nothing hovered, so no bubble
   const [activeId, setActiveId] = useState<PaymentStatusId | null>(null);
 
   useEffect(() => setMounted(true), []);
 
-  // Simulated fetch so the loading state matches the other dashboard components
-  useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
-
   const isDark = !mounted || theme === "dark";
-  const slices = data ?? DUMMY_SLICES;
-  const total = slices.reduce((s, x) => s + x.clients, 0) || 1;
+  const slices: PaymentStatusSlice[] = useMemo(() => {
+    const byId = new Map((data ?? []).map((s) => [s.id, s]));
+    return SLICE_ORDER.flatMap((id) => {
+      const s = byId.get(id);
+      return s ? [{ id, label: s.label, clients: s.clients }] : [];
+    });
+  }, [data]);
+  const clientCount = slices.reduce((s, x) => s + x.clients, 0);
+  const total = clientCount || 1; // avoid dividing by zero
 
   const withPct = useMemo(
     () => slices.map((s) => ({ ...s, pct: Math.round((s.clients / total) * 100) })),
@@ -100,20 +194,17 @@ export default function ClientPaymentOverview({
   const mutedText = isDark ? 'text-white/80' : 'text-zinc-500';
 
   return (
-    <div className={`transition-colors duration-300 border rounded-2xl w-full overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+    <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full overflow-hidden ${isDark ? "bg-[#101010] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
       {/* Header */}
       <div className={`shrink-0 flex items-center gap-1.5 px-5 py-5 lg:py-6 ${isDark ? "bg-[#090909]" : "bg-[#F4F5F7]"}`}>
         <p className="text-sm lg:text-base">{title}</p>
         {/* Info tooltip */}
-        <span className="relative group/info inline-flex">
-          <Info
-            size={13}
-            className={isDark ? 'text-[#E8D1AB] fill-[#E8D1AB] stroke-[#101010]' : 'text-[#BFA780] fill-[#BFA780] stroke-[#F4F5F7]'}
+        <InfoTooltip
+          text={infoText}
+          label={title}
+          isDark={isDark}
+          iconClassName={isDark ? 'text-[#E8D1AB] fill-[#E8D1AB] stroke-[#101010]' : 'text-[#BFA780] fill-[#BFA780] stroke-[#F4F5F7]'}
           />
-          <span className={`absolute left-1/2 -translate-x-1/2 top-full mt-2 w-56 rounded-lg border px-3 py-2 text-xs leading-snug font-normal opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-200 z-50 pointer-events-none shadow-2xl ${isDark ? "bg-[#1A1A1A] border-[#3D3D3D] text-zinc-300" : "bg-white border-[#E3E3E3] text-zinc-600"}`}>
-            {infoText}
-          </span>
-        </span>
       </div>
 
       <div className="px-5 pt-8 pb-6">
@@ -173,7 +264,7 @@ export default function ClientPaymentOverview({
           {/* Centre label */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <span className="text-lg lg:text-2xl font-bold leading-tight">Total</span>
-            <span className={`text-xs lg:text-sm ${mutedText}`}>{isLoading ? '…' : `${total} Clients`}</span>
+            <span className={`text-xs lg:text-sm ${mutedText}`}>{isLoading ? '…' : `${clientCount} ${clientCount === 1 ? 'Client' : 'Clients'}`}</span>
           </div>
 
           {/* % bubble on the active slice */}

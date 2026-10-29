@@ -1,7 +1,7 @@
 "use client";
 
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getMessaging, getToken, isSupported, onMessage, type MessagePayload } from "firebase/messaging";
+import { deleteToken, getMessaging, getToken, isSupported, onMessage, type MessagePayload } from "firebase/messaging";
 import apiClient from "@/lib/apiClient";
 
 type AppUserType = 1 | 2 | 3;
@@ -52,6 +52,15 @@ const getPushAppName = (appUserType: AppUserType) =>
 
 const getPushServiceWorkerPath = (appUserType: AppUserType) =>
   appUserType === 1 ? "/firebase-messaging-admin-sw.js" : appUserType === 3 ? "/firebase-messaging-client-sw.js" : "/firebase-messaging-cp-sw.js";
+const getPushServiceWorkerScope = (appUserType: AppUserType) =>
+  appUserType === 1 ? "/admin/" : appUserType === 3 ? "/affiliate/" : "/creator/dashboard/";
+const retireLegacyPushWorker = async () => {
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(registrations
+    .filter((registration) => [registration.active, registration.waiting, registration.installing]
+      .some((worker) => worker?.scriptURL.endsWith("/firebase-messaging-sw.js")))
+    .map((registration) => registration.unregister()));
+};
 const getSessionId = () => {
   const key = "beige-web-push-session-id";
   const existing = window.localStorage.getItem(key);
@@ -115,29 +124,51 @@ export const registerBrowserPush = async (userType: unknown) => {
   if (typeof window === "undefined" || !Object.values(config).every(Boolean) || !vapidKey) {
     return { status: "not-configured" as const };
   }
+  console.info("[WebPush] Checking browser support", { userType: appUserType });
   if (!(await isSupported())) return { status: "unsupported" as const };
 
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return { status: "permission-denied" as const };
 
-  const registration = await navigator.serviceWorker.register(getPushServiceWorkerPath(appUserType));
+  console.info("[WebPush] Preparing service worker", { userType: appUserType });
+  await retireLegacyPushWorker();
+  // These apps share an origin. Separate scopes prevent one role's Firebase
+  // worker from replacing another role's worker at the root scope.
+  const serviceWorkerScope = getPushServiceWorkerScope(appUserType);
+  const registration = await navigator.serviceWorker.register(getPushServiceWorkerPath(appUserType), {
+    scope: serviceWorkerScope,
+  });
   await waitForActiveServiceWorker(registration);
+  console.info("[WebPush] Service worker active", { userType: appUserType });
   const appName = getPushAppName(appUserType);
   const app = getApps().some((item) => item.name === appName) ? getApp(appName) : initializeApp(config, appName);
-  const token = await getToken(getMessaging(app), {
+  const messaging = getMessaging(app);
+  const projectFingerprint = [config.projectId, config.messagingSenderId, vapidKey, serviceWorkerScope].join(":");
+  const fingerprintKey = `beige-web-push-project-v1-${appUserType}`;
+  if (window.localStorage.getItem(fingerprintKey) !== projectFingerprint) {
+    // Existing browser registrations can belong to an older Firebase sender.
+    // Refresh once per project configuration, then keep the new token stable.
+    try {
+      console.info("[WebPush] Refreshing previous Firebase token", { userType: appUserType });
+      await deleteToken(messaging);
+    } catch (error) {
+      console.warn("Could not clear the previous web push token before registration:", error);
+    }
+  }
+  console.info("[WebPush] Requesting Firebase token", { userType: appUserType });
+  const token = await getToken(messaging, {
     vapidKey,
     serviceWorkerRegistration: registration,
   });
   if (!token) return { status: "token-unavailable" as const };
-  if (process.env.NODE_ENV !== "production") {
-    console.info("[WebPush] FCM token registered for local testing:", token);
-  }
 
+  console.info("[WebPush] Registering token with web API", { userType: appUserType });
   await apiClient.post("push-notifications/tokens", {
     fcm_token: token,
     session_id: getSessionId(),
     device_type: "web",
   });
+  window.localStorage.setItem(fingerprintKey, projectFingerprint);
   return { status: "registered" as const, token };
 };
 

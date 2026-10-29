@@ -48,7 +48,7 @@ const data = {
     { id: "2", title: "Example.docx", lastOpened: "5 hours ago", userInitials: "KA" }
   ],
   folders: [
-    { id: "1", title: "Raw Footages", fileCount: 12, category: "Corporate Event", isLinked: true, lastOpened: "2 hours ago", userInitials: "DP" },
+    { id: "1", title: "Raw Footage", fileCount: 12, category: "Corporate Event", isLinked: true, lastOpened: "2 hours ago", userInitials: "DP" },
     { id: "2", title: "Edits", fileCount: 14, category: "Corporate Event", isLinked: true, lastOpened: "2 hours ago", userInitials: "DP" },
     { id: "3", title: "Final Deliverables", fileCount: 14, category: "Corporate Event", isLinked: true, lastOpened: "2 hours ago", userInitials: "DP" }
   ]

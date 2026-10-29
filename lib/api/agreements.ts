@@ -1,4 +1,5 @@
 import apiClient from "@/lib/apiClient";
+import type { AddCpCompensationPayload } from "@/lib/api/cpCompensation";
 
 export type AgreementType = "general" | "shoot";
 export type AgreementStatus = "draft" | "pending_acceptance" | "accepted" | "rejected" | "cancelled" | "expired";
@@ -30,6 +31,7 @@ export interface AgreementDocument {
   creator_id?: number | null;
   booking_id?: number | null;
   assignment_id?: number | null;
+  parent_document_id?: number | null;
   version_no: number;
   display_version: string;
   status: AgreementStatus;
@@ -58,6 +60,23 @@ export interface AgreementTemplate {
   published_at?: string | null;
 }
 
+export interface AgreementResponse {
+  agreement_response_id: number;
+  action: "accepted" | "rejected";
+  signer_name?: string | null;
+  signature_data_url?: string | null;
+  signature_sha256?: string | null;
+  content_hash_at_response: string;
+  responded_at?: string | null;
+}
+
+export interface AgreementEvent {
+  agreement_event_id: number;
+  event_type: string;
+  occurred_at: string;
+  metadata_json?: string | null;
+}
+
 type ApiResponse<T> = { success: boolean; data: T; message?: string };
 
 export const agreementApi = {
@@ -73,9 +92,11 @@ export const agreementApi = {
     apiClient.post<ApiResponse<AgreementTemplate>>(`agreements/admin/general/${templateId}/publish`),
 
   listAdminAgreements: (params?: Record<string, unknown>) => apiClient.get<ApiResponse<AgreementDocument[]>>("agreements/admin", params),
-  getAdminAgreement: (agreementId: number) => apiClient.get<ApiResponse<{ agreement: AgreementDocument; responses: unknown[]; events: unknown[] }>>(`agreements/admin/${agreementId}`),
+  getAdminAgreement: (agreementId: number) => apiClient.get<ApiResponse<{ agreement: AgreementDocument; responses: AgreementResponse[]; events: AgreementEvent[] }>>(`agreements/admin/${agreementId}`),
   createShootAgreement: (bookingId: number, assignmentId: number, payload: { title?: string; content_html: string; content_json?: unknown; due_at?: string; snapshot_overrides?: Record<string, unknown> }) =>
     apiClient.post<ApiResponse<AgreementDocument>>(`agreements/admin/shoots/${bookingId}/assignments/${assignmentId}`, payload),
+  assignCompensateAndSend: (bookingId: number, payload: { compensation: AddCpCompensationPayload; agreement: { title?: string; content_html: string; content_json?: unknown; snapshot_overrides?: Record<string, unknown> }; agreements?: Record<string, { title?: string; content_html: string; content_json?: unknown; snapshot_overrides?: Record<string, unknown> }> }) =>
+    apiClient.post<ApiResponse<{ booking_id: number; agreement_document_ids: number[] }>>(`agreements/admin/shoots/${bookingId}/assign-and-send`, payload),
   updateShootAgreement: (agreementId: number, payload: Partial<Pick<AgreementDocument, "title" | "content_html" | "content_json" | "due_at">>) =>
     apiClient.patch<ApiResponse<AgreementDocument>>(`agreements/admin/${agreementId}`, payload),
   sendShootAgreement: (agreementId: number) => apiClient.post<ApiResponse<AgreementDocument>>(`agreements/admin/${agreementId}/send`),
@@ -84,12 +105,12 @@ export const agreementApi = {
   cancelAgreement: (agreementId: number) => apiClient.post<ApiResponse<AgreementDocument>>(`agreements/admin/${agreementId}/cancel`),
 
   getCurrentGeneralAgreement: () => apiClient.get<ApiResponse<{ acceptance_required: boolean; agreement: AgreementDocument }>>("agreements/creator/general/current"),
-  acceptGeneralAgreement: (agreementId: number, signer_name?: string) =>
-    apiClient.post<ApiResponse<AgreementDocument>>(`agreements/creator/general/${agreementId}/accept`, { accepted_terms: true, signer_name }),
+  acceptGeneralAgreement: (agreementId: number, signer_name: string, signature_data_url: string) =>
+    apiClient.post<ApiResponse<AgreementDocument>>(`agreements/creator/general/${agreementId}/accept`, { accepted_terms: true, signer_name, signature_data_url }),
   listCreatorAgreements: (params?: Record<string, unknown>) => apiClient.get<ApiResponse<AgreementDocument[]>>("agreements/creator", params),
-  getCreatorAgreement: (agreementId: number) => apiClient.get<ApiResponse<{ agreement: AgreementDocument; responses: unknown[]; events: unknown[] }>>(`agreements/creator/${agreementId}`),
-  acceptShootAgreement: (agreementId: number, signer_name?: string) =>
-    apiClient.post<ApiResponse<AgreementDocument>>(`agreements/creator/${agreementId}/accept`, { accepted_terms: true, signer_name }),
+  getCreatorAgreement: (agreementId: number) => apiClient.get<ApiResponse<{ agreement: AgreementDocument; responses: AgreementResponse[]; events: AgreementEvent[] }>>(`agreements/creator/${agreementId}`),
+  acceptShootAgreement: (agreementId: number, signer_name: string, signature_data_url: string) =>
+    apiClient.post<ApiResponse<AgreementDocument>>(`agreements/creator/${agreementId}/accept`, { accepted_terms: true, signer_name, signature_data_url }),
   rejectShootAgreement: (agreementId: number, rejection_reason: string, comments?: string) =>
     apiClient.post<ApiResponse<AgreementDocument>>(`agreements/creator/${agreementId}/reject`, { rejection_reason, comments }),
 };

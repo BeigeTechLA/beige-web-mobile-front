@@ -207,7 +207,7 @@ const ADMIN_ROUTE_RULES: AdminRouteRule[] = [
   { prefix: "/admin/roles-permissions", permissionKeys: ["roles_permissions"] },
   { prefix: "/admin/settings", permissionKeys: ["finances", "payouts"] },
   { prefix: "/admin/finances", permissionKeys: ["finances", "payouts"] },
-  { prefix: "/admin/internal-credentials", permissionKeys: ["users"] },
+  { prefix: "/admin/internal-credentials", permissionKeys: [ADMIN_PERMISSION_MENU_HIERARCHY.admin_users.children[0]] },
 ];
 
 const AFFILIATE_ROUTE_RULES: AdminRouteRule[] = [

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use, useCallback } from "react";
+import React, { useState, useEffect, use, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Topbar from "@/components/admin/Topbar";
 import ShootHeader from "@/components/admin/shoot-details/ShootHeader";
@@ -33,6 +33,16 @@ import CpAgreementsTable from "@/components/admin/shoot-details/CpAgreementsTabl
 import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
 import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+import EditorAgreementsTable, {
+  DUMMY_EDITOR_AGREEMENTS,
+  type EditorAgreementItem,
+} from "@/components/admin/shoot-details/EditorAgreementsTable";
+import EditorRemovalConfirmationModal from "@/components/admin/shoot-details/EditorRemovalConfirmationModal";
+import type { Editor } from "@/components/admin/shoot-details/AssignEditorModal";
+import type { EditorShootSummary } from "@/components/admin/shoot-details/EditorAssignmentConfirmationModal";
+import type { CompensationShoot, EditorCompensationPayload } from "@/components/admin/shoot-details/AddEditorCompensationModal";
+import ProjectProducerSection from "@/components/admin/shoot-details/ProjectProducerSection";
+import type { Producer } from "@/components/admin/shoot-details/ProducerSelectionModal";
 
 type SkillOption = {
   id?: number | string;
@@ -188,7 +198,20 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const activeTab = searchParams.get("tab") || "Overview";
 
   const [project, setProject] = useState<ProjectDetails | null>(null);
+  const [producerOptions, setProducerOptions] = useState<Producer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [crewSizeNeeded, setCrewSizeNeeded] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    adminApi.getPostProductionTeamOptions().then((response) => {
+      if (cancelled) return;
+      setProducerOptions((response?.success && Array.isArray(response.data) ? response.data : []).map((user: { id: number; name: string; email?: string; role_name?: string }) => ({
+        id: String(user.id), name: user.name, email: user.email, role: user.role_name || "Producer",
+      })));
+    });
+    return () => { cancelled = true; };
+  }, []);
   const [previewInvoice, { isLoading: isViewingInvoice }] = usePreviewInvoiceMutation();
 
   // State to handle mobile timeline visibility
@@ -205,6 +228,39 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
 
   // State to show/hide CP Agreements table
   const [isCPAgreementAvailable, setIsCPAgreementAvailable] = useState(true);
+
+  // Editors currently in the Project Post Production Team card (kept in sync both ways)
+  const [projectEditors, setProjectEditors] = useState<Editor[]>([]);
+  const [editorToRemove, setEditorToRemove] = useState<EditorAgreementItem | null>(null);
+
+  // Compensation submitted for External editors (editor id -> payload), shown in the Editor Assignment table
+  const [editorCompensations, setEditorCompensations] = useState<Record<number, EditorCompensationPayload>>({});
+
+  // Editors -> table rows (dummy agreement fields for now)
+  const editorAgreementRows: EditorAgreementItem[] = useMemo(
+    () =>
+      projectEditors.map((editor) => {
+        const dummy = DUMMY_EDITOR_AGREEMENTS.find((row) => row.name === editor.name); // dummy compensation etc.
+        return {
+          id: `editor_${editor.id}`,
+          assignmentId: editor.id,
+          agreementId: undefined,                 // set once an agreement exists
+          name: editor.name,
+          role: editor.type === "internal" ? "Internal Editor" : "External Editor",
+          avatarUrl: editor.avatarUrl ?? "",
+          avatarBg: editor.avatarBg,
+          agreementType: "",                      // "--" until an agreement is created
+          version: "",
+          compensation: editorCompensations[editor.id]
+            ? formatCurrency(editorCompensations[editor.id].total)
+            : dummy?.compensation ?? "--",
+          status: "Assigned",
+          actionLabel: "Send Agreement",
+        };
+      }),
+    [projectEditors, editorCompensations]
+  );
+
 
   // 3. Helper to update the URL when a tab is clicked
   const handleTabChange = (tabName: string) => {
@@ -374,6 +430,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
         responseData?.project || responseData || projectResponse;
 
       if (projectData) {
+        setCrewSizeNeeded(Math.max(0, Number(projectData?.crew_size_needed) || 0));
+
         // 3. Map Skills Needed to Names
         let skillsText = "";
         if (projectData.skills_needed) {
@@ -561,8 +619,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     const creator = assignment?.crew_member || assignment?.creator || {};
     const name = [creator.first_name, creator.last_name].filter(Boolean).join(" ") || creator.name || `CP #${assignment?.crew_member_id || assignmentId}`;
     const agreement = currentAgreementByAssignmentId.get(assignmentId);
-    const statusMap: Record<string, "Accepted" | "Pending" | "Rejected" | "Draft" | "Cancelled"> = {
-      accepted: "Accepted",
+    const statusMap: Record<string, "Completed" | "Pending" | "Rejected" | "Draft" | "Cancelled"> = {
+      accepted: "Completed",
       pending_acceptance: "Pending",
       rejected: "Rejected",
       draft: "Draft",
@@ -589,6 +647,50 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   });
   const canOpenShootAgreement =
     canCreateAgreement && assignedCreativePartners.length > 0;
+
+
+  /* ---------------- Project Post Production Team (editors) ---------------- */
+
+  // Shoot shown in the editor confirmation / success modals
+  const editorShoot: EditorShootSummary = {
+    id: String(bookingId),
+    clientName:
+      (project?.client as { name?: string } | undefined)?.name ||
+      (project?.lead_details as { client_name?: string } | undefined)?.client_name ||
+      project?.project_name ||
+      "Client",
+    serviceType: typeof project?.skills_needed === "string" && project.skills_needed ? project.skills_needed : "Shoot",
+    code: `#SHOOT-${bookingId}`,
+  };
+
+  // Budget figures for the editor Add Compensation drawer
+  const shootBudget = Number(
+    project?.converted_quote_amount ?? project?.total_value_amount ?? project?.total_paid_amount ?? 0
+  ) || 0;
+  const externalEditorCount = projectEditors.filter((editor) => editor.type === "external").length;
+  const editorCompensationShoot: CompensationShoot = {
+    bookingId: Number(bookingId),
+    name: project?.project_name,
+    shootAmount: shootBudget,
+    // compensation already submitted for other editors on this shoot
+    existingCompensation: Object.values(editorCompensations).reduce((sum: number, item: EditorCompensationPayload) => sum + item.total, 0),
+    // externals already on the team + the one being added share the 25% pool
+    splitCount: externalEditorCount + 1,
+  };
+
+  // "Submit To Finance" for an External editor (called by ProjectTeam)
+  const handleSubmitEditorCompensation = async (editor: Editor, payload: EditorCompensationPayload) => {
+    // TODO (backend integration): call the editor compensation API here, e.g.
+    // await editorCompensationApi.submit(payload);
+    // Throwing here shows an error toast and keeps the drawer open.
+    await new Promise((resolve) => setTimeout(resolve, 600)); // dummy request
+    setEditorCompensations((prev) => ({ ...prev, [editor.id]: payload }));
+  };
+
+  // "Add Shoot Agreement" (compensation is submitted first by ProjectTeam)
+  const handleEditorShootAgreement = (editor: Editor) => {
+    router.push(`${shootBasePath}/${id}/shoot-agreement?editor_id=${editor.id}`);
+  };
 
   return (
     <>
@@ -649,7 +751,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             >
               <CircleX /> Cancel Shoot
             </Button>
-            <Button
+            {/* <Button
               variant="outline"
               className={`rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
                 ? "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
@@ -657,7 +759,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                 }`}
             >
               <SlidersHorizontal className="w-4 h-4" /> Filters
-            </Button>
+            </Button> */}
             <Button
               onClick={() => router.push(`${shootBasePath}/${id}/edit-booking`)}
               disabled={!canEdit}
@@ -726,11 +828,36 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             <div className={`${activeTab === "Meetings" ? "pb-6 lg:pb-9" : "py-6 lg:py-9"}`}>
               {activeTab === "Overview" && (
                 <>
+                  <div className="px-5 mb-6">
+                    <ProjectProducerSection
+                      title="Producer"
+                      canManage={canEdit}
+                      producer={producerOptions.find((option) => option.id === String(project?.producer_user_id)) || null}
+                      producers={producerOptions.filter((option) => option.id === String(project?.producer_user_id) || !((project?.assigned_post_production_members || []) as Array<{ post_production_member?: { email?: string } }>).some((member) => !!option.email && member.post_production_member?.email?.trim().toLowerCase() === option.email.trim().toLowerCase()))}
+                      shoot={{ id: String(id), clientName: project?.project_name || `Shoot #${id}`, serviceType: String(project?.shoot_type || 'Shoot'), code: `#${id}` }}
+                      onAssign={async (producer) => {
+                        const response = await adminApi.setShootProducer(Number(id), Number(producer.id));
+                        if (!response.success) throw new Error(response.message);
+                        await fetchProjectAndSkills(false);
+                      }}
+                      onRemove={async () => {
+                        const response = await adminApi.setShootProducer(Number(id), null);
+                        if (!response.success) throw new Error(response.message);
+                        await fetchProjectAndSkills(false);
+                      }}
+                    />
+                  </div>
+
                   <div className="px-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <ProjectTeam
                       projectId={id}
-                      assignedMembers={project?.assigned_post_production_members}
+                      assignedEditors={projectEditors}
+                      onEditorsChange={setProjectEditors}
                       onRequestAssignment={handleAssignmentRequest}
+                      shoot={editorShoot}
+                      compensationShoot={editorCompensationShoot}
+                      onSubmitCompensation={handleSubmitEditorCompensation}
+                      onAddShootAgreement={handleEditorShootAgreement}
                     />
                     <AssignedCP
                       projectId={id}
@@ -738,6 +865,8 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                       assignedCrew={project?.assignedCrew || project?.assigned_crews || []}
                       cpCompensationStatus={project?.cp_compensation_status as string | null}
                       onRequestAssignment={handleAssignmentRequest}
+                      crewSizeNeeded={crewSizeNeeded}
+                      crewRoles={project?.crew_roles}
                     />
                   </div>
                   {Array.isArray(project?.payment_history) && project.payment_history.length > 0 ? (
@@ -820,9 +949,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                     </div>
                   ) : null}
 
-                  {/* If shoot Agreement is sent to CPs, show them below */}
-                  {
-                    isCPAgreementAvailable &&
+                  {assignedCreativePartners.length > 0 && (
                     <div className={`mt-5 lg:mt-9 border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
                       <CpAgreementsTable
                         agreements={cpAgreementRows}
@@ -835,9 +962,51 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                         }}
                       />
                     </div>
-                  }
+                  )}
 
-                  <div className={`${isCPAgreementAvailable ? "" : "mt-5 lg:mt-9 "} border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
+                  {/* Editor Assignment – only when the Post Production Team has editors */}
+                  {projectEditors.length > 0 && (
+                    <div className={`border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
+                      <EditorAgreementsTable
+                        agreements={editorAgreementRows}
+                        actions={["Remove Editor"]}
+                        onActionClick={(agreement, action) => {
+                          if (action === "Remove Editor") {
+                            setEditorToRemove(agreement);
+                            return;
+                          }
+                          if (agreement.agreementId) {
+                            router.push(`/admin/agreements/agreement-details?agreement_id=${agreement.agreementId}`);
+                            return;
+                          }
+                          router.push(`${shootBasePath}/${id}/shoot-agreement?assignment_id=${agreement.assignmentId}`);
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Remove Editor (from the table) – also removes the editor from the ProjectTeam card */}
+                  <EditorRemovalConfirmationModal
+                    open={!!editorToRemove}
+                    editor={editorToRemove ? { id: editorToRemove.assignmentId, name: editorToRemove.name } : null}
+                    onClose={() => setEditorToRemove(null)}
+                    onConfirm={async (editor) => {
+                      await new Promise((r) => setTimeout(r, 500)); // dummy request – swap for the API call
+                      setProjectEditors((prev) => prev.filter((e) => e.id !== editor.id));
+                      setEditorCompensations((prev) => {
+                        const next = { ...prev };
+                        delete next[editor.id];
+                        return next;
+                      });
+                      toast.success("Editor removed successfully");
+                      setEditorToRemove(null);
+                    }}
+                  />
+
+                  {/* Top margin only when neither table above is shown */}
+                  <div
+                    className={`${isCPAgreementAvailable || projectEditors.length > 0 ? "" : "mt-5 lg:mt-9 "} border-t ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}
+                  >
                     <MeetingSchedule orderId={id} createPermissionModuleKey="shoots" />
                   </div>
                 </>

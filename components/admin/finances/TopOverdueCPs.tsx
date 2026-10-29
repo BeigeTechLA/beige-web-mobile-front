@@ -1,23 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Info, Search } from 'lucide-react';
 import { useTheme } from "next-themes";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import type { FinanceAnalyticsData } from '@/lib/api'; // same path as before
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 /* ------------------------------------------------------------------ */
-/* Dummy data                                                          */
+/* Types                                                               */
 /* ------------------------------------------------------------------ */
 
-type OverdueStatus = 'overdue' | 'partial' | 'on_hold';
-type Period = 'this_month' | 'last_month' | 'last_3_months';
-type CPRole = 'photographer' | 'videographer';
+type OverdueAge = 'all' | '1_30' | '31_60' | '61_90' | '90_plus';
+type CPRole = 'all' | 'photographer' | 'videographer' | 'editor' | 'producer' | 'director';
 
 export interface OverdueCP {
   id: string;
@@ -25,27 +19,14 @@ export interface OverdueCP {
   avatarUrl?: string;     // optional – falls back to initials
   amount: number;         // USD
   daysOverdue: number;
-  status: OverdueStatus;
-  period: Period;         // when the payout fell due
-  role: CPRole;
+  roles: string[];
 }
 
-const DUMMY_CPS: OverdueCP[] = [
-  { id: 'cp_1', name: 'Ethan Carter', amount: 10_000, daysOverdue: 12, status: 'overdue', period: 'this_month', role: 'photographer' },
-  { id: 'cp_2', name: 'Sophia Johnson', amount: 7_560, daysOverdue: 9, status: 'partial', period: 'this_month', role: 'videographer' },
-  { id: 'cp_3', name: 'John Lee', amount: 5_125, daysOverdue: 7, status: 'overdue', period: 'this_month', role: 'photographer' },
-  { id: 'cp_4', name: 'Arvi Ross', amount: 3_456, daysOverdue: 5, status: 'on_hold', period: 'this_month', role: 'videographer' },
-  { id: 'cp_5', name: 'Raj Yadav', amount: 1_500, daysOverdue: 1, status: 'overdue', period: 'this_month', role: 'photographer' },
-  { id: 'cp_6', name: 'Maya Chen', amount: 8_900, daysOverdue: 34, status: 'overdue', period: 'last_month', role: 'videographer' },
-  { id: 'cp_7', name: 'Leo Martins', amount: 4_200, daysOverdue: 28, status: 'partial', period: 'last_month', role: 'photographer' },
-  { id: 'cp_8', name: 'Nora Blake', amount: 12_300, daysOverdue: 61, status: 'on_hold', period: 'last_3_months', role: 'videographer' },
-];
-
-const STATUS_LABEL: Record<OverdueStatus, string> = {
-  overdue: 'Overdue',
-  partial: 'Partially Paid',
-  on_hold: 'On Hold',
-};
+export interface OverdueFilters {
+  age: OverdueAge;
+  role: CPRole;
+  sort: 'amount' | 'days';
+}
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -61,54 +42,152 @@ const initials = (name: string) =>
   name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('');
 
 /* ------------------------------------------------------------------ */
+/* Info tooltip                                                        */
+/* ------------------------------------------------------------------ */
+
+// Hover on desktop, tap on touch screens (tap again / tap elsewhere closes).
+// Position is measured so the tooltip always stays inside the card marked [data-tooltip-bounds].
+interface InfoTooltipProps {
+  text: string;
+  label: string;
+  isDark: boolean;
+  iconClassName: string;
+  iconSize?: number;
+  width?: number;
+  placement?: 'top' | 'bottom';
+  textClassName?: string;
+}
+
+function InfoTooltip({
+  text,
+  label,
+  isDark,
+  iconClassName,
+  iconSize = 13,
+  width = 224,
+  placement = 'bottom',
+  textClassName = 'text-xs',
+}: InfoTooltipProps) {
+  const wrapRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ left: number; width: number } | null>(null);
+
+  const place = useCallback(() => {
+    const anchor = wrapRef.current?.getBoundingClientRect();
+    const boundsEl = wrapRef.current?.closest('[data-tooltip-bounds]') ?? document.documentElement;
+    const bounds = boundsEl.getBoundingClientRect();
+    if (!anchor) return;
+    const gutter = 12;
+    const w = Math.min(width, bounds.width - gutter * 2);
+    // Centred on the icon, then pulled back inside the card if it would overflow
+    const desired = anchor.left + anchor.width / 2 - w / 2;
+    const clamped = Math.max(bounds.left + gutter, Math.min(desired, bounds.right - gutter - w));
+    const left = clamped - anchor.left; // relative to the icon wrapper
+    setPos((prev) => (prev?.left === left && prev?.width === w ? prev : { left, width: w }));
+  }, [width]);
+
+  // While open: re-measure on resize / rotate, close on a tap anywhere else
+  useEffect(() => {
+    if (!open) return;
+    place();
+    const onResize = () => place();
+    const onPointerDown = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [open, place]);
+
+  return (
+    <span
+      ref={wrapRef}
+      onMouseEnter={place}
+      onClick={(e) => e.stopPropagation()}
+      className="relative group/info inline-flex"
+    >
+      <button
+        type="button"
+        aria-label={`About ${label}`}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex p-1 -m-1 rounded-full focus:outline-none focus-visible:ring-1 focus-visible:ring-[#E8D1AB]"
+      >
+        <Info size={iconSize} className={iconClassName} />
+      </button>
+      <span
+        role="tooltip"
+        style={{ left: pos?.left ?? -(width / 2) + iconSize / 2, width: pos?.width ?? width }}
+        className={`absolute ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} rounded-lg border px-3 py-2 ${textClassName} leading-snug font-normal text-left transition-all duration-200 z-50 pointer-events-none shadow-2xl ${open ? 'opacity-100 visible' : 'opacity-0 invisible [@media(hover:hover)]:group-hover/info:opacity-100 [@media(hover:hover)]:group-hover/info:visible'} ${isDark ? "bg-[#1A1A1A] border-[#3D3D3D] text-zinc-300" : "bg-white border-[#E3E3E3] text-zinc-600"}`}
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
 interface TopOverdueCPsProps {
-  /** Pass real data later; falls back to dummy data */
-  data?: OverdueCP[];
+  data?: FinanceAnalyticsData['creative_partners']['top_overdue'] | null;
+  loading?: boolean;
+  onFiltersChange?: (filters: OverdueFilters) => void;
   /** Max rows shown */
   limit?: number;
   title?: string;
   infoText?: string;
+  selectedId?: string | null;
+  onSelectCP?: (cp: OverdueCP | null) => void;
 }
 
 export default function TopOverdueCPs({
-  data,
+  data = null,
+  loading = false,
+  onFiltersChange,
   limit = 5,
   title = 'Top Overdue CPs',
   infoText = 'CPs with overdue payments, ranked by highest outstanding amount.',
+  selectedId = null,
+  onSelectCP,
 }: TopOverdueCPsProps) {
   const { theme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [status, setStatus] = useState<'all' | OverdueStatus>('all');
-  const [period, setPeriod] = useState<Period>('this_month');
-  const [role, setRole] = useState<'all' | CPRole>('all');
+  const isLoading = loading;
+  const [age, setAge] = useState<OverdueAge>('all');
+  const [role, setRole] = useState<CPRole>('all');
+  const [sort, setSort] = useState<'amount' | 'days'>('amount');
   const [query, setQuery] = useState('');
+
+  useEffect(() => {
+    onFiltersChange?.({ age, role, sort });
+  }, [age, role, sort, onFiltersChange]);
 
   useEffect(() => setMounted(true), []);
 
-  // Simulated fetch whenever filters that would hit the API change
-  useEffect(() => {
-    setIsLoading(true);
-    const t = setTimeout(() => setIsLoading(false), 400);
-    return () => clearTimeout(t);
-  }, [status, period, role]);
-
   const isDark = !mounted || theme === "dark";
 
-  // Filter → search → sort by amount (desc) → top N
+  // Map API rows → search by name → sort by amount (desc) → top N
   const rows: OverdueCP[] = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (data ?? DUMMY_CPS)
-      .filter((cp) => status === 'all' || cp.status === status)
-      .filter((cp) => cp.period === period)
-      .filter((cp) => role === 'all' || cp.role === role)
+    return (data ?? [])
+      .map((cp) => ({
+        id: cp.id,
+        name: cp.name,
+        amount: cp.amount,
+        daysOverdue: cp.days_overdue,
+        roles: cp.roles || [],
+      }))
+      .filter((cp) => age === 'all' || (age === '1_30' && cp.daysOverdue <= 30) || (age === '31_60' && cp.daysOverdue >= 31 && cp.daysOverdue <= 60) || (age === '61_90' && cp.daysOverdue >= 61 && cp.daysOverdue <= 90) || (age === '90_plus' && cp.daysOverdue > 90))
+      .filter((cp) => role === 'all' || cp.roles.some((item) => item.toLowerCase() === role))
       .filter((cp) => !q || cp.name.toLowerCase().includes(q))
-      .sort((a, b) => b.amount - a.amount)
+      .sort((a, b) => sort === 'amount' ? b.amount - a.amount : b.daysOverdue - a.daysOverdue)
       .slice(0, limit);
-  }, [data, status, period, role, query, limit]);
+  }, [data, query, limit, age, role, sort]);
 
   // Colours (warm red-tinted card from the design)
   const cardCls = isDark ? 'bg-[#231B1B] border-[#FF6467] text-white' : 'bg-[#FFF8F7] border-[#E7A3A6] text-[#202020]';
@@ -120,58 +199,59 @@ export default function TopOverdueCPs({
   const contentCls = isDark ? "bg-[#111111] border-[#3D3D3D] text-white" : "bg-white border-[#E3E3E3] text-[#323232]";
 
   return (
-    <div className={`transition-colors duration-300 border rounded-2xl w-full overflow-hidden ${cardCls}`}>
+    <div data-tooltip-bounds className={`transition-colors duration-300 border rounded-2xl w-full overflow-hidden ${cardCls}`}>
       {/* Header + filters */}
       <div className="p-5 pt-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-1.5">
             <p className="text-sm lg:text-base">{title}</p>
-            <span className="relative group/info inline-flex">
-              <Info
-                size={13}
-                className={isDark ? 'text-[#E8D1AB] fill-[#E8D1AB] stroke-[#101010]' : 'text-[#BFA780] fill-[#BFA780] stroke-[#F4F5F7]'}
+            <InfoTooltip
+              text={infoText}
+              label={title}
+              isDark={isDark}
+              iconClassName={isDark ? 'text-[#E8D1AB] fill-[#E8D1AB] stroke-[#101010]' : 'text-[#BFA780] fill-[#BFA780] stroke-[#F4F5F7]'}
               />
-              <span className={`absolute left-1/2 -translate-x-1/2 top-full mt-2 w-56 rounded-lg border px-3 py-2 text-xs leading-snug font-normal opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all duration-200 z-50 pointer-events-none shadow-2xl ${isDark ? "bg-[#1A1A1A] border-[#3D3D3D] text-zinc-300" : "bg-white border-[#E3E3E3] text-zinc-600"}`}>
-                {infoText}
-              </span>
-            </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <Select value={status} onValueChange={(v: string) => setStatus(v as 'all' | OverdueStatus)}>
+            <Select value={age} onValueChange={(v: string) => setAge(v as OverdueAge)}>
               <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="Status">{status === 'all' ? 'Status' : STATUS_LABEL[status as OverdueStatus]}</SelectValue>
+                <SelectValue placeholder="Age">{age === 'all' ? 'Age' : age === '1_30' ? '1–30 days' : age === '31_60' ? '31–60 days' : age === '61_90' ? '61–90 days' : '90+ days'}</SelectValue>
               </SelectTrigger>
               <SelectContent className={contentCls}>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
-                <SelectItem value="partial">Partially Paid</SelectItem>
-                <SelectItem value="on_hold">On Hold</SelectItem>
+                <SelectItem value="all">All overdue</SelectItem>
+                <SelectItem value="1_30">1–30 days</SelectItem>
+                <SelectItem value="31_60">31–60 days</SelectItem>
+                <SelectItem value="61_90">61–90 days</SelectItem>
+                <SelectItem value="90_plus">90+ days</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={period} onValueChange={(v: string) => setPeriod(v as Period)}>
+            <Select value={role} onValueChange={(v: string) => setRole(v as CPRole)}>
               <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="Month">{period === 'this_month' ? 'Month' : period === 'last_month' ? 'Last Month' : '3 Months'}</SelectValue>
+                <SelectValue placeholder="Role">{role === 'all' ? 'Role' : role[0].toUpperCase() + role.slice(1)}</SelectValue>
               </SelectTrigger>
               <SelectContent className={contentCls}>
-                <SelectItem value="this_month">This Month</SelectItem>
-                <SelectItem value="last_month">Last Month</SelectItem>
-                <SelectItem value="last_3_months">Last 3 Months</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={role} onValueChange={(v: string) => setRole(v as 'all' | CPRole)}>
-              <SelectTrigger className={triggerCls}>
-                <SelectValue placeholder="All">{role === 'all' ? 'All' : role === 'photographer' ? 'Photo' : 'Video'}</SelectValue>
-              </SelectTrigger>
-              <SelectContent className={contentCls}>
-                <SelectItem value="all">All CPs</SelectItem>
-                <SelectItem value="photographer">Photographers</SelectItem>
+                <SelectItem value="all">All roles</SelectItem>
                 <SelectItem value="videographer">Videographers</SelectItem>
+                <SelectItem value="photographer">Photographers</SelectItem>
+                <SelectItem value="editor">Editors</SelectItem>
+                <SelectItem value="producer">Producers</SelectItem>
+                <SelectItem value="director">Directors</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sort} onValueChange={(v: string) => setSort(v as 'amount' | 'days')}>
+              <SelectTrigger className={triggerCls}>
+                <SelectValue placeholder="Sort">{sort === 'amount' ? 'Amount' : 'Days'}</SelectValue>
+              </SelectTrigger>
+              <SelectContent className={contentCls}>
+                <SelectItem value="amount">Highest amount</SelectItem>
+                <SelectItem value="days">Most overdue days</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
         </div>
 
         {/* Search */}
@@ -212,7 +292,11 @@ export default function TopOverdueCPs({
                 </tr>
               ))
               : rows.map((cp: OverdueCP, i: number) => (
-                <tr key={cp.id} className={`transition-colors ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.02]'}`}>
+                <tr
+                  key={cp.id}
+                  onClick={() => onSelectCP?.(selectedId === cp.id ? null : cp)}
+                  className={`cursor-pointer transition-colors ${selectedId === cp.id ? (isDark ? 'bg-white/[0.05]' : 'bg-black/[0.04]') : isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-black/[0.02]'}`}
+                >
                   <td className={`px-5 py-2 ${i === 0 ? 'pt-5' : ''} ${i === rows.length - 1 ? 'pb-5' : ''}`}>
                     <div className="flex items-center gap-3 min-w-0">
                       {cp.avatarUrl ? (
@@ -237,7 +321,7 @@ export default function TopOverdueCPs({
             {!isLoading && rows.length === 0 && (
               <tr>
                 <td colSpan={3} className={`text-center text-sm py-10 ${isDark ? 'text-white/50' : 'text-zinc-500'}`}>
-                  No overdue CPs match these filters.
+                  {query.trim() ? 'No overdue CPs match this search.' : 'No overdue CPs found.'}
                 </td>
               </tr>
             )}
