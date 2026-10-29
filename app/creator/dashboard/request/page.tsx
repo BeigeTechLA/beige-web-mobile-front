@@ -65,6 +65,8 @@ type ProjectItem = {
   location?: string;
   guest_email?: string;
   budget?: number | string;
+  compensation_amount?: number | string | null;
+  compensation_currency?: string | null;
   is_completed?: boolean | number | string;
   status?: "Pending" | "Confirmed" | "Completed" | "Rejected" | "Declined";
   project?: {
@@ -260,6 +262,19 @@ export default function RequestsShootsPage() {
       month: "short",
       year: "numeric",
     }).replace(/ /g, ' ').replace(/(\w{3}) (\d{4})/, '$1, $2');
+  };
+
+  const formatCompensation = (item: ProjectItem) => {
+    if (item.compensation_amount == null || item.compensation_amount === "") return "Not set";
+    const amount = Number(item.compensation_amount);
+    if (!Number.isFinite(amount)) return "Not set";
+    const currency = item.compensation_currency || "USD";
+
+    try {
+      return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
+    } catch {
+      return `${amount.toFixed(2)} ${currency}`;
+    }
   };
 
   const isCompletedFlag = (item: ProjectItem) => {
@@ -657,7 +672,7 @@ export default function RequestsShootsPage() {
                         </svg>
                         <div className={`flex items-center gap-1 text-sm ${isDark ? "text-white/60" : "text-black/60"}`}>
                           <span>Compensation:</span>
-                          <span className="text-[#E8D1AB]">$ 2000.00</span>
+                          <span className="text-[#E8D1AB]">{formatCompensation(item)}</span>
                         </div>
                       </div>
 
@@ -837,7 +852,7 @@ export default function RequestsShootsPage() {
 
                             {/* Compensation */}
                             <td className={`px-3.5 py-5 text-sm truncate ${isDark ? "text-white/60" : "text-black/60"}`}>
-                              $2000.00
+                              {formatCompensation(item)}
                             </td>
 
                             {/* Status Pill Column */}
@@ -912,7 +927,7 @@ export default function RequestsShootsPage() {
                   {filteredProjects.map((item) => (
                     <MobileRow
                       key={item.project_id}
-                      item={item}
+                      item={{ ...item, compensationLabel: formatCompensation(item) }}
                       onApprove={() => setAcceptShootEvent(item)}
                       onDecline={() => setDeclineShootEvent(item)}
                       onViewDetails={() => handleOpenProjectDetails(item.project_id)}
