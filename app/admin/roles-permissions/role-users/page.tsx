@@ -13,17 +13,11 @@ const formatDate = (value: string | null | undefined) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
-  const day = date.getDate();
-  const month = new Intl.DateTimeFormat("en-US", { month: "long" }).format(date);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
   const year = date.getFullYear();
-  
-  // const time = new Intl.DateTimeFormat("en-US", {
-  //   hour: "2-digit",
-  //   minute: "2-digit",
-  //   hour12: true,
-  // }).format(date);
 
-  return `${day}, ${month} ${year}`;
+  return `${month} ${day}, ${year}`;
 };
 
 const getInitials = (value: string) =>

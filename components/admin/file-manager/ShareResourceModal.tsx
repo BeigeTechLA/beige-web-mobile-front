@@ -679,7 +679,7 @@ export default function ShareResourceModal({ isOpen, onClose, resource }: ShareR
                           </div>
                           <div className="flex flex-col items-end gap-1 ml-2 shrink-0">
                             <span className={`text-[10px] font-medium ${isDark ? "text-white/30" : "text-[#727272]"}`}>
-                              {new Date(group.latestAt || "").toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                              {new Date(group.latestAt || "").toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}
                             </span>
                             {isExpanded ? <ChevronUp size={14} className={isDark ? "text-white/30" : "text-black/30"} /> : <ChevronDown size={14} className={isDark ? "text-white/30" : "text-black/30"} />}
                           </div>

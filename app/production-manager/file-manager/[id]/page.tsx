@@ -19,6 +19,15 @@ import {
 
 const STATUSES = ["Linked", "Unlinked"];
 
+const formatDisplayDate = (value?: string | number | Date | null) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const month = date.toLocaleString("en-US", { month: "short" });
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${month} ${day}, ${date.getFullYear()}`; // e.g. Oct 05, 2026
+};
+
 export default function ProductionManagerFolderDetailsPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -66,7 +75,10 @@ export default function ProductionManagerFolderDetailsPage() {
 
   const folders = useMemo(() => {
     if (!project) return [];
-    const items = buildProjectRootFolders(project, files);
+    const items = buildProjectRootFolders(project, files).map((folder) => ({
+      ...folder,
+      lastOpened: formatDisplayDate(folder.lastOpened),
+    }));
     if (!searchTerm.trim()) return items;
     const query = searchTerm.toLowerCase();
     return items.filter((item) => item.title.toLowerCase().includes(query));

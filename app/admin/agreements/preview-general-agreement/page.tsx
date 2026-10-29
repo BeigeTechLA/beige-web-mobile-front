@@ -168,7 +168,7 @@ export default function AdminGeneralAgreementPreviewPage() {
   const formatAgreementDate = (value?: string | null) => {
     if (!value) return "";
     const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value);
-    return Number.isNaN(date.getTime()) ? "" : format(date, "dd MMM yyyy");
+    return Number.isNaN(date.getTime()) ? "" : format(date, "MMM dd, yyyy");
   };
 
   if (!mounted || isAgreementLoading) return <div className="min-h-screen bg-[#0A0A0A]" aria-busy="true" />;

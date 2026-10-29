@@ -331,12 +331,9 @@ export default function CreatorFileManagerPhasePage() {
     if (!shootDate) return "your shoot day";
     const parsed = new Date(`${shootDate}T00:00:00`);
     if (Number.isNaN(parsed.getTime())) return shootDate;
-    return parsed.toLocaleDateString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+    const month = parsed.toLocaleString("en-US", { month: "short" });
+    const day = String(parsed.getDate()).padStart(2, "0");
+    return `${month} ${day}, ${parsed.getFullYear()}`;
   }, [shootDate]);
 
   useEffect(() => {

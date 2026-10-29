@@ -85,7 +85,9 @@ export default function AffiliateRecentActivity({ externalSelectedDate }: { exte
       if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hrs ago`;
       if (diffInSeconds < 172800) return "Yesterday";
 
-      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const month = date.toLocaleString("en-US", { month: "short" });
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${month} ${day}, ${date.getFullYear()}`;
     } catch (e) {
       return "Recently";
     }
