@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Loader2, MoreVertical } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, FilePlus2, Loader2, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { useTheme } from "next-themes";
 
 export interface AgreementData {
@@ -22,6 +23,13 @@ export interface AgreementData {
   bookingId?: number | null;
   assignmentId?: number | null;
 }
+
+type AgreementActionMenuState = {
+  id: string;
+  left: number;
+  top: number | null;
+  bottom: number | null;
+};
 
 const DEFAULT_DUMMY_AGREEMENTS: AgreementData[] = [
   {
@@ -138,7 +146,7 @@ export default function GeneralAgreementHistoryTable({
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
+  const [openActions, setOpenActions] = useState<AgreementActionMenuState | null>(null);
   const tableData = activeType === "general" ? generalData : shootData;
   const totalPages = Math.ceil(totalCount / pageSize);
   const firstItem = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -149,22 +157,25 @@ export default function GeneralAgreementHistoryTable({
   }, []);
 
   useEffect(() => {
-    if (!openActionsId) return;
+    if (!openActions) return;
     const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!(event.target instanceof Element) || !event.target.closest("[data-agreement-action-menu]")) {
-        setOpenActionsId(null);
+      if (!(event.target instanceof Element) || !event.target.closest("[data-agreement-action-trigger], [data-agreement-action-popover]")) {
+        setOpenActions(null);
       }
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenActionsId(null);
+      if (event.key === "Escape") setOpenActions(null);
     };
+    const closeOnScroll = () => setOpenActions(null);
     document.addEventListener("mousedown", closeOnOutsideClick);
     document.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("scroll", closeOnScroll, true);
     return () => {
       document.removeEventListener("mousedown", closeOnOutsideClick);
       document.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("scroll", closeOnScroll, true);
     };
-  }, [openActionsId]);
+  }, [openActions]);
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
@@ -175,55 +186,83 @@ export default function GeneralAgreementHistoryTable({
     }));
   };
 
-  const renderActionsMenu = (item: AgreementData) => {
+  const toggleActionsMenu = (item: AgreementData, event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (openActions?.id === item.id) {
+      setOpenActions(null);
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const canRevise = item.rawStatus === "draft" ||
+      (item.isCurrent && ["accepted", "pending_acceptance", "rejected"].includes(item.rawStatus || ""));
+    const canCancel = ["draft", "pending_acceptance"].includes(item.rawStatus || "");
+    const menuHeight = 44 + (activeType === "shoot" ? (canRevise ? 40 : 0) + (canCancel ? 40 : 0) : 0);
+    const openUpward = window.innerHeight - rect.bottom < menuHeight + 12;
+    setOpenActions({
+      id: item.id,
+      left: Math.max(8, Math.min(rect.right - 180, window.innerWidth - 188)),
+      top: openUpward ? null : rect.bottom + 4,
+      bottom: openUpward ? window.innerHeight - rect.top + 4 : null,
+    });
+  };
+
+  const renderActionsTrigger = (item: AgreementData) => (
+    <button
+      type="button"
+      data-agreement-action-trigger
+      aria-label={`Actions for ${item.projectName}`}
+      aria-haspopup="menu"
+      aria-expanded={openActions?.id === item.id}
+      onClick={(event) => toggleActionsMenu(item, event)}
+      className={`cursor-pointer p-1 transition-colors ${isDark ? "text-white hover:text-white/60" : "text-black/40 hover:text-black"}`}
+    >
+      <MoreVertical size={24} aria-hidden="true" />
+    </button>
+  );
+
+  const renderActionsPopover = () => {
+    if (!openActions) return null;
+    const item = tableData.find((candidate) => candidate.id === openActions.id);
+    if (!item) return null;
     const canRevise = activeType === "shoot" && (
       item.rawStatus === "draft" ||
-      (item.isCurrent && ["accepted", "pending_acceptance", "rejected"].includes(item.rawStatus || "")) ||
-      (item.rawStatus === "cancelled" && !tableData.some((candidate) =>
-        candidate.id !== item.id && candidate.assignmentId === item.assignmentId && candidate.isCurrent
-      ))
+      (item.isCurrent && ["accepted", "pending_acceptance", "rejected"].includes(item.rawStatus || ""))
     );
     const canCancel = activeType === "shoot" && ["draft", "pending_acceptance"].includes(item.rawStatus || "");
+    const menuButtonClass = `flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`;
 
-    return (
-      <div className="relative inline-flex" data-agreement-action-menu>
-        <button
-          type="button"
-          aria-label={`Actions for ${item.projectName}`}
-          aria-haspopup="menu"
-          aria-expanded={openActionsId === item.id}
-          onClick={(event) => {
-            event.stopPropagation();
-            setOpenActionsId((current) => current === item.id ? null : item.id);
-          }}
-          className={`inline-flex h-9 w-9 items-center justify-center rounded-md border transition-colors ${isDark
-            ? "border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
-            : "border-black/10 text-black/60 hover:bg-black/5 hover:text-black"}`}
-        >
-          <MoreVertical size={18} aria-hidden="true" />
+    return createPortal(
+      <div
+        role="menu"
+        data-agreement-action-popover
+        className={`fixed z-[1000] min-w-[180px] rounded-xl border p-1 shadow-xl text-left ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
+        style={{ left: openActions.left, top: openActions.top ?? undefined, bottom: openActions.bottom ?? undefined }}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <button type="button" role="menuitem" onClick={(event) => {
+          event.stopPropagation();
+          setOpenActions(null);
+          onActionClick?.(item, event);
+        }} className={menuButtonClass}>
+          <ChevronRight size={16} /> View
         </button>
-        {openActionsId === item.id && (
-          <div role="menu" className={`absolute right-0 top-full z-30 mt-1 min-w-40 overflow-hidden rounded-lg border py-1 shadow-xl ${isDark
-            ? "border-[#3D3D3D] bg-[#202020] text-white"
-            : "border-[#E5E5E5] bg-white text-[#202020]"}`}>
-            <button role="menuitem" type="button" onClick={(event) => {
-              event.stopPropagation();
-              setOpenActionsId(null);
-              onActionClick?.(item, event);
-            }} className="block w-full px-3 py-2 text-left text-sm hover:bg-[#E8D1AB]/10">View</button>
-            {canRevise && <button role="menuitem" type="button" onClick={(event) => {
-              event.stopPropagation();
-              setOpenActionsId(null);
-              onRevise?.(item);
-            }} className="block w-full px-3 py-2 text-left text-sm hover:bg-[#E8D1AB]/10">{item.rawStatus === "draft" ? "Edit draft" : "New version"}</button>}
-            {canCancel && <button role="menuitem" type="button" onClick={(event) => {
-              event.stopPropagation();
-              setOpenActionsId(null);
-              onCancel?.(item);
-            }} className="block w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10">{item.rawStatus === "draft" ? "Discard" : "Cancel agreement"}</button>}
-          </div>
-        )}
-      </div>
+        {canRevise && <button type="button" role="menuitem" onClick={(event) => {
+          event.stopPropagation();
+          setOpenActions(null);
+          onRevise?.(item);
+        }} className={menuButtonClass}>
+          {item.rawStatus === "draft" ? <Pencil size={16} /> : <FilePlus2 size={16} />}
+          {item.rawStatus === "draft" ? "Edit draft" : "New version"}
+        </button>}
+        {canCancel && <button type="button" role="menuitem" onClick={(event) => {
+          event.stopPropagation();
+          setOpenActions(null);
+          onCancel?.(item);
+        }} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-red-400 hover:bg-white/10" : "text-red-600 hover:bg-red-50"}`}>
+          <Trash2 size={16} /> {item.rawStatus === "draft" ? "Discard" : "Cancel agreement"}
+        </button>}
+      </div>,
+      document.body
     );
   };
 
@@ -455,7 +494,7 @@ export default function GeneralAgreementHistoryTable({
                 )}
 
                 <td className="py-4 px-6 text-right">
-                  {renderActionsMenu(item)}
+                  {renderActionsTrigger(item)}
                 </td>
               </tr>
             ))}
@@ -574,7 +613,7 @@ export default function GeneralAgreementHistoryTable({
                       <span className={isDark ? "text-white/80" : "text-black/80"}>{item.date}</span>
                     </div>
                       <div className="flex flex-wrap justify-end gap-3 text-sm">
-                        {renderActionsMenu(item)}
+                        {renderActionsTrigger(item)}
                       </div>
                     </div>
                   </div>
@@ -584,6 +623,8 @@ export default function GeneralAgreementHistoryTable({
           })}
         </div>
       </div>
+
+      {renderActionsPopover()}
 
       {/* Footer Pagination */}
       {totalCount > 0 && <div className={`flex flex-col sm:flex-row items-center justify-between p-4 lg:p-6 border-t gap-4 ${isDark ? "border-[#3D3D3D]" : "border-[#E5E5E5]"}`}>
