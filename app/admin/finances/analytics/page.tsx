@@ -38,6 +38,7 @@ export default function FinanceAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [exportingAudit, setExportingAudit] = useState(false);
   const [analytics, setAnalytics] = useState<FinanceAnalyticsData | null>(null);
+  const [scheduleRevision, setScheduleRevision] = useState(0);
   const [selectedOverdueCP, setSelectedOverdueCP] = useState<OverdueCP | null>(null);
   const [selectedShootCP, setSelectedShootCP] = useState<SelectedShootCP | null>(null);
   const [selectedClient, setSelectedClient] = useState<SelectedShootCP | null>(null);
@@ -95,12 +96,15 @@ export default function FinanceAnalyticsPage() {
   };
 
   useEffect(() => {
-    const controller = new AbortController();
     setSelectedOverdueCP(null);
     setSelectedShootCP(null);
     setSelectedClient(null);
     setSelectedBucket(null);
     setSelectedPayoutCP(null);
+  }, [startDate, endDate]);
+
+  useEffect(() => {
+    const controller = new AbortController();
 
     const load = async () => {
       if (Boolean(startDate) !== Boolean(endDate)) {
@@ -143,7 +147,7 @@ export default function FinanceAnalyticsPage() {
 
     load();
     return () => controller.abort();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, scheduleRevision]);
 
   return (
     <>
@@ -202,6 +206,8 @@ export default function FinanceAnalyticsPage() {
                   loading={loading}
                   dimmed={!!selectedOverdueCP}
                   selectedId={selectedBucket?.id ?? null}
+                  selectedSegmentId={selectedBucket?.segmentId}
+                  unshownAmount={analytics?.creative_partners.payout_timeline_unshown_amount}
                   onSelectBucket={(bucket) => {
                     setSelectedBucket(bucket);
                     if (bucket) setSelectedOverdueCP(null);
@@ -226,6 +232,9 @@ export default function FinanceAnalyticsPage() {
               open={!!selectedBucket}
               bucketId={selectedBucket?.id ?? ""}
               bucketLabel={selectedBucket?.label ?? ""}
+              segmentId={selectedBucket?.segmentId}
+              segmentLabel={selectedBucket?.segmentLabel}
+              onScheduleUpdated={() => setScheduleRevision((value) => value + 1)}
               loading={loading}
               startDate={startDate ? format(startDate, "yyyy-MM-dd") : null}
               endDate={endDate ? format(endDate, "yyyy-MM-dd") : null}

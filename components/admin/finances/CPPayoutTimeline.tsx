@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Info } from 'lucide-react';
+import { ArrowRight, Info } from 'lucide-react';
 import { useTheme } from "next-themes";
 import type { FinanceAnalyticsData } from '@/lib/api'; 
 
@@ -9,7 +9,7 @@ import type { FinanceAnalyticsData } from '@/lib/api';
 /* Categories (segment colours + legend)                               */
 /* ------------------------------------------------------------------ */
 
-type SegmentId = 'upcoming' | 'dueSoon' | 'later' | 'overdue';
+export type SegmentId = 'upcoming' | 'dueSoon' | 'later' | 'overdue';
 
 const SEGMENTS: { id: SegmentId; label: string; color: string }[] = [
   { id: 'upcoming', label: 'Upcoming', color: '#54B98B' },
@@ -19,12 +19,14 @@ const SEGMENTS: { id: SegmentId; label: string; color: string }[] = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Dummy data (USD)                                                    */
+/* Payout data (USD)                                                   */
 /* ------------------------------------------------------------------ */
 
 export interface SelectedPayoutBucket {
   id: string;
   label: string;
+  segmentId?: SegmentId;
+  segmentLabel?: string;
 }
 
 export interface PayoutBucket {
@@ -145,6 +147,8 @@ interface CPPayoutTimelineProps {
   title?: string;
   infoText?: string;
   selectedId?: string | null;
+  selectedSegmentId?: SegmentId;
+  unshownAmount?: number;
   onSelectBucket?: (bucket: SelectedPayoutBucket | null) => void;
   dimmed?: boolean;
 }
@@ -153,8 +157,10 @@ export default function CPPayoutTimeline({
   data = null,
   loading = false,
   title = 'CP Payout Timeline',
-  infoText = 'Timeline of payments made or due to Content Partners (CPs).',
+  infoText = 'Rows group unpaid balances by scheduled payment date: This Week = today–6 days, Next Week = 7–13 days, 2–4 Weeks = 14–27 days, Overdue = a missed schedule. Colors use the original deadline: Upcoming = 0–6 days, Due Soon = 7–13 days, Later = 14–27 days, Overdue = before today. The date filter applies to the schedule. Without a separate schedule, the original due date is used. Payments missing dates or outside these windows are not plotted.',
   selectedId = null,
+  selectedSegmentId,
+  // unshownAmount = 0, // Restore when the outside-timeline link is shown again.
   onSelectBucket,
   dimmed = false,
 }: CPPayoutTimelineProps) {
@@ -191,24 +197,27 @@ export default function CPPayoutTimeline({
           label={title}
           isDark={isDark}
           iconClassName={isDark ? 'text-[#E8D1AB] fill-[#E8D1AB] stroke-[#101010]' : 'text-[#BFA780] fill-[#BFA780] stroke-[#F4F5F7]'}
+          width={360}
           />
       </div>
 
       <div className="p-4 flex-1 flex flex-col">
+        {!isLoading && rows.length === 0 && <p className={`py-8 text-center text-sm ${mutedText}`}>No payouts in the selected period.</p>}
         {/* Bars */}
         <ul className="space-y-5 lg:space-y-7 mb-4 lg:mb-8">
           {rows.map((row) => (
             <li
               key={row.id}
-              onClick={() => !isLoading && onSelectBucket?.(selectedId === row.id ? null : { id: row.id, label: row.label })}
-              className={`grid grid-cols-[50px_minmax(0,1fr)_50px] sm:grid-cols-[70px_minmax(0,1fr)_60px] items-center gap-4 sm:gap-8 ${onSelectBucket ? 'cursor-pointer' : ''}`}
+              className="grid grid-cols-[50px_minmax(0,1fr)_50px] sm:grid-cols-[70px_minmax(0,1fr)_60px] items-center gap-4 sm:gap-8"
             >
-              <span className={`text-xs sm:text-sm ${mutedText}`}>{row.label}</span>
+              <button type="button" disabled={isLoading || !onSelectBucket} onClick={() => onSelectBucket?.(selectedId === row.id && !selectedSegmentId ? null : { id: row.id, label: row.label })} aria-pressed={selectedId === row.id && !selectedSegmentId} className={`text-left text-xs sm:text-sm rounded focus-visible:outline focus-visible:outline-[#E8D1AB] ${mutedText}`}>{row.label}</button>
 
               {/* Track */}
               <div className={`relative h-8 md:h-10 rounded-lg ${isDark ? 'bg-[#1A1919]' : 'bg-[#EFEFEF]'}`}>
                 {isLoading ? (
                   <div className={`h-full rounded-lg animate-pulse ${isDark ? 'bg-white/5' : 'bg-zinc-200'}`} style={{ width: '70%' }} />
+                ) : row.total === 0 ? (
+                  <span className={`flex h-full items-center px-3 text-xs ${mutedText}`}>No payouts</span>
                 ) : (
                   <div
                     className="flex h-full rounded-lg overflow-hidden transition-[width,opacity] duration-500 ease-out"
@@ -220,15 +229,21 @@ export default function CPPayoutTimeline({
                       const isHover = hovered?.bucket === row.id && hovered.seg === s.id;
                       const dim = hovered && !isHover;
                       return (
-                        <div
+                        <button
                           key={s.id}
+                          type="button"
+                          disabled={!onSelectBucket}
+                          onClick={() => onSelectBucket?.(selectedId === row.id && selectedSegmentId === s.id ? null : { id: row.id, label: row.label, segmentId: s.id, segmentLabel: s.label })}
+                          aria-pressed={selectedId === row.id && selectedSegmentId === s.id}
                           onMouseEnter={() => setHovered({ bucket: row.id, seg: s.id })}
                           onMouseLeave={() => setHovered(null)}
-                          className="h-full transition-opacity duration-150"
+                          onFocus={() => setHovered({ bucket: row.id, seg: s.id })}
+                          onBlur={() => setHovered(null)}
+                          className="h-full min-w-0 shrink-0 p-0 border-0 transition-opacity duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white"
                           style={{
                             width: `${(v / row.total) * 100}%`,
                             backgroundColor: s.color,
-                            opacity: dim ? 0.45 : 1,
+                            opacity: dim || (selectedId === row.id && selectedSegmentId && selectedSegmentId !== s.id) ? 0.45 : 1,
                           }}
                           aria-label={`${row.label} – ${s.label}: ${formatCompactUSD(v)}`}
                         />
@@ -254,8 +269,9 @@ export default function CPPayoutTimeline({
                       style={{ left: `${centre}%` }}
                     >
                       <div className={`relative whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold shadow-xl ${isDark ? 'bg-white text-[#171717]' : 'bg-[#171717] text-white'}`}>
-                        <span className="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle" style={{ backgroundColor: seg.color }} />
+                        <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ backgroundColor: seg.color }} />
                         {seg.label}: {formatCompactUSD(v)}
+                        <ArrowRight aria-hidden="true" className="inline-block ml-2" size={16} />
                         <span className={`absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 rotate-45 ${isDark ? 'bg-white' : 'bg-[#171717]'}`} />
                       </div>
                     </div>
@@ -263,12 +279,16 @@ export default function CPPayoutTimeline({
                 })()}
               </div>
 
-              <span className="text-right text-base lg:text-lg">
+              <button type="button" disabled={isLoading || !onSelectBucket} onClick={() => onSelectBucket?.(selectedId === row.id && !selectedSegmentId ? null : { id: row.id, label: row.label })} aria-label={`View all ${row.label} payouts: ${formatCompactUSD(row.total)}`} className="text-right text-base lg:text-lg rounded focus-visible:outline focus-visible:outline-[#E8D1AB]">
                 {isLoading ? '' : formatCompactUSD(row.total)}
-              </span>
+              </button>
             </li>
           ))}
         </ul>
+
+        {/* Temporarily hidden: outside-timeline link.
+        {!isLoading && unshownAmount > 0 && <button type="button" disabled={!onSelectBucket} onClick={() => onSelectBucket?.(selectedId === 'outside' ? null : { id: 'outside', label: 'Outside timeline' })} className={`text-left text-xs mb-3 underline underline-offset-2 ${mutedText}`}>{formatCompactUSD(unshownAmount)} outside this timeline (missing dates or beyond the four-week windows). View payouts</button>}
+        */}
 
         {/* Legend */}
         <div className={`mt-auto rounded-lg border p-3 ${isDark ? 'bg-black border-[#363636]' : 'bg-[#F4F5F7] border-[#E3E3E3]'}`}>

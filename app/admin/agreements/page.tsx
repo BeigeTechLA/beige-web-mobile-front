@@ -143,7 +143,7 @@ export default function AdminAgreementsPage() {
         setAgreements((current) => current.map((agreement) => agreement.agreement_document_id === Number(item.id)
           ? { ...agreement, status: "cancelled", is_current: false } : agreement));
         setAgreementsRefreshKey((key) => key + 1);
-        toast.success(item.rawStatus === "draft" ? "Draft discarded" : "Pending agreement cancelled");
+        toast.success(item.rawStatus === "draft" ? "Draft discarded" : "Agreement cancelled; the CP request remains assigned");
       }
       setAgreementConfirmation(null);
     } catch (error) {
@@ -360,7 +360,7 @@ export default function AdminAgreementsPage() {
             ? "This agreement can only be deleted before it has been presented to a Creative Partner. This action cannot be undone."
             : agreementConfirmation?.agreement.rawStatus === "draft"
               ? "This draft will be discarded and will not be available to the Creative Partner."
-              : "The Creative Partner will no longer be able to review or accept this agreement."}
+              : "The Creative Partner will no longer be able to review or accept this agreement. Their CP request stays assigned, so you can create and send another version."}
           confirmLabel={agreementConfirmation?.type === "delete-general"
             ? "Delete Agreement"
             : agreementConfirmation?.agreement.rawStatus === "draft" ? "Discard Draft" : "Cancel Agreement"}

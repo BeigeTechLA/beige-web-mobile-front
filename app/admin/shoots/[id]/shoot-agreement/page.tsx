@@ -148,9 +148,18 @@ export default function AdminAgreementDetailsPage() {
           applyBookingDetails(bookingPayload?.project ?? bookingPayload);
           const draft = source.status === "draft" ? source : agreementsResponse.data.find((item) => item.status === "draft" && Number(item.parent_document_id) === requestedRevisionId);
           const editable = draft || source;
-          setAgreementVersion(draft ? draft.display_version : `v${Number(source.version_no) + 1}`);
+          const hasCurrentAgreement = agreementsResponse.data.some((item) =>
+            Number(item.assignment_id) === Number(source.assignment_id) && item.is_current && item.agreement_document_id !== source.agreement_document_id
+          );
+          const nextVersion = Math.max(0, ...agreementsResponse.data
+            .filter((item) => Number(item.assignment_id) === Number(source.assignment_id))
+            .map((item) => Number(item.version_no) || 0)) + 1;
+          setAgreementVersion(draft ? draft.display_version : `v${nextVersion}`);
           if (draft) setDraftAgreementIds({ [String(source.assignment_id)]: draft.agreement_document_id });
-          else if (!source.is_current || !["accepted", "pending_acceptance", "rejected"].includes(source.status)) throw new Error("Only the current agreement can be revised");
+          else if (!(source.is_current && ["accepted", "pending_acceptance", "rejected"].includes(source.status)) &&
+            !(source.status === "cancelled" && !source.is_current && !hasCurrentAgreement)) {
+            throw new Error("Only the current or most recent cancelled agreement can be revised");
+          }
           setRevisionSourceId(draft ? Number(draft.parent_document_id) || null : requestedRevisionId);
           const cp = editable.snapshot?.creative_partner;
           const name = cp?.name || `CP #${editable.creator_id}`;

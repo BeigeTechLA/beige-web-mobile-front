@@ -2136,6 +2136,7 @@ export type FinanceAnalyticsData = {
       label: string;
       segments: { upcoming: number; dueSoon: number; later: number; overdue: number };
     }>;
+    payout_timeline_unshown_amount?: number;
     top_overdue: Array<{ id: string; name: string; roles: string[]; amount: number; days_overdue: number; shoots: number }>;
   };
   clients: {
@@ -2295,7 +2296,8 @@ export type FinanceCpOverdueHistoryResponse = {
 };
 
 export type FinancePayoutScheduleParams = {
-  bucket_id: 'this_week' | 'next_week' | '2_4_weeks' | 'overdue';
+  bucket_id: 'this_week' | 'next_week' | '2_4_weeks' | 'overdue' | 'outside';
+  segment_id?: 'upcoming' | 'dueSoon' | 'later' | 'overdue';
   search?: string;
   start_date?: string;
   end_date?: string;
@@ -2315,7 +2317,10 @@ export type FinancePayoutScheduleRow = {
   shoot_amount: number;
   cp_payout: number;
   pending_amount: number;
-  due_date: string;
+  due_date: string | null;
+  original_due_date: string | null;
+  scheduled_payout_date: string | null;
+  segment_id: 'upcoming' | 'dueSoon' | 'later' | 'overdue' | null;
   status: 'Pending' | 'Partially Paid' | 'Finance Approval' | 'Approved' | 'Fully Paid';
 };
 
@@ -2618,6 +2623,14 @@ export const adminApi = {
         data: null,
         error: error.response?.data?.message || 'Failed to fetch payout schedule',
       };
+    }
+  },
+  updateFinancePayoutSchedule: async (earningId: string, scheduledDate: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await api.patch(`finance/admin/analytics/payout-schedule/${earningId}`, { scheduled_payout_date: scheduledDate });
+      return response.data;
+    } catch (error: unknown) {
+      return { success: false, error: axios.isAxiosError(error) ? error.response?.data?.message || 'Failed to update payout schedule' : 'Failed to update payout schedule' };
     }
   },
   getInternalPasswordExpirySettings: async () => {

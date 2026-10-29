@@ -21,6 +21,9 @@ interface AddCompensationModalProps {
   showAgreementAction?: boolean;
   enableAdvanceProofUpload?: boolean;
   initialShootId?: number | null;
+  defaultCompensationMethod?: "equal" | "role" | "manual";
+  submitButtonLabel?: string;
+  showSendMailOption?: boolean;
 }
 
 type TabType = "equal" | "role" | "manual";
@@ -249,11 +252,14 @@ export default function AddCompensationModal({
   showAgreementAction = true,
   enableAdvanceProofUpload = false,
   initialShootId,
+  defaultCompensationMethod = "equal",
+  submitButtonLabel,
+  showSendMailOption = true,
 }: AddCompensationModalProps) {
   const router = useRouter();
   const [selectedShootId, setSelectedShootId] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
-  const [compensationMethod, setCompensationMethod] = useState<TabType>("equal");
+  const [compensationMethod, setCompensationMethod] = useState<TabType>(defaultCompensationMethod);
   const [sendMail, setSendMail] = useState<boolean>(true);
   const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
   const [creatorForms, setCreatorForms] = useState<Record<string, CreatorFormState>>({});
@@ -293,13 +299,13 @@ export default function AddCompensationModal({
   const resetFormState = useCallback(() => {
   setSelectedShootId("");
   setIsDropdownOpen(false);
-  setCompensationMethod("equal");
+  setCompensationMethod(defaultCompensationMethod);
   setSendMail(true);
   setSelectedCreators([]);
   setCreatorForms({});
   setShootSearchQuery("");
   setAdvanceCreatorId(null);
-}, []);
+}, [defaultCompensationMethod]);
 
   const syncCreatorFormsForCompensationMethod = useCallback(() => {
     if (!currentShoot) return;
@@ -1189,7 +1195,7 @@ export default function AddCompensationModal({
         </div>
 
         <div className={`sticky bottom-0 inset-x-0 p-4 lg:p-6 pt-2 z-40 mt-auto ${isDark ? "bg-black" : "bg-white"}`}>
-          {!onPrepareAgreement && selectedShootId && selectedCreators.length > 0 && (
+          {!onPrepareAgreement && showSendMailOption && selectedShootId && selectedCreators.length > 0 && (
             <div className="flex items-center gap-3 mb-4">
               <input
                 id="send-mail-to-creators"
@@ -1219,7 +1225,7 @@ export default function AddCompensationModal({
               onClick={handleFormSubmit}
               className="h-12 rounded-lg flex items-center justify-center bg-[#10B981] hover:bg-[#10B981]/90 text-black font-semibold text-sm transition-colors shadow-md disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Submitting..." : "Submit To Finance"}
+              {isSubmitting ? "Saving..." : submitButtonLabel || "Submit To Finance"}
             </button>}
             {showAgreementAction && <button
               type="button"

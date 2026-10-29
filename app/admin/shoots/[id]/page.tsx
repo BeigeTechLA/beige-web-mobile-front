@@ -31,6 +31,8 @@ import { AssignmentMissingDetailsModal } from "@/components/sales/AssignmentConf
 import NotesDrawer from "@/components/admin/shoot-details/NotesDrawer";
 import CpAgreementsTable from "@/components/admin/shoot-details/CpAgreementsTable";
 import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
+import AddCompensationModal from "@/components/admin/finances/AddCompensationModal";
+import { cpCompensationApi, type PendingCompensationShoot } from "@/lib/api/cpCompensation";
 import ShootHistoryModal from "@/components/admin/ShootHistoryModal";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import ProjectProducerSection from "@/components/admin/shoot-details/ProjectProducerSection";
@@ -217,6 +219,9 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [shootAgreements, setShootAgreements] = useState<AgreementDocument[]>([]);
+  const [isCompensationModalOpen, setIsCompensationModalOpen] = useState(false);
+  const [isSubmittingCompensation, setIsSubmittingCompensation] = useState(false);
+  const [compensationAssignmentIds, setCompensationAssignmentIds] = useState<number[]>([]);
 
   // 3. Helper to update the URL when a tab is clicked
   const handleTabChange = (tabName: string) => {
@@ -575,6 +580,15 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
     const creator = assignment?.crew_member || assignment?.creator || {};
     const name = [creator.first_name, creator.last_name].filter(Boolean).join(" ") || creator.name || `CP #${assignment?.crew_member_id || assignmentId}`;
     const agreement = currentAgreementByAssignmentId.get(assignmentId);
+    const historicalAgreement = shootAgreements.find((row) =>
+      Number(row.assignment_id) === assignmentId && Number(row.compensation_amount || 0) > 0
+    );
+    const hasCompensation = [
+      agreement?.compensation_amount,
+      historicalAgreement?.compensation_amount,
+      assignment?.total_compensation,
+      assignment?.compensation_amount,
+    ].some((amount) => Number(amount) > 0);
     const statusMap: Record<string, "Completed" | "Pending" | "Rejected" | "Draft" | "Cancelled"> = {
       accepted: "Completed",
       pending_acceptance: "Pending",
@@ -598,9 +612,64 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           ? `USD ${Number(assignment.total_compensation).toFixed(2)}`
           : "Not configured",
       status: agreement ? statusMap[agreement.status] || "Draft" : "Not Sent",
-      actionLabel: agreement ? "Manage" : "Create Agreement",
+      actionLabel: agreement ? "Manage" : hasCompensation ? "Create Agreement" : "Set Compensation & Create Agreement",
     };
   });
+  const getConfiguredCompensation = (assignment: any) => {
+    const assignmentId = Number(assignment?.id || 0);
+    const agreement = currentAgreementByAssignmentId.get(assignmentId) || shootAgreements.find((row) =>
+      Number(row.assignment_id) === assignmentId && Number(row.compensation_amount || 0) > 0
+    );
+    return [agreement?.compensation_amount, assignment?.total_compensation, assignment?.compensation_amount]
+      .map(Number)
+      .find((amount) => Number.isFinite(amount) && amount > 0) || 0;
+  };
+  const openShootAgreementFlow = (assignmentId?: number) => {
+    const candidates = assignedCreativePartners.filter((assignment: any) => {
+      if (Number(assignment?.is_active ?? 1) !== 1) return false;
+      if (assignmentId) return Number(assignment?.id) === assignmentId;
+      return Number(assignment?.crew_accept ?? 0) === 0;
+    });
+    const missingCompensationIds = candidates
+      .filter((assignment: any) => getConfiguredCompensation(assignment) <= 0)
+      .map((assignment: any) => Number(assignment.id))
+      .filter(Boolean);
+
+    if (missingCompensationIds.length) {
+      setCompensationAssignmentIds(missingCompensationIds);
+      setIsCompensationModalOpen(true);
+      return;
+    }
+
+    const query = assignmentId ? `?assignment_id=${assignmentId}` : "";
+    router.push(`${shootBasePath}/${id}/shoot-agreement${query}`);
+  };
+  const compensationShoot: PendingCompensationShoot = {
+    booking_id: Number(id),
+    shoot_name: String(project?.project_name || `Shoot #${id}`),
+    shoot_type: String(project?.shoot_type || project?.event_type || "") || undefined,
+    content_type: String(project?.content_type || "") || undefined,
+    event_date: String(project?.event_date || "") || undefined,
+    shoot_amount: Number(project?.total_value_amount || project?.converted_quote_amount || project?.total_paid_amount || 0),
+    required_cp_count: Math.max(
+      crewSizeNeeded,
+      assignedCreativePartners.filter((assignment: any) => Number(assignment?.is_active ?? 1) === 1 && Number(assignment?.crew_accept ?? 0) === 0).length,
+      compensationAssignmentIds.length,
+      1
+    ),
+    creators: compensationAssignmentIds.map((assignmentId) => {
+      const assignment = assignedCreativePartners.find((row: any) => Number(row?.id) === assignmentId);
+      const creator = assignment?.crew_member || assignment?.creator || {};
+      return {
+        assignment_id: assignmentId,
+        creator_id: Number(assignment?.crew_member_id || creator?.crew_member_id || 0),
+        creator_name: [creator?.first_name, creator?.last_name].filter(Boolean).join(" ") || creator?.name || `CP #${assignmentId}`,
+        creator_email: creator?.email || undefined,
+        cp_role: getPrimaryRoleLabel(creator?.primary_role ?? creator?.role, creator?.role_name),
+        hourly_rate: Number(creator?.hourly_rate || 0),
+      };
+    }).filter((creator) => creator.creator_id > 0),
+  };
   const canOpenShootAgreement =
     canCreateAgreement && assignedCreativePartners.length > 0;
 
@@ -642,7 +711,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
             </Button>
             <Button
               type="button"
-              onClick={() => router.push(`${shootBasePath}/${id}/shoot-agreement`)}
+              onClick={() => openShootAgreementFlow()}
               disabled={!canOpenShootAgreement}
               title={
                 !canCreateAgreement
@@ -868,7 +937,7 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
                             router.push(`/admin/agreements/agreement-details?agreement_id=${agreement.agreementId}`);
                             return;
                           }
-                          router.push(`${shootBasePath}/${id}/shoot-agreement?assignment_id=${agreement.assignmentId}`);
+                          openShootAgreementFlow(agreement.assignmentId);
                         }}
                       />
                     </div>
@@ -1026,6 +1095,39 @@ export default function ShootDetailsPage({ params }: { params: Promise<{ id: str
           shootId={id}
           shootName={project?.project_name}
           onClose={() => setIsHistoryOpen(false)}
+        />
+        <AddCompensationModal
+          isOpen={isCompensationModalOpen}
+          onClose={() => setIsCompensationModalOpen(false)}
+          shoots={compensationShoot.creators.length ? [compensationShoot] : []}
+          initialShootId={Number(id)}
+          defaultCompensationMethod={compensationShoot.shoot_amount > 0 ? "equal" : "manual"}
+          submitButtonLabel="Save Compensation & Continue"
+          showSendMailOption={false}
+          isSubmitting={isSubmittingCompensation}
+          showAgreementAction={false}
+          onSubmit={async (payload) => {
+            setIsSubmittingCompensation(true);
+            try {
+              // These CPs are already assigned by the booking flow. Save their
+              // compensation without creating another assignment or sending a
+              // second booking request.
+              await cpCompensationApi.submitForApproval({ ...payload, send_email: false });
+              setIsCompensationModalOpen(false);
+              toast.success("Compensation submitted. Continue to create the agreement.");
+              const assignmentQuery = compensationAssignmentIds.length === 1
+                ? `?assignment_id=${compensationAssignmentIds[0]}`
+                : "";
+              router.push(`${shootBasePath}/${id}/shoot-agreement${assignmentQuery}`);
+            } catch (error) {
+              const message = typeof error === "object" && error !== null && "data" in error
+                ? (error as { data?: { message?: string } }).data?.message
+                : undefined;
+              toast.error(message || "Unable to save CP compensation");
+            } finally {
+              setIsSubmittingCompensation(false);
+            }
+          }}
         />
         <NotesDrawer
           isOpen={isNotesDrawerOpen}

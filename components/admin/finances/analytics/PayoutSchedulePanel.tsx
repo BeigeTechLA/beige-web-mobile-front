@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, EllipsisVertical, Loader2, Search } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
 import { useTheme } from "next-themes";
 import { getInitials } from "@/lib/utils";
 import { adminApi } from "@/lib/api";
-import type { FinancePayoutScheduleRow } from "@/lib/api";
+import type { FinancePayoutScheduleParams, FinancePayoutScheduleRow } from "@/lib/api";
+import type { SegmentId } from "../CPPayoutTimeline";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { toast } from "sonner";
 
 type PayoutStatus = "Pending" | "Partially Paid" | "Finance Approval" | "Approved" | "Fully Paid";
 type DueTone = "amber" | "red" | "blue";
@@ -21,6 +24,8 @@ type PayoutRow = {
   shootAmount: number;
   payout: number;
   due: string;
+  scheduledDate: string | null;
+  hasDueDate: boolean;
   dueTone: DueTone;
   pending: number;
   status: PayoutStatus;
@@ -72,10 +77,14 @@ interface PayoutSchedulePanelProps {
   loading?: boolean;
   startDate?: string | null;
   endDate?: string | null;
+  segmentId?: SegmentId;
+  segmentLabel?: string;
+  onScheduleUpdated?: () => void;
 }
 
-export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loading = false, startDate = null, endDate = null }: PayoutSchedulePanelProps) {
+export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loading = false, startDate = null, endDate = null, segmentId, segmentLabel, onScheduleUpdated }: PayoutSchedulePanelProps) {
   const { theme, resolvedTheme } = useTheme();
+  const { canEdit } = usePermissions("admin_finances_cp_compensation");
   const [mounted, setMounted] = useState(false);
   const [snapLabel, setSnapLabel] = useState(bucketLabel); // collapse vakhte title na jay
   const [search, setSearch] = useState("");
@@ -85,12 +94,45 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
   const [rows, setRows] = useState<PayoutRow[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [editingRow, setEditingRow] = useState<PayoutRow | null>(null);
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const previousBucketId = useRef(bucketId);
   const itemsPerPage = 10;
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (editingRow) dialogRef.current?.showModal();
+    else dialogRef.current?.close();
+  }, [editingRow]);
+
+  const saveSchedule = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingRow || !scheduledDate || !canEdit || saving) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const result = await adminApi.updateFinancePayoutSchedule(editingRow.id, scheduledDate);
+      if (!result.success) {
+        setSaveError(result.error || "Failed to update payout schedule.");
+        return;
+      }
+      setEditingRow(null);
+      setRefreshKey((value) => value + 1);
+      onScheduleUpdated?.();
+      toast.success("Payout schedule updated");
+    } catch {
+      setSaveError("Failed to update payout schedule. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     const bucketChanged = previousBucketId.current !== bucketId;
@@ -109,11 +151,11 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
   // Navi bucket khule tyare reset
   useEffect(() => {
     if (!open) return;
-    setSnapLabel(bucketLabel);
+    setSnapLabel(segmentLabel ? `${bucketLabel} · ${segmentLabel}` : bucketLabel);
     setSearch("");
     setDebouncedSearch("");
     setCurrentPage(1);
-  }, [open, bucketId, bucketLabel]);
+  }, [open, bucketId, bucketLabel, segmentId, segmentLabel]);
 
   // Smooth-scroll to the panel when a bucket is opened or switched
   useEffect(() => {
@@ -159,7 +201,8 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
     setIsFetching(true);
     setError(null);
     adminApi.getFinancePayoutSchedule({
-      bucket_id: bucketId as "this_week" | "next_week" | "2_4_weeks" | "overdue",
+      bucket_id: bucketId as FinancePayoutScheduleParams['bucket_id'],
+      segment_id: segmentId,
       search: debouncedSearch || undefined,
       start_date: startDate || undefined,
       end_date: endDate || undefined,
@@ -167,7 +210,7 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
       limit: itemsPerPage,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata",
     }, controller.signal).then((response) => {
-      if (response.canceled) return;
+      if (response.canceled || controller.signal.aborted) return;
       if (!response.success || !response.data) {
         setRows([]);
         setTotalPages(1);
@@ -186,17 +229,21 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
         shootAmount: row.shoot_amount,
         payout: row.cp_payout,
         due: row.due_date === today ? "Today" : formatDate(row.due_date),
-        dueTone: row.due_date === today ? "red" : row.due_date > today ? "blue" : "amber",
+        scheduledDate: row.scheduled_payout_date,
+        hasDueDate: Boolean(row.original_due_date),
+        dueTone: row.due_date && row.due_date < today ? "red" : row.due_date && row.due_date > today ? "blue" : "amber",
         pending: row.pending_amount,
         status: row.status,
       })));
       setTotalPages(Math.max(1, response.data.pagination.total_pages));
       if (response.data.pagination.page !== currentPage) setCurrentPage(response.data.pagination.page);
+    }).catch(() => {
+      if (!controller.signal.aborted) { setRows([]); setError("Failed to load payout schedule."); }
     }).finally(() => {
       if (!controller.signal.aborted) setIsFetching(false);
     });
     return () => controller.abort();
-  }, [open, bucketId, startDate, endDate, debouncedSearch, currentPage]);
+  }, [open, bucketId, segmentId, startDate, endDate, debouncedSearch, currentPage, refreshKey]);
 
   const safePage = Math.min(currentPage, totalPages);
   const visibleRows = rows;
@@ -210,6 +257,7 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
     tone === "red" ? "text-[#FF6467]" : tone === "blue" ? "text-[#5891EF]" : "text-[#E8B04B]";
 
   return (
+    <>
     <div
       ref={wrapperRef}
       aria-hidden={!open}
@@ -296,6 +344,7 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
                       <td className="px-4 py-[9px]">
                         <p className={`text-sm font-medium ${isDark ? "text-white" : "text-[#171717]"}`}>{formatCurrency(row.payout)}</p>
                         <p className={`text-[10px] ${dueCls(row.dueTone)}`}>Due: {row.due}</p>
+                        <p className={`text-[10px] ${muted}`}>Scheduled: {formatDate(row.scheduledDate)}</p>
                         <p className={`text-[10px] ${muted}`}>Pending Amount {formatCurrency(row.pending)}</p>
                       </td>
                       <td className="px-4 py-[9px]">
@@ -304,13 +353,16 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
                         </span>
                       </td>
                       <td className="px-5 py-[9px] text-right">
-                        <button
+                        {canEdit && <button
                           type="button"
-                          aria-label="Open row actions"
-                          className={`inline-flex items-center justify-center rounded-lg p-1 transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-black hover:bg-black/5"}`}
+                          aria-label={`Schedule payout for ${row.name}, shoot ${row.shootId}`}
+                          title={row.hasDueDate ? "Schedule payout" : "Set a due date in CP Compensation before scheduling"}
+                          disabled={!row.hasDueDate}
+                          onClick={() => { setEditingRow(row); setScheduledDate(row.scheduledDate || localToday()); setSaveError(null); }}
+                          className={`inline-flex items-center justify-center rounded-lg p-1 transition-colors disabled:opacity-40 ${isDark ? "text-white hover:bg-white/10" : "text-black hover:bg-black/5"}`}
                         >
-                          <EllipsisVertical size={26} strokeWidth={2.5} />
-                        </button>
+                          <CalendarDays size={22} />
+                        </button>}
                       </td>
                     </tr>
                   ))
@@ -366,5 +418,21 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
         </section>
       </div>
     </div>
+    <dialog ref={dialogRef} aria-labelledby="payout-schedule-title" onCancel={(event) => { if (saving) event.preventDefault(); else setEditingRow(null); }} onClose={() => setEditingRow(null)} className={`fixed m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border p-6 shadow-2xl backdrop:bg-black/60 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+      <form onSubmit={saveSchedule}>
+        <h3 id="payout-schedule-title" className="text-lg font-semibold">Schedule payout</h3>
+        <p className={`mt-2 text-sm ${muted}`}>{editingRow?.name} · {editingRow?.shootId}</p>
+        <p className={`mt-2 text-sm ${muted}`}>Original due date: {editingRow?.due}. Scheduling sets when finance plans to pay; the original deadline stays the same.</p>
+        <label htmlFor="scheduled-payout-date" className="mt-5 block text-sm">Scheduled payout date</label>
+        <input id="scheduled-payout-date" type="date" required autoFocus disabled={saving} value={scheduledDate} onChange={(event) => setScheduledDate(event.target.value)} className={`mt-2 w-full rounded-lg border p-3 ${isDark ? "bg-[#222] border-[#444] [color-scheme:dark]" : "bg-white border-[#ddd]"}`} />
+        <p className={`mt-2 text-xs ${muted}`}>A past date places the payment in the Overdue row. Dates more than 27 days ahead are outside this timeline.</p>
+        {saveError && <p role="alert" className="mt-3 text-sm text-red-500">{saveError}</p>}
+        <div className="mt-6 flex justify-end gap-3">
+          <button type="button" disabled={saving} onClick={() => setEditingRow(null)} className="rounded-lg border px-4 py-2 disabled:opacity-50">Cancel</button>
+          <button type="submit" disabled={saving || !scheduledDate} className="rounded-lg bg-[#E8D1AB] px-4 py-2 text-[#171717] disabled:opacity-50">{saving ? "Saving..." : "Save schedule"}</button>
+        </div>
+      </form>
+    </dialog>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Loader2, MoreVertical } from "lucide-react";
 import { useTheme } from "next-themes";
 
 export interface AgreementData {
@@ -138,6 +138,7 @@ export default function GeneralAgreementHistoryTable({
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const tableData = activeType === "general" ? generalData : shootData;
   const totalPages = Math.ceil(totalCount / pageSize);
   const firstItem = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -147,6 +148,24 @@ export default function GeneralAgreementHistoryTable({
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!openActionsId) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest("[data-agreement-action-menu]")) {
+        setOpenActionsId(null);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenActionsId(null);
+    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openActionsId]);
+
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
 
   const toggleRowExpand = (id: string) => {
@@ -154,6 +173,58 @@ export default function GeneralAgreementHistoryTable({
       ...prev,
       [id]: !prev[id],
     }));
+  };
+
+  const renderActionsMenu = (item: AgreementData) => {
+    const canRevise = activeType === "shoot" && (
+      item.rawStatus === "draft" ||
+      (item.isCurrent && ["accepted", "pending_acceptance", "rejected"].includes(item.rawStatus || "")) ||
+      (item.rawStatus === "cancelled" && !tableData.some((candidate) =>
+        candidate.id !== item.id && candidate.assignmentId === item.assignmentId && candidate.isCurrent
+      ))
+    );
+    const canCancel = activeType === "shoot" && ["draft", "pending_acceptance"].includes(item.rawStatus || "");
+
+    return (
+      <div className="relative inline-flex" data-agreement-action-menu>
+        <button
+          type="button"
+          aria-label={`Actions for ${item.projectName}`}
+          aria-haspopup="menu"
+          aria-expanded={openActionsId === item.id}
+          onClick={(event) => {
+            event.stopPropagation();
+            setOpenActionsId((current) => current === item.id ? null : item.id);
+          }}
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-md border transition-colors ${isDark
+            ? "border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
+            : "border-black/10 text-black/60 hover:bg-black/5 hover:text-black"}`}
+        >
+          <MoreVertical size={18} aria-hidden="true" />
+        </button>
+        {openActionsId === item.id && (
+          <div role="menu" className={`absolute right-0 top-full z-30 mt-1 min-w-40 overflow-hidden rounded-lg border py-1 shadow-xl ${isDark
+            ? "border-[#3D3D3D] bg-[#202020] text-white"
+            : "border-[#E5E5E5] bg-white text-[#202020]"}`}>
+            <button role="menuitem" type="button" onClick={(event) => {
+              event.stopPropagation();
+              setOpenActionsId(null);
+              onActionClick?.(item, event);
+            }} className="block w-full px-3 py-2 text-left text-sm hover:bg-[#E8D1AB]/10">View</button>
+            {canRevise && <button role="menuitem" type="button" onClick={(event) => {
+              event.stopPropagation();
+              setOpenActionsId(null);
+              onRevise?.(item);
+            }} className="block w-full px-3 py-2 text-left text-sm hover:bg-[#E8D1AB]/10">{item.rawStatus === "draft" ? "Edit draft" : "New version"}</button>}
+            {canCancel && <button role="menuitem" type="button" onClick={(event) => {
+              event.stopPropagation();
+              setOpenActionsId(null);
+              onCancel?.(item);
+            }} className="block w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10">{item.rawStatus === "draft" ? "Discard" : "Cancel agreement"}</button>}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const getStatusBadge = (status: AgreementData["status"]) => {
@@ -384,15 +455,7 @@ export default function GeneralAgreementHistoryTable({
                 )}
 
                 <td className="py-4 px-6 text-right">
-                  <div className="flex items-center justify-end gap-3 text-sm">
-                    <button type="button" onClick={(e) => onActionClick?.(item, e)} className="text-[#E8D1AB] hover:underline">View</button>
-                    {activeType === "shoot" && item.rawStatus !== "draft" && item.isCurrent && ["accepted", "pending_acceptance", "rejected"].includes(item.rawStatus || "") &&
-                      <button type="button" onClick={() => onRevise?.(item)} className="text-[#E8D1AB] hover:underline">New version</button>}
-                    {activeType === "shoot" && item.rawStatus === "draft" &&
-                      <button type="button" onClick={() => onRevise?.(item)} className="text-[#E8D1AB] hover:underline">Edit draft</button>}
-                    {activeType === "shoot" && ["draft", "pending_acceptance"].includes(item.rawStatus || "") &&
-                      <button type="button" onClick={() => onCancel?.(item)} className="text-red-400 hover:underline">{item.rawStatus === "draft" ? "Discard" : "Cancel"}</button>}
-                  </div>
+                  {renderActionsMenu(item)}
                 </td>
               </tr>
             ))}
@@ -511,11 +574,7 @@ export default function GeneralAgreementHistoryTable({
                       <span className={isDark ? "text-white/80" : "text-black/80"}>{item.date}</span>
                     </div>
                       <div className="flex flex-wrap justify-end gap-3 text-sm">
-                        <button type="button" onClick={(e) => { e.stopPropagation(); onActionClick?.(item, e); }} className="text-[#E8D1AB]">View</button>
-                        {activeType === "shoot" && (item.rawStatus === "draft" || (item.isCurrent && ["accepted", "pending_acceptance", "rejected"].includes(item.rawStatus || ""))) &&
-                          <button type="button" onClick={(e) => { e.stopPropagation(); onRevise?.(item); }} className="text-[#E8D1AB]">{item.rawStatus === "draft" ? "Edit draft" : "New version"}</button>}
-                        {activeType === "shoot" && ["draft", "pending_acceptance"].includes(item.rawStatus || "") &&
-                          <button type="button" onClick={(e) => { e.stopPropagation(); onCancel?.(item); }} className="text-red-400">{item.rawStatus === "draft" ? "Discard" : "Cancel"}</button>}
+                        {renderActionsMenu(item)}
                       </div>
                     </div>
                   </div>
