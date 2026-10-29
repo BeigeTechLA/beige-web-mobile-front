@@ -109,6 +109,14 @@ export interface FileItem {
   uploadedAt: string; // ISO
   updatedAt: string; // ISO
   comments: FileComment[];
+  /** Edited / revised files: the file this one replaces (drives the Before / After preview) */
+  original?: {
+    previewUrl?: string;
+    kind: FileKind;
+    version: string; // "RAW_V1"
+  };
+  /** Notes sent with the revision (shown in the preview drawer) */
+  revisionNotes?: string;
 }
 
 export type TagTone = "purple" | "pink" | "blue" | "red" | "green";

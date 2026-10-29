@@ -4,22 +4,24 @@ import React, { useState } from "react";
 import { ChevronDown, Download, Eye, FileDown, ImageIcon, MessageCircle } from "lucide-react";
 import { fmTheme, formatStamp } from "./theme";
 import { Checkbox, InitialsAvatar, KebabMenu, LatestBadge, StatusTag, type MenuAction } from "./ui";
-import type { FileItem, FileStatus, ViewMode } from "./types";
+import type { FileItem, FileStatus, TagTone, ViewMode } from "./types";
 
-export const FILE_STATUS: Record<FileStatus, { label: string; tone: "purple" | "pink" | "blue" }> = {
+export const FILE_STATUS: Record<FileStatus, { label: string; tone: TagTone }> = {
   selected_for_edits: { label: "File Selected For Edits", tone: "purple" },
   ready_for_approval: { label: "Ready for Approval", tone: "purple" },
   submitted_for_approval: { label: "Submitted for Approval", tone: "pink" },
+  revision_requested: { label: "Revision Requested", tone: "red" },
+  approved: { label: "Approved", tone: "green" },
 };
 
 /** Thumbnail / placeholder for a file */
-export function FilePreview({ file, isDark, className = "" }: { file: FileItem; isDark: boolean; className?: string }) {
+export function FilePreview({ file, isDark, className = "", isModal = false }: { file: FileItem; isDark: boolean; className?: string; isModal?: boolean }) {
   if (file.previewUrl && file.kind === "image") {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={file.previewUrl} alt={file.name} className={`rounded-lg h-full w-full lg:h-[281px] object-cover ${className}`} />;
+    return <img src={file.previewUrl} alt={file.name} className={`rounded-lg h-full w-full ${isModal ? "lg:min-h-[281px]" : "lg:h-[281px]"} object-cover ${className}`} />;
   }
   if (file.previewUrl && file.kind === "video") {
-    return <video src={file.previewUrl} className={`rounded-lg h-full w-full lg:h-[281px] object-cover ${className}`} muted playsInline preload="metadata" />;
+    return <video src={file.previewUrl} className={`rounded-lg h-full w-full ${isModal ? "lg:min-h-[281px]" : "lg:h-[281px]"} object-cover ${className}`} muted playsInline preload="metadata" />;
   }
 
   return (
@@ -75,7 +77,7 @@ export default function FileCard({
   const titleRow = (
     <div className="flex items-center justify-between gap-2">
       <div className="flex min-w-0 items-center gap-2">
-        <p className={`truncate text-sm lg:text-base lg:w-[150px] ${t.strong}`} title={`${file.name} - ${file.version}`}>
+        <p className={`truncate text-sm lg:text-base lg:max-w-[150px] ${t.strong}`} title={`${file.name} - ${file.version}`}>
           {file.name} - {file.version}
         </p>
         {file.isLatest && <LatestBadge
@@ -149,47 +151,43 @@ export default function FileCard({
         </div>
       </div>
 
-
       {/* References + Uploaded info (expandable) */}
-      {
-        file.referenceLink &&
-        <>
-          <div className={`border-t p-4 lg:p-5 ${t.divider}`}>
-            <div className="flex items-start justify-between gap-2">
-              <div className={`min-w-0 space-y-3 text-xs lg:text-sm ${isDark ? "text-[#CDC5C5]/60" : "text-black/70"}`}>
-                {file.referenceLink && (
-                  <p className={refsOpen ? "" : "line-clamp-2"}>
-                    Reference Link for Edits :{" "}
-                    <a
-                      href={file.referenceLink}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className={`underline underline-offset-2 break-all ${t.gold}`}
-                    >
-                      {file.referenceLink}
-                    </a>
-                  </p>
-                )}
-                {file.referenceMessage && (refsOpen || !file.referenceLink) && (
-                  <p className={refsOpen ? "" : "line-clamp-2"}>
-                    Reference Message for Edits : <span className={t.gold}>{file.referenceMessage}</span>
-                  </p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setRefsOpen((v) => !v)}
-                aria-expanded={refsOpen}
-                aria-label={refsOpen ? "Hide references" : "Show references"}
-                className={`shrink-0 rounded p-0.5 ${t.strong}`}
-              >
-                <ChevronDown className={`h-4 w-4 lg:h-6 lg:w-6 transition-transform ${refsOpen ? "rotate-180" : ""}`} />
-              </button>
+      {hasRefs && (
+        <div className={`border-t p-4 lg:p-5 ${t.divider}`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className={`min-w-0 space-y-3 text-xs lg:text-sm ${isDark ? "text-[#CDC5C5]/60" : "text-black/70"}`}>
+              {file.referenceLink && (
+                <p className={refsOpen ? "" : "line-clamp-2"}>
+                  Reference Link for Edits :{" "}
+                  <a
+                    href={file.referenceLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className={`underline underline-offset-2 break-all ${t.gold}`}
+                  >
+                    {file.referenceLink}
+                  </a>
+                </p>
+              )}
+              {file.referenceMessage && (refsOpen || !file.referenceLink) && (
+                <p className={refsOpen ? "" : "line-clamp-2"}>
+                  Reference Message for Edits : <span className={t.gold}>{file.referenceMessage}</span>
+                </p>
+              )}
             </div>
+            <button
+              type="button"
+              onClick={() => setRefsOpen((v) => !v)}
+              aria-expanded={refsOpen}
+              aria-label={refsOpen ? "Hide references" : "Show references"}
+              className={`shrink-0 rounded p-0.5 ${t.strong}`}
+            >
+              <ChevronDown className={`h-4 w-4 lg:h-6 lg:w-6 transition-transform ${refsOpen ? "rotate-180" : ""}`} />
+            </button>
           </div>
-        </>
-      }
+        </div>
+      )}
 
       {/* Uploader */}
       <div className={`mt-auto flex items-center gap-3 border-t p-4 lg:p-5 ${t.divider}`}>
@@ -200,7 +198,6 @@ export default function FileCard({
         </div>
         <KebabMenu isDark={isDark} actions={actions} label={`${file.name} actions`} />
       </div>
-
     </div>
   );
 }

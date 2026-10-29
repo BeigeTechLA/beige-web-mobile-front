@@ -33,9 +33,13 @@ export default function FilePreviewDrawer({
   const titleId = useId();
   const [mounted, setMounted] = useState(false);
   const [comment, setComment] = useState("");
+  const [side, setSide] = useState<"before" | "after">("after");
 
   useEffect(() => setMounted(true), []);
-  useEffect(() => setComment(""), [file?.id]);
+  useEffect(() => {
+    setComment("");
+    setSide("after");
+  }, [file?.id]);
 
   useEffect(() => {
     if (!file) return;
@@ -52,6 +56,10 @@ export default function FilePreviewDrawer({
   if (!mounted || !file) return null;
 
   const status = FILE_STATUS[file.status];
+  const compare = !!file.original;
+  const beforeFile: FileItem | null = file.original
+    ? { ...file, kind: file.original.kind, previewUrl: file.original.previewUrl, version: file.original.version }
+    : null;
   const actionBtn = `inline-flex h-9 items-center gap-1.5 rounded-lg border px-4 text-sm font-medium transition-colors ${isDark ? "border-[#262626] bg-[#262626]/30 text-white hover:bg-[#1C1C1C]" : "border-[#E5E5E5] bg-white text-[#111] hover:bg-[#F7F7F7]"}`;
 
   const submitComment = (e: React.FormEvent) => {
@@ -77,6 +85,7 @@ export default function FilePreviewDrawer({
             <h2 id={titleId} className="truncate text-lg lg:text-3xl font-bold">{file.name} - {file.version}</h2>
             <div className="flex flex-wrap items-center gap-3">
               {file.isLatest && <LatestBadge version={`V${file.versionNumber}`} />}
+              {compare && <StatusTag label="Revision Complete" tone="green" />}
               <StatusTag label={status.label} tone={status.tone} />
             </div>
           </div>
@@ -93,7 +102,25 @@ export default function FilePreviewDrawer({
         <div className="space-y-3 lg:space-y-5 p-5 lg:px-7 lg:py-9">
           {/* Actions */}
           <div className="flex flex-wrap gap-3">
-            {onRequestRevision && (
+            {compare && (
+              <>
+                {([
+                  ["before", "Before (Original)", AlertCircle],
+                  ["after", "After (Revision)", AlertCircle],
+                ] as const).map(([key, label, Icon]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSide(key)}
+                    aria-pressed={side === key}
+                    className={`${actionBtn} ${side === key ? "!border-[#E8D1AB]/70 !bg-[#E8D1AB]/10 !text-[#FDC700]" : ""}`}
+                  >
+                    <Icon size={16} /> {label}
+                  </button>
+                ))}
+              </>
+            )}
+            {!compare && onRequestRevision && (
               <button type="button" onClick={() => onRequestRevision(file)} className={`${actionBtn} !text-[#FDC700]`}>
                 <AlertCircle size={16} /> Request Revision
               </button>
@@ -106,17 +133,50 @@ export default function FilePreviewDrawer({
             </button>
           </div>
 
-          {/* Preview */}
+          {/* Preview – single, or Before / After side by side */}
+          {compare && beforeFile ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4">
+              {([
+                ["before", "Before", beforeFile],
+                ["after", "After", file],
+              ] as const).map(([key, label, f]) => {
+                const active = side === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSide(key)}
+                    aria-pressed={active}
+                    aria-label={`${label}: ${f.name} - ${f.version}`}
+                    // mobile shows the selected side only; sm+ shows both
+                    className={`relative aspect-[4/5] overflow-hidden rounded-2xl border-2 text-left transition-colors ${active ? "border-[#E8D1AB]" : "border-transparent"} ${active ? "" : "hidden sm:block"}`}
+                  >
+                    {f.kind === "video" && f.previewUrl ? (
+                      <video src={f.previewUrl} controls={active} muted className="h-full w-full bg-black object-contain" />
+                    ) : (
+                      <FilePreview file={f} isDark={isDark} isModal={true} />
+                    )}
+                    <span
+                      className={`absolute left-3 top-3 rounded-full px-4 lg:px-6 py-1 text-xs lg:text-sm font-semibold ${key === "before" ? "bg-white text-black" : "bg-black text-white"}`}
+                    >
+                      {label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
           <div className="aspect-[16/10] overflow-hidden rounded-2xl">
             {file.kind === "video" && file.previewUrl ? (
               <video src={file.previewUrl} controls className="h-full w-full bg-black object-contain" />
             ) : (
-              <FilePreview file={file} isDark={isDark} />
+              <FilePreview file={file} isDark={isDark} isModal={true} />
             )}
           </div>
+          )}
 
           {/* Details */}
-          <dl className={`grid grid-cols-2 gap-4 rounded-2xl border p-4 lg:p-6 ${isDark ? "bg-[#1A1A1A] border-white/10" : "bg-[#FAFAFA] border-[#ECECEC]"}`}>
+          <dl className={`grid gap-4 rounded-2xl border p-4 lg:p-6 ${compare ? "grid-cols-2 sm:grid-cols-[1fr_1fr_1.3fr]" : "grid-cols-2"} ${isDark ? "bg-[#1A1A1A] border-white/10" : "bg-[#FAFAFA] border-[#ECECEC]"}`}>
             <div>
               <dt className={`text-xs lg:text-sm ${isDark ? "text-[#6A7282]" : "text-black/70"}`}>Uploaded by</dt>
               <dd className="mt-0.5 text-sm lg:text-base">{file.uploadedBy.name}</dd>
@@ -133,6 +193,13 @@ export default function FilePreviewDrawer({
               <dt className={`text-xs lg:text-sm ${isDark ? "text-[#6A7282]" : "text-black/70"}`}>Current version</dt>
               <dd className={`mt-0.5 text-sm lg:text-base font-semibold ${t.gold}`}>Version {file.versionNumber}</dd>
             </div>
+            {compare && (
+              // sits in the 3rd column, spanning both rows (full width on mobile)
+              <div className="col-span-2 sm:col-span-1 sm:col-start-3 sm:row-span-2 sm:row-start-1">
+                <dt className={`text-xs lg:text-sm ${isDark ? "text-[#6A7282]" : "text-black/70"}`}>Revision Notes</dt>
+                <dd className="mt-0.5 whitespace-pre-wrap text-sm lg:text-base">{file.revisionNotes?.trim() || "—"}</dd>
+              </div>
+            )}
           </dl>
 
           {/* Comments */}

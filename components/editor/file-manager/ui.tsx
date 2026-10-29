@@ -125,12 +125,12 @@ export function LatestBadge({ version, cornerType = "rounded-full" }: { version?
 }
 
 /** Small purple/pink status pill ("File Selected For Edits", "Ready for Approval") */
-export function StatusTag({ label, tone = "purple" }: { label: string; tone?: "purple" | "pink" | "blue" }) {
+export function StatusTag({ label, tone = "purple" }: { label: string; tone?: TagTone }) {
   const cls = {
     purple: "border-[#AD46FF]/20 bg-[#AD46FF]/10 text-[#C27AFF]",
     pink: "border-[#8C3A7A] bg-[#3A1833] text-[#F29BDD]",
-    blue: "border-[#3A4F8C] bg-[#18213A] text-[#9FB6FF]",
-    red: "border-[#7A2A2E] bg-[#3A1517] text-[#FF7A7A]",
+    blue: "border-[#7AAFFF]/20 bg-[#7AAFFF]/10 text-[#7AAFFF]",
+    red: "border-[#FF7A7A]/20 bg-[#FF7A7A]/10 text-[#FF7A7A]",
     green: "border-[#1F7A43] bg-[#0F2A1A] text-[#3DD27A]",
   }[tone];
   return <span className={`flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 lg:px-3 lg:py-1 text-[10px] lg:text-xs font-medium ${cls}`}>{label}</span>;

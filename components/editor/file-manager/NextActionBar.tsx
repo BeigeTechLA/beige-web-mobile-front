@@ -34,15 +34,15 @@ export default function NextActionBar({
       aria-label={eyebrow}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3 lg:w-full">
           {/* pulsing status dot */}
           <span className="relative flex h-4 w-4 shrink-0 items-center justify-center" aria-hidden="true">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#452908]" />
             <span className="relative inline-flex h-3 w-3 rounded-full border-2 border-[#452908] bg-[#D97706]" />
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 lg:w-full">
             <p className={`text-sm lg:text-base uppercase tracking-wide ${t.gold}`}>{eyebrow}</p>
-            <p className={`mt-0.5 text-base lg:text-lg font-medium ${t.strong}`}>{message}</p>
+            <p className={`mt-0.5 text-base lg:text-lg font-medium ${t.strong} w-full`}>{message}</p>
           </div>
         </div>
         {actions.length > 0 && (

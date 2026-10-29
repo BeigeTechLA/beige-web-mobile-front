@@ -18,3 +18,5 @@ export { default as BrowserToolbar, ItemsLayout } from "./BrowserToolbar";
 export { default as ActivityTimeline } from "./ActivityTimeline";
 export { default as ProjectTimelineDrawer } from "./ProjectTimelineDrawer";
 export { default as FileSection } from "./FileSection";
+export { default as UploadFilesModal } from "./UploadFilesModal";
+export { showUploadSuccess } from "./UploadSuccessStrip";

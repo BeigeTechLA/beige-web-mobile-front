@@ -6,12 +6,15 @@ import { fmTheme } from "./theme";
 /** Required / Uploaded / Remaining progress card for the Edited Deliverables folder. */
 export default function DeliverableProgress({
   isDark,
+  eyebrow = "Deliverable Progress",
   label,
   required,
   uploaded,
   status,
 }: {
   isDark: boolean;
+  /** Small gold heading ("Deliverable Progress", "Revision Progress") */
+  eyebrow?: string;
   label: string;
   required: number;
   uploaded: number;
@@ -30,7 +33,7 @@ export default function DeliverableProgress({
     <section className={`rounded-2xl border p-4 lg:p-5 space-y-4 lg:space-y-5 ${isDark ? "bg-[#0C0C0C] border-[#252523]" : "bg-white border-[#E5E5E5]"}`}>
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className={`text-[10px] lg:text-xs font-medium uppercase tracking-wider ${t.gold}`}>Deliverable Progress</p>
+          <p className={`text-[10px] lg:text-xs font-medium uppercase tracking-wider ${t.gold}`}>{eyebrow}</p>
           <p className={`mt-0.5 text-sm lg:text-base font-semibold ${t.strong}`}>{label}</p>
         </div>
         <p className={`text-xl lg:text-3xl font-medium ${t.gold}`}>{pct}%</p>
