@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, EllipsisVertical, Eye, Loader2, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { format, subDays } from 'date-fns';
 import { financeTransactionsApi, type FinanceTransactionApiRow } from '@/lib/api/financeTransactions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -32,6 +32,7 @@ const formatDateTime = (value: string | null | undefined) => {
 };
 
 export default function ClientPaymentHistoryPanel({ open, isDark, startDate = null, endDate = null }: { open: boolean; isDark: boolean; startDate?: string | null; endDate?: string | null }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [status, setStatus] = useState('All');
@@ -51,6 +52,38 @@ export default function ClientPaymentHistoryPanel({ open, isDark, startDate = nu
     const timeout = setTimeout(() => setDebouncedSearch(search.trim()), 350);
     return () => clearTimeout(timeout);
   }, [search]);
+
+  // Smooth-scroll to the panel when it opens
+  useEffect(() => {
+    if (!open) return;
+    const el = wrapperRef.current;
+    if (!el) return;
+    let cancelled = false;
+
+    const go = () => {
+      if (cancelled) return;
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    };
+
+    // If ANOTHER panel is still collapsing, wait for it so the final position is stable
+    const others = document
+      .getAnimations()
+      .filter(
+        (a) =>
+          a instanceof CSSTransition &&
+          a.transitionProperty === 'grid-template-rows' &&
+          (a.effect as KeyframeEffect | null)?.target !== el,
+      )
+      .map((a) => a.finished.catch(() => undefined));
+
+    if (others.length) Promise.all(others).then(go);
+    else go();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   useEffect(() => setPage(1), [debouncedSearch, status, month, method, startDate, endDate]);
 
@@ -100,7 +133,7 @@ export default function ClientPaymentHistoryPanel({ open, isDark, startDate = nu
     .filter((number) => number === 1 || number === totalPages || Math.abs(number - page) <= 1);
 
   return (
-    <div className={`col-span-full grid w-full transition-[grid-template-rows] duration-500 ease-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr] !mt-0'}`}>
+    <div ref={wrapperRef} className={`col-span-full grid w-full scroll-mt-24 transition-[grid-template-rows] duration-500 ease-out lg:scroll-mt-28 ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr] !mt-0'}`}>
       <div className="min-h-0 overflow-hidden">
         <section className={`overflow-hidden rounded-2xl border transition-all duration-500 ${open ? 'translate-y-0 opacity-100' : '-translate-y-5 opacity-0'} ${isDark ? 'border-[#333333] bg-[#111111] text-white' : 'border-[#E5E5E5] bg-white text-[#202020]'}`}>
           <div className={`flex flex-col gap-4 border-b p-4 lg:p-5 ${isDark ? 'border-[#333333]' : 'border-[#E5E5E5]'}`}>
