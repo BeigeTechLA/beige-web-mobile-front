@@ -9,13 +9,14 @@ import { EditorFolderCard } from "@/components/admin/file-manager/EditorFolderCa
 import { FileManagerViewToggle } from "@/components/admin/file-manager/FileManagerViewToggle";
 import { EditorFileDetailsPanel } from "@/components/admin/file-manager/EditorFileDetailsPanel";
 import type { ViewMode } from "@/hooks/useViewMode";
-import { reviewFiles, revisionFiles, editorFileCounts, editorLinkedDate } from "@/components/admin/file-manager/editorMockData";
+import { toast } from "sonner";
 
-export function EditorReviewStatus({ projectName, revisionSubmitted = false }: { projectName: string; revisionSubmitted?: boolean }) {
+export function EditorReviewStatus({ projectName, files, bookingId, status, nextAction, revisionVersion }: { projectName: string; files: EditorFileCardData[]; bookingId: string; status?: string; nextAction?: string; revisionVersion?: number | null }) {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<EditorFileCardData | null>(null);
-  const files = revisionSubmitted ? revisionFiles.map((file) => ({ ...file, versionLabel: "V2 Latest", statusLabel: "Waiting for Approval" })) : reviewFiles;
+  const reviewFiles = files.map((file) => ({ ...file, statusLabel: file.statusLabel || (status === "revision_requested" ? "Revision Requested" : "Waiting for Approval") }));
+  const revisionSubmitted = status === "resubmitted";
 
   return (
     <div className="mt-5 overflow-hidden rounded-[22px] border border-[#252525] bg-[#111]">
@@ -26,8 +27,8 @@ export function EditorReviewStatus({ projectName, revisionSubmitted = false }: {
           </span>
           <h2 className="text-sm font-medium text-[#e8d1ab]">
             {revisionSubmitted
-              ? `Revision Version 2 (${editorFileCounts.revisionFiles} Items Uploaded)`
-              : `Edited Deliverables (${editorFileCounts.editedUploaded} Items Uploaded)`}
+              ? `Revision Version ${revisionVersion || 1} (${reviewFiles.length} Items Uploaded)`
+              : `Edited Deliverables (${reviewFiles.length} Items Uploaded)`}
           </h2>
         </div>
         <LinkedProjectInfo projectName={projectName} />
@@ -43,26 +44,29 @@ export function EditorReviewStatus({ projectName, revisionSubmitted = false }: {
           setViewMode={setViewMode} 
           isDark /></div>
       </div>
-      <div className="grid grid-cols-1 items-start gap-3 p-4 md:grid-cols-2 md:p-5 2xl:grid-cols-3">{files.map((file, index) => <EditorFileCard 
+      <div className="grid grid-cols-1 items-start gap-3 p-4 md:grid-cols-2 md:p-5 2xl:grid-cols-3">{reviewFiles.length === 0 ? <p className="text-sm text-[#aaa]">No files waiting for review.</p> : reviewFiles.map((file, index) => <EditorFileCard 
         key={`${file.title}-${index}`} 
         file={file} 
         onOpen={() => setSelectedFile(file)} />)}</div>
       <NextActionFooter 
-        message="Wait for the remaining files to be reviewed and after files are approved it will move to final deliverables." />
+        message={nextAction || "No action is currently required."} />
       {selectedFile && <EditorFileDetailsPanel 
         file={selectedFile} 
+        bookingId={bookingId}
         onClose={() => setSelectedFile(null)} 
         revisionComparison={revisionSubmitted} />}
     </div>
   );
 }
 
-export function EditorRevisionFlow({ projectName, stage, onStageChange, onUpload, onReturnToReview }: { projectName: string; stage: "folders" | "version-one" | "version-two"; onStageChange: (stage: "folders" | "version-one" | "version-two") => void; onUpload: () => void; onReturnToReview: () => void }) {
+export function EditorRevisionFlow({ projectName, files: liveFiles = [], folders = [], progress: liveProgress, currentVersion = 1, nextAction, bookingId, stage, onStageChange, onUpload, onSubmitRevision, onReturnToReview }: { projectName: string; files?: EditorFileCardData[]; folders?: Array<{ name: string; path: string; fileCount?: number; updatedAt?: string }>; progress?: { uploaded: number; required: number; percent: number }; currentVersion?: number; nextAction?: { code?: string; text?: string } | null; bookingId: string; stage: "folders" | "version-one" | "version-two"; onStageChange: (stage: "folders" | "version-one" | "version-two") => void; onUpload: () => void; onSubmitRevision: (notes?: string) => Promise<number>; onReturnToReview: () => void }) {
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<EditorFileCardData | null>(null);
+  const [submitPending, setSubmitPending] = useState(false);
+  const [submittedCount, setSubmittedCount] = useState(0);
 
   useEffect(() => {
     if (!submitted) return;
@@ -74,13 +78,14 @@ export function EditorRevisionFlow({ projectName, stage, onStageChange, onUpload
   }, [submitted]);
 
   const completed = stage === "version-two";
-  const currentVersion = completed ? 2 : 1;
+  const canSubmitRevision = completed && liveProgress?.uploaded && nextAction?.code === "upload_revision";
+  const displayedVersion = currentVersion;
   const title = completed
-    ? `Version 2 (${editorFileCounts.revisionFiles} Items Uploaded)`
-    : `Version 1 (${editorFileCounts.revisionFiles} Items Need to be Revised)`;
-  const files = revisionFiles.map((file, index) => ({
+    ? `Version ${displayedVersion} (${liveProgress?.uploaded || liveFiles.length} Items Uploaded)`
+    : `Version 1 (${liveProgress?.required || liveFiles.length} Items Need to be Revised)`;
+  const files = liveFiles.map((file, index) => ({
     ...file,
-    versionLabel: `V${currentVersion} Latest`,
+    versionLabel: `V${displayedVersion} Latest`,
     statusLabel: completed ? "Waiting for Approval" : "Revision Requested",
     uploadedAt: index === 0 ? "10 Jan, 2026 - 10:00 AM" : "10 Jan, 2026 - 10:15 AM",
   }));
@@ -88,21 +93,22 @@ export function EditorRevisionFlow({ projectName, stage, onStageChange, onUpload
   const footerMessage = stage === "folders"
     ? "Download the file, make the requested changes, and upload the revised Version 1 to Version 2."
     : stage === "version-one"
-      ? `Revision requested for ${editorFileCounts.revisionFiles} photos`
-      : `${editorFileCounts.revisionFiles} out of ${editorFileCounts.revisionFiles} files have been revised and uploaded in Version 2 of Revision file`;
+    ? `Revision requested for ${liveProgress?.required || liveFiles.length} photos`
+      : `${liveProgress?.uploaded || liveFiles.length} files have been revised and uploaded.`;
   const buttonLabel = stage === "folders" ? "Start Revision" : stage === "version-one" ? "Continue Revision" : "Submit Revision";
   const advance = () => {
     if (stage === "folders") onStageChange("version-one");
     else if (stage === "version-one") onUpload();
-    else setApprovalOpen(true);
+    else if (canSubmitRevision) setApprovalOpen(true);
   };
 
   return (
     <div className="mt-8 space-y-5 pb-28">
       {stage !== "folders" && <ProgressCard 
-        progress={completed ? 100 : 0} 
-        title={`Revised photography - ${editorFileCounts.revisionFiles} affected files - Cycle 01`}
-        uploaded={completed ? editorFileCounts.revisionFiles : 0}
+        progress={liveProgress?.percent || 0} 
+        title={`Revised photography - ${liveProgress?.required || liveFiles.length} affected files`}
+        uploaded={liveProgress?.uploaded || 0}
+        required={liveProgress?.required || liveFiles.length}
         status={completed ? "Completed" : "Not Started"} />}
       <section className="overflow-hidden rounded-[22px] border border-[#252525] bg-[#111]">
         <div className="border-b border-[#292929] p-5 md:p-6">
@@ -111,7 +117,7 @@ export function EditorRevisionFlow({ projectName, stage, onStageChange, onUpload
               <Folder size={18} />
             </span>
             <h2 className="text-sm font-medium text-[#e8d1ab]">
-              {stage === "folders" ? "Revision (2 Folder)" : title}
+              {stage === "folders" ? `Revision (${folders.length} Folders)` : title}
             </h2>
             {stage === "folders" && (
               <span className="rounded-full border border-[#315342] bg-[#17221c] px-3 py-0.5 text-[10px] text-[#54cc83]">
@@ -123,19 +129,14 @@ export function EditorRevisionFlow({ projectName, stage, onStageChange, onUpload
         </div>
         {stage === "folders" ? (
           <div className="grid grid-cols-1 gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
-            <EditorFolderCard 
-              title="Version 1" 
-              fileCount={editorFileCounts.revisionFiles}
-              lastOpened="Jan 10, 2026 - 10:00 AM" 
-              userInitials="JS" 
-              hoverMessage="Revision Requested" 
-              onOpen={() => onStageChange("version-one")} />
-            <EditorFolderCard 
-              title="Version 2" 
-              fileCount={editorFileCounts.revisionFiles}
-              lastOpened="Jan 10, 2026 - 10:00 AM" 
-              userInitials="JS" 
-              onOpen={() => onStageChange("version-two")} />
+            {folders.map((folder) => <EditorFolderCard 
+              key={folder.path}
+              title={folder.name}
+              fileCount={folder.fileCount || 0}
+              lastOpened={folder.updatedAt ? new Date(folder.updatedAt).toLocaleString() : "-"} 
+              userInitials="-" 
+              hoverMessage={folder.name.replace(/\s/g, "") === "Version1" ? "Revision Requested" : undefined}
+              onOpen={() => onStageChange(folder.name.replace(/\s/g, "") === "Version1" ? "version-one" : "version-two")} />)}
           </div>
         ) : (
           <>
@@ -174,23 +175,32 @@ export function EditorRevisionFlow({ projectName, stage, onStageChange, onUpload
         )}
       </section>
       <NextActionFooter 
-        message={footerMessage} 
-        buttonLabel={buttonLabel} 
+        message={nextAction?.text || footerMessage} 
+        buttonLabel={stage === "version-one" || (stage === "version-two" && !canSubmitRevision) ? undefined : buttonLabel} 
         onAction={advance} />
       {selectedFile && <EditorFileDetailsPanel 
         file={selectedFile} 
+        bookingId={bookingId}
         onClose={() => setSelectedFile(null)} 
         revisionComparison={completed} />}
       {approvalOpen && <RevisionApprovalModal 
         onClose={() => setApprovalOpen(false)} 
-        onSubmit={() => { setApprovalOpen(false); setSubmitted(true); }} />}
+        pending={submitPending}
+        progress={liveProgress}
+        onSubmit={async (notes) => {
+          if (submitPending) return;
+          setSubmitPending(true);
+          try { setSubmittedCount(await onSubmitRevision(notes)); setApprovalOpen(false); setSubmitted(true); }
+          catch (caught) { toast.error((caught as Error).message || "Unable to submit revision"); }
+          finally { setSubmitPending(false); }
+        }} />}
       <ActionSuccessModal
         isOpen={submitted}
         onSubmit={() => {
           setSubmitted(false);
           onReturnToReview();
         }}
-        title={`${editorFileCounts.revisionFiles} Photos Submitted for Review`}
+        title={`${submittedCount} Photos Submitted for Review`}
         subtext="Your revised photos have been successfully submitted to the internal team for review. You'll be notified when the review is complete."
         buttonText="Review Files"
       />
@@ -198,7 +208,7 @@ export function EditorRevisionFlow({ projectName, stage, onStageChange, onUpload
   );
 }
 
-export function EditorTimelineDrawer({ onClose, activeStepIndex = 1 }: { onClose: () => void; activeStepIndex?: number }) {
+export function EditorTimelineDrawer({ onClose, activeStepIndex = 1, timeline }: { onClose: () => void; activeStepIndex?: number; timeline?: Array<{ status?: string; done?: boolean; current?: boolean }> }) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -237,14 +247,17 @@ export function EditorTimelineDrawer({ onClose, activeStepIndex = 1 }: { onClose
           </button>
         </div>
         <ol className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-          {steps.map((step, index) => (
+          {steps.map((step, index) => {
+            const state = timeline?.find((item) => item.status === ["not_started", "in_progress", "submitted", "revision_requested", "resubmitted", "approved", "completed"][index]);
+            const active = state ? Boolean(state.done || state.current) : index <= activeStepIndex;
+            return (
             <li key={step} className="relative flex min-h-[90px] items-start gap-3.5 pt-1">
               <span
-                className={`z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm ${index <= activeStepIndex ? "bg-[#e8d1ab] text-black" : "bg-[#111] text-[#aaa]"}`}
+                className={`z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm ${active ? "bg-[#e8d1ab] text-black" : "bg-[#111] text-[#aaa]"}`}
               >
                 {index + 1}
               </span>
-              <span className={`pt-2 text-sm leading-5 ${index <= activeStepIndex ? "text-[#e8d1ab]" : "text-[#aaa]"}`}>
+              <span className={`pt-2 text-sm leading-5 ${active ? "text-[#e8d1ab]" : "text-[#aaa]"}`}>
                 {step}
               </span>
               {index < steps.length - 1 && (
@@ -253,14 +266,15 @@ export function EditorTimelineDrawer({ onClose, activeStepIndex = 1 }: { onClose
                 </span>
               )}
             </li>
-          ))}
+            );
+          })}
         </ol>
       </aside>
     </div>
   );
 }
 
-function ProgressCard({ progress, title, uploaded, status }: { progress: number; title: string; uploaded: number; status: string }) {
+function ProgressCard({ progress, title, uploaded, required, status }: { progress: number; title: string; uploaded: number; required: number; status: string }) {
   return (
     <section className="rounded-[22px] border border-[#252525] bg-[#0b0b0b] p-5 md:p-6">
       <div className="flex items-end justify-between gap-4">
@@ -276,9 +290,9 @@ function ProgressCard({ progress, title, uploaded, status }: { progress: number;
         <div className="h-full rounded-full bg-[#e8d1ab]" style={{ width: `${progress}%` }} />
       </div>
       <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Stat label="Required" value={String(editorFileCounts.revisionFiles)} />
+        <Stat label="Required" value={String(required)} />
         <Stat label="Uploaded" value={String(uploaded)} />
-        <Stat label="Remaining" value={String(editorFileCounts.revisionFiles - uploaded)} />
+        <Stat label="Remaining" value={String(Math.max(required - uploaded, 0))} />
         <Stat label="Status" value={status} />
       </div>
     </section>
@@ -316,7 +330,7 @@ function LinkedProjectInfo({ projectName }: { projectName: string }) {
           <p className="text-sm leading-5">Linked to: {projectName}</p>
           <p className="mt-1 flex items-center gap-1.5 text-xs leading-4 text-[#bcbcbc]">
             <CalendarDays size={14} />
-            {editorLinkedDate}
+            -
           </p>
         </div>
       </div>
@@ -345,7 +359,8 @@ function NextActionFooter({ message, buttonLabel, onAction }: { message: string;
   );
 }
 
-function RevisionApprovalModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: () => void }) {
+function RevisionApprovalModal({ onClose, onSubmit, pending, progress }: { onClose: () => void; onSubmit: (notes?: string) => Promise<void>; pending: boolean; progress?: { uploaded: number; required: number } }) {
+  const [notes, setNotes] = useState("");
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -377,14 +392,14 @@ function RevisionApprovalModal({ onClose, onSubmit }: { onClose: () => void; onS
               NH
             </div>
             <div>
-              <h3 className="text-xl font-semibold">Nike Holiday Campaign</h3>
+              <h3 className="text-xl font-semibold">Submit Revision</h3>
               <p className="mt-1 text-sm font-semibold text-[#e8d1ab]">
-                #123456 &middot; PHOTO RETOUCHING
+                Revision submission
               </p>
             </div>
           </div>
           <div className="grid grid-cols-3 divide-x divide-[#333] rounded-xl border border-[#333] py-4">
-            {[["Required", "25"], ["Uploaded Files", "25"], ["Remaining Files", "0"]].map(([label, value]) => (
+            {[["Required", String(progress?.required || 0)], ["Uploaded Files", String(progress?.uploaded || 0)], ["Remaining Files", String(Math.max((progress?.required || 0) - (progress?.uploaded || 0), 0))]].map(([label, value]) => (
               <div key={label} className="px-4">
                 <p className="text-xs uppercase text-[#888]">{label}</p>
                 <p className="mt-1 text-sm">{value}</p>
@@ -396,7 +411,8 @@ function RevisionApprovalModal({ onClose, onSubmit }: { onClose: () => void; onS
               Submission Notes <span className="text-[#e8d1ab]">(Optional)</span>
             </legend>
             <textarea
-              defaultValue="Full Retouching pass complete and ready for the internal review"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
               className="h-28 w-full resize-none bg-transparent pt-2 text-sm outline-none"
             />
           </fieldset>
@@ -404,11 +420,11 @@ function RevisionApprovalModal({ onClose, onSubmit }: { onClose: () => void; onS
             Maya Chen and the post production team will be notified. Your editor status will update automatically
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <button onClick={onClose} className="rounded-lg bg-[#202020] py-3 text-sm">
+            <button disabled={pending} onClick={onClose} className="rounded-lg bg-[#202020] py-3 text-sm">
               Cancel
             </button>
-            <button onClick={onSubmit} className="rounded-lg bg-[#e8d1ab] py-3 text-sm font-semibold text-black">
-              Submit
+            <button disabled={pending} onClick={() => void onSubmit(notes || undefined)} className="rounded-lg bg-[#e8d1ab] py-3 text-sm font-semibold text-black">
+              {pending ? "Submitting…" : "Submit"}
             </button>
           </div>
         </div>

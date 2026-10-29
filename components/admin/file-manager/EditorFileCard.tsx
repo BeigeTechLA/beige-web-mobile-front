@@ -15,9 +15,12 @@ export interface EditorFileCardData {
   uploaderName: string;
   uploaderInitials: string;
   uploadedAt: string;
+  filepath?: string;
+  updatedAt?: string;
+  currentVersion?: string | number;
 }
 
-export function EditorFileCard({ file, onOpen }: { file: EditorFileCardData; onOpen?: () => void }) {
+export function EditorFileCard({ file, onOpen, selected, onSelect }: { file: EditorFileCardData; onOpen?: () => void; selected?: boolean; onSelect?: (checked: boolean) => void }) {
   const referenceContentExists = Boolean(file.referenceLink || file.referenceMessage);
 
   return (
@@ -27,6 +30,8 @@ export function EditorFileCard({ file, onOpen }: { file: EditorFileCardData; onO
           <span onClick={(event) => event.stopPropagation()}>
             <Checkbox 
               aria-label={`Select ${file.title}`} 
+              checked={selected}
+              onCheckedChange={(checked) => onSelect?.(Boolean(checked))}
               className="h-4 w-4 border-white/50 data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black" />
           </span>
           <span className="text-xs font-semibold tracking-wide text-white/80">ID : #{file.id}</span>

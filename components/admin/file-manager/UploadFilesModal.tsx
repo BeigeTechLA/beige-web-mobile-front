@@ -10,6 +10,7 @@ interface UploadModalProps {
   onClose: () => void;
   folderName: string;
   uploadPath?: string;
+  externalId?: string | number;
   existingFileNames?: string[];
   onUploadComplete?: () => Promise<void> | void;
   isDark?: boolean;
@@ -79,6 +80,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
   onClose,
   folderName,
   uploadPath,
+  externalId,
   existingFileNames = [],
   onUploadComplete,
   isDark = true,
@@ -886,7 +888,8 @@ const UploadModal: React.FC<UploadModalProps> = ({
                       fileContentType: item.fileContentType,
                       fileSize: item.fileSize,
                       fileName: item.fileName,
-                    }))
+                    })),
+                    externalId
                   ),
                 false
               );

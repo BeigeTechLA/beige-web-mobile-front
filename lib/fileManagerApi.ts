@@ -1153,12 +1153,13 @@ export const fileManagerApi = {
   },
 
   async notifyExternalFilesUploadedBatch(
-    items: Array<{ filepath: string; fileContentType: string; fileSize: number; fileName: string }>
+    items: Array<{ filepath: string; fileContentType: string; fileSize: number; fileName: string }>,
+    externalId?: string | number
   ) {
     const currentUser = getCurrentFileManagerUser();
     const response = await apiClient.post<ExternalBatchFileUploadedResponse>(
       "external-file-manager/files-uploaded/batch",
-      { items, ...currentUser }
+      { items, ...(externalId === undefined ? currentUser : { externalId: String(externalId) }) }
     );
     return response.data;
   },
