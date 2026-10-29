@@ -122,6 +122,7 @@ export default function OverdueShootBreakdownPanel({
   const [currentPage, setCurrentPage] = useState(1);
   const [menu, setMenu] = useState<{ id: string; top: number; left: number } | null>(null);
   const prevCpIdRef = useRef<string | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [snapOut, setSnapOut] = useState(false); // card parked off-screen (no transition) before sliding in again
   const itemsPerPage = 10;
   const [isFetching, setIsFetching] = useState(false);
@@ -208,6 +209,38 @@ export default function OverdueShootBreakdownPanel({
     };
   }, [open, cpId]);
 
+  // Smooth-scroll to the panel when a CP is opened or switched
+  useEffect(() => {
+    if (!open || !cpId) return;
+    const el = wrapperRef.current;
+    if (!el) return;
+    let cancelled = false;
+
+    const go = () => {
+      if (cancelled) return;
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    };
+
+    // If ANOTHER panel is still collapsing, wait for it so the final position is stable
+    const others = document
+      .getAnimations()
+      .filter(
+        (a) =>
+          a instanceof CSSTransition &&
+          a.transitionProperty === "grid-template-rows" &&
+          (a.effect as KeyframeEffect | null)?.target !== el,
+      )
+      .map((a) => a.finished.catch(() => undefined));
+
+    if (others.length) Promise.all(others).then(go);
+    else go();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, cpId]);
+
   useEffect(() => {
     if (!menu) return;
     const close = () => setMenu(null);
@@ -244,8 +277,9 @@ export default function OverdueShootBreakdownPanel({
 
   return (
     <div
+      ref={wrapperRef}
       aria-hidden={!open}
-      className={`grid w-full transition-[grid-template-rows] duration-500 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr] !mt-0"}`}
+      className={`grid w-full scroll-mt-24 transition-[grid-template-rows] duration-500 ease-out lg:scroll-mt-28 ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr] !mt-0"}`}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="min-h-0 overflow-hidden">

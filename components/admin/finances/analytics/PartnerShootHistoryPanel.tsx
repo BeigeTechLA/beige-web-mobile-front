@@ -139,6 +139,7 @@ export default function PartnerShootHistoryPanel({
   const [error, setError] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const previousEntityId = useRef(entityId);
   const itemsPerPage = 10;
   useEffect(() => setMounted(true), []);
@@ -171,6 +172,38 @@ export default function PartnerShootHistoryPanel({
     setRows([]);
     setError(null);
   }, [open, entityType, entityId, cpName]);
+
+  // Smooth-scroll to the panel when opened or switched to another CP / client
+  useEffect(() => {
+    if (!open || !entityId) return;
+    const el = wrapperRef.current;
+    if (!el) return;
+    let cancelled = false;
+
+    const go = () => {
+      if (cancelled) return;
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    };
+
+    // If ANOTHER panel is still collapsing, wait for it so the final position is stable
+    const others = document
+      .getAnimations()
+      .filter(
+        (a) =>
+          a instanceof CSSTransition &&
+          a.transitionProperty === "grid-template-rows" &&
+          (a.effect as KeyframeEffect | null)?.target !== el,
+      )
+      .map((a) => a.finished.catch(() => undefined));
+
+    if (others.length) Promise.all(others).then(go);
+    else go();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, entityId]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 400);
@@ -255,8 +288,9 @@ export default function PartnerShootHistoryPanel({
 
   return (
     <div
+      ref={wrapperRef}
       aria-hidden={!open}
-      className={`grid w-full transition-[grid-template-rows] duration-500 ease-out ${open ? "mt-3 grid-rows-[1fr] lg:mt-6" : "grid-rows-[0fr]"}`}
+      className={`grid w-full scroll-mt-24 transition-[grid-template-rows] duration-500 ease-out lg:scroll-mt-28 ${open ? "mt-3 grid-rows-[1fr] lg:mt-6" : "grid-rows-[0fr]"}`}
     >
       <div className="min-h-0 overflow-hidden">
         {/* top → bottom: drops down from above while fading in */}

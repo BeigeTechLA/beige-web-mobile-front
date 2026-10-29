@@ -86,6 +86,7 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const panelRef = useRef<HTMLElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const previousBucketId = useRef(bucketId);
   const itemsPerPage = 10;
 
@@ -113,6 +114,38 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
     setDebouncedSearch("");
     setCurrentPage(1);
   }, [open, bucketId, bucketLabel]);
+
+  // Smooth-scroll to the panel when a bucket is opened or switched
+  useEffect(() => {
+    if (!open || !bucketId) return;
+    const el = wrapperRef.current;
+    if (!el) return;
+    let cancelled = false;
+
+    const go = () => {
+      if (cancelled) return;
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    };
+
+    // If ANOTHER panel is still collapsing, wait for it so the final position is stable
+    const others = document
+      .getAnimations()
+      .filter(
+        (a) =>
+          a instanceof CSSTransition &&
+          a.transitionProperty === "grid-template-rows" &&
+          (a.effect as KeyframeEffect | null)?.target !== el,
+      )
+      .map((a) => a.finished.catch(() => undefined));
+
+    if (others.length) Promise.all(others).then(go);
+    else go();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, bucketId]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350);
@@ -178,8 +211,9 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
 
   return (
     <div
+      ref={wrapperRef}
       aria-hidden={!open}
-      className={`grid w-full transition-[grid-template-rows] duration-500 ease-out ${open ? "mt-3 grid-rows-[1fr] lg:mt-6" : "grid-rows-[0fr]"}`}
+      className={`grid w-full scroll-mt-24 transition-[grid-template-rows] duration-500 ease-out lg:scroll-mt-28 ${open ? "mt-3 grid-rows-[1fr] lg:mt-6" : "grid-rows-[0fr]"}`}
     >
       <div className="min-h-0 overflow-hidden">
         {/* top → bottom */}
