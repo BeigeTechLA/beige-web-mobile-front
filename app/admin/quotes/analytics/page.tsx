@@ -22,6 +22,7 @@ import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useResolvedTheme } from "@/lib/useResolvedTheme";
+import { useAppSelector } from "@/lib/redux/hooks";
 import { QuotesAnalyticsTable } from "@/components/admin/quotes/QuotesAnalyticsTable";
 import QuotesOverdueWidget from "@/components/admin/quotes/QuotesOverdue";
 import OpenPipelineWidget from "@/components/admin/quotes/OpenPipeline";
@@ -42,6 +43,10 @@ type SalesRepOption = {
 export default function QuoteAnalyticsPage() {
   const pathname = usePathname();
   const { isDark } = useResolvedTheme();
+  const user = useAppSelector((state) => state.auth.user);
+  const authRole = String(user?.userRole ?? user?.role ?? "").trim().toLowerCase();
+  const isSalesRepUser = authRole === "sales_rep";
+  const salesRepUserId = user?.id != null ? String(user.id) : "";
 
   const [loading, setLoading] = useState(true);
   const [quoteAnalyticsData, setQuoteAnalyticsData] = useState<any>(null);
@@ -53,6 +58,7 @@ export default function QuoteAnalyticsPage() {
   const [selectedStartDate, setSelectedStartDate] = useState<Date | null>(null);
   const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null);
   const [selectedSalesperson, setSelectedSalesperson] = useState("");
+  const effectiveSalesperson = isSalesRepUser && salesRepUserId ? salesRepUserId : selectedSalesperson;
   const [salespersonOptions, setSalespersonOptions] = useState<SalesRepOption[]>([]);
   const [quoteStatusOptions, setQuoteStatusOptions] = useState<any[]>([]);
   const [paymentStatusOptions, setPaymentStatusOptions] = useState<any[]>([]);
@@ -70,7 +76,7 @@ export default function QuoteAnalyticsPage() {
   const analyticsParams = useMemo<Record<string, string>>(() => {
     const params: Record<string, string> = {};
 
-    if (selectedSalesperson && selectedSalesperson !== "all") params.sales_rep_id = selectedSalesperson;
+    if (effectiveSalesperson && effectiveSalesperson !== "all") params.sales_rep_id = effectiveSalesperson;
     if (selectedService && selectedService !== "all") params.service = selectedService;
     if (selectedQuoteStatus && selectedQuoteStatus !== "all") params.quote_status = selectedQuoteStatus;
     if (selectedPaymentStatus && selectedPaymentStatus !== "all") params.payment_status = selectedPaymentStatus;
@@ -92,7 +98,7 @@ export default function QuoteAnalyticsPage() {
     }
 
     return params;
-   }, [selectedDate, selectedStartDate, selectedEndDate, selectedSalesperson, selectedService, selectedQuoteStatus, selectedPaymentStatus, selectedLeadSource, selectedCustomerType]);
+   }, [selectedDate, selectedStartDate, selectedEndDate, effectiveSalesperson, selectedService, selectedQuoteStatus, selectedPaymentStatus, selectedLeadSource, selectedCustomerType]);
 
 const fetchQuoteAnalytics = useCallback(async () => {
   try {
@@ -148,6 +154,12 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
 
 
   useEffect(() => {
+    if (isSalesRepUser && salesRepUserId) {
+      setSalespersonOptions([{ id: salesRepUserId, name: user?.name || "My Analytics" }]);
+      setSelectedSalesperson(salesRepUserId);
+      return;
+    }
+
     const fetchSalesReps = async () => {
       const response = await salesApi.getSalesReps();
       if (!response?.success || !Array.isArray(response.data)) {
@@ -172,7 +184,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
     };
     
     void fetchSalesReps();
-  }, []);
+  }, [isSalesRepUser, salesRepUserId, user?.name]);
 
   useEffect(() => {
   const fetchQuoteAnalyticsFilters = async () => {
@@ -246,12 +258,13 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
           />
 
             {/* Sales Rep */}
-            <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
+            <Select value={effectiveSalesperson} onValueChange={setSelectedSalesperson}>
               <SelectTrigger
+                disabled={isSalesRepUser}
                 className={`h-12 p-2.5 lg:p-4 w-fit lg:w-full rounded-lg lg:rounded-xl text-xs lg:text-sm medium focus:ring-[#E5D5B8]/40 ${isDark
                   ? "border-white/20 bg-[#202020] text-white"
                   : "border-[#E3E3E3] bg-white text-black/70"
-                  }`}
+                  } ${isSalesRepUser ? "opacity-60" : ""}`}
               >
                 <SelectValue placeholder="Sales Rep" className="text-sm medium" />
               </SelectTrigger>
@@ -262,7 +275,7 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                     : "border-[#E3E3E3] bg-white text-black text-sm medium"
                 }
               >
-                <SelectItem value="all">All Salesperson</SelectItem>
+                {!isSalesRepUser && <SelectItem value="all">All Salesperson</SelectItem>}
                 {salespersonOptions.map((salesperson) => (
                   <SelectItem key={salesperson.id} value={salesperson.id}>
                     <div className="flex flex-col leading-tight">
@@ -466,13 +479,15 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
               />
             </div>
 
-            <div>
-              <QuotesAnalyticsTable
-                isDark={isDark}
-                loading={loading}
-                data={quoteAnalyticsData?.rep_performance ?? []}
-              />
-            </div>
+            {!isSalesRepUser && (
+              <div>
+                <QuotesAnalyticsTable
+                  isDark={isDark}
+                  loading={loading}
+                  data={quoteAnalyticsData?.rep_performance ?? []}
+                />
+              </div>
+            )}
           </div>
         )}
 

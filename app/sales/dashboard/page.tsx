@@ -377,6 +377,12 @@ export default function SalesLeadsPage() {
   const { canCreate, canDelete, canEdit } = usePermissions("sales_representative");
   const hasRestoredFiltersRef = useRef(false);
   const canManageSalesDashboardFilters = canEdit;
+  const authRole = String(
+    (user as any)?.role ?? (user as any)?.userRole ?? (user as any)?.user_role ?? ""
+  ).trim().toLowerCase();
+  const isSalesRepUser = authRole === "sales_rep";
+  const salesRepUserId = (user as any)?.id != null ? String((user as any).id) : "";
+  const lockedSalesRepId = isSalesRepUser && salesRepUserId ? salesRepUserId : null;
 
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
@@ -519,6 +525,13 @@ export default function SalesLeadsPage() {
   }, [usersStatusFilter, clientAssignedRepIdFilter, debouncedSearch]);
 
   useEffect(() => {
+    if (lockedSalesRepId) {
+      setSalesRepOptions([
+        { label: (user as any)?.name || "My Leads", value: lockedSalesRepId },
+      ]);
+      return;
+    }
+
     if (!token || !canManageSalesDashboardFilters) {
       setSalesRepOptions([{ label: "All Representatives", value: "all" }]);
       return;
@@ -543,7 +556,7 @@ export default function SalesLeadsPage() {
     };
 
     fetchSalesReps();
-  }, [canManageSalesDashboardFilters, token]);
+  }, [canManageSalesDashboardFilters, token, lockedSalesRepId]);
 
   useEffect(() => {
     fetchDashboardOverview();
@@ -592,6 +605,13 @@ export default function SalesLeadsPage() {
   ]);
 
   useEffect(() => {
+    if (!lockedSalesRepId) return;
+    setAssignedRepIdFilter(lockedSalesRepId);
+    setClientAssignedRepIdFilter(lockedSalesRepId);
+  }, [lockedSalesRepId]);
+
+  useEffect(() => {
+    if (lockedSalesRepId) return;
     const normalizedAssigned = normalizeAssignedRepFilterValue(assignedRepIdFilter);
     const normalizedClientAssigned = normalizeAssignedRepFilterValue(clientAssignedRepIdFilter);
     const validValues = new Set(salesRepOptions.map((option) => option.value));
@@ -606,7 +626,7 @@ export default function SalesLeadsPage() {
   }, [salesRepOptions, assignedRepIdFilter, clientAssignedRepIdFilter]);
 
   // --- LEADS API CALL WITH FILTERS ---
-  const leadsQueryArgs = token
+  const leadsQueryArgs = token && !(isSalesRepUser && !salesRepUserId)
     ? {
         page: leadsCurrentPage,
         limit: leadsLimit,
@@ -619,8 +639,9 @@ export default function SalesLeadsPage() {
             : statusFilter === "All"
               ? undefined
               : statusFilter,
-        assigned_to:
-          canManageSalesDashboardFilters && normalizeAssignedRepFilterValue(assignedRepIdFilter) !== "all"
+        assigned_to: lockedSalesRepId
+          ? lockedSalesRepId
+          : canManageSalesDashboardFilters && normalizeAssignedRepFilterValue(assignedRepIdFilter) !== "all"
             ? normalizeAssignedRepFilterValue(assignedRepIdFilter)
             : undefined,
         cp_assignment:
@@ -1098,11 +1119,12 @@ export default function SalesLeadsPage() {
                     options={["All Leads", "Self-Serve", "Sales Assisted"]}
                     onChange={(val) => setLeadTypeFilter(val)}
                   />
-                  {canManageSalesDashboardFilters && (
+                  {(canManageSalesDashboardFilters || isSalesRepUser) && (
                     <BasicDropdown
                       label="Sales Representative"
                       value={assignedRepIdFilter}
                       options={salesRepOptions}
+                      disabled={isSalesRepUser}
                       searchable
                       searchPlaceholder="Search representative..."
                       onChange={(val) => setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val))}
@@ -1125,12 +1147,13 @@ export default function SalesLeadsPage() {
                 </div>
               )}
 
-              {activeTab === "Client" && canManageSalesDashboardFilters && (
+              {activeTab === "Client" && (canManageSalesDashboardFilters || isSalesRepUser) && (
                 <div className="flex flex-wrap gap-2 lg:justify-end lg:gap-4">
                   <BasicDropdown
                     label="Sales Representative"
                     value={clientAssignedRepIdFilter}
                     options={salesRepOptions}
+                    disabled={isSalesRepUser}
                     searchable
                     searchPlaceholder="Search representative..."
                     onChange={(val) => setClientAssignedRepIdFilter(normalizeAssignedRepFilterValue(val))}
@@ -1208,11 +1231,12 @@ export default function SalesLeadsPage() {
                   options={["All Leads", "Self-Serve", "Sales Assisted"]}
                   onChange={(val) => setLeadTypeFilter(val)}
                 />
-                {canManageSalesDashboardFilters && (
+                {(canManageSalesDashboardFilters || isSalesRepUser) && (
                   <BasicDropdown
                     label="Sales Representative"
                     value={assignedRepIdFilter}
                     options={salesRepOptions}
+                    disabled={isSalesRepUser}
                     searchable
                     searchPlaceholder="Search representative..."
                     onChange={(val) => setAssignedRepIdFilter(normalizeAssignedRepFilterValue(val))}

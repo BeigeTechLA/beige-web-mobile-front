@@ -23,6 +23,7 @@ interface StatusDropdownProps {
   onChange: (value: string) => void;
   width?: string;
   openAlign?: string;
+  disabled?: boolean;
 }
 
 export const BasicDropdown = ({
@@ -35,7 +36,8 @@ export const BasicDropdown = ({
   styles,
   onChange,
   width,
-  openAlign = "left"
+  openAlign = "left",
+  disabled = false
 }: StatusDropdownProps) => {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -94,7 +96,11 @@ export const BasicDropdown = ({
     <div className={`relative ${width ? width : "w-fit"}`} ref={ref}>
       {/* Trigger: Compact & Rounded */}
       <button
+        type="button"
+        disabled={disabled}
+        aria-disabled={disabled}
         onClick={() => {
+          if (disabled) return;
           setOpen((prev) => {
             const next = !prev;
             if (!next) setSearchQuery("");
@@ -105,7 +111,7 @@ export const BasicDropdown = ({
           } ${isDark
             ? `bg-[#18181b] ${open ? "border-[#E8D1AB]" : "border-white/10 hover:border-white/20"} ${styles ? styles : "text-white text-xs lg:text-sm"}`
             : `bg-white ${open ? "border-[#E8D1AB]" : "border-black/10 hover:border-black/20"} ${styles ? styles : "text-black text-xs lg:text-sm"}`
-          }`}
+          } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
       >
         <span className="">
           {triggerLabel}

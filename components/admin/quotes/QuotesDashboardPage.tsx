@@ -71,6 +71,7 @@ import {
 import { extractQuoteIdFromResponse, unwrapSalesQuoteDetail } from "@/lib/salesQuotePreview";
 import DatePicker from "@/components/ui/Datepicker";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { useAppSelector } from "@/lib/redux/hooks";
 
 type TopbarComponentProps = {
   pathname: string;
@@ -885,6 +886,10 @@ export default function QuotesDashboardPage({
   EditAccessModalComponent = QuoteEditAccessModal,
 }: QuotesDashboardPageProps) {
   const { isDark } = useResolvedTheme();
+  const user = useAppSelector((state) => state.auth.user);
+  const authRole = String(user?.userRole ?? user?.role ?? "").trim().toLowerCase();
+  const isSalesRepUser = authRole === "sales_rep";
+  const salesRepUserId = user?.id != null ? String(user.id) : "";
   const { canCreate, canEdit, canDelete } = usePermissions("admin_quotes_all_quotes");
   const pathname = usePathname();
   const router = useRouter();
@@ -900,6 +905,7 @@ export default function QuotesDashboardPage({
   const [quotePagination, setQuotePagination] = useState<QuoteListPaginationState>(null);
   // const [searchTerm, setSearchTerm] = useState("");
   const [selectedSalesperson, setSelectedSalesperson] = useState("all");
+  const effectiveSalesperson = isSalesRepUser && salesRepUserId ? salesRepUserId : selectedSalesperson;
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
   const [salespersonOptions, setSalespersonOptions] = useState<SalesRepOption[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -941,6 +947,12 @@ export default function QuotesDashboardPage({
   }, [selectedDate]);
 
   useEffect(() => {
+    if (isSalesRepUser && salesRepUserId) {
+      setSalespersonOptions([{ id: salesRepUserId, name: user?.name || "My Quotes" }]);
+      setSelectedSalesperson(salesRepUserId);
+      return;
+    }
+
     const fetchSalesReps = async () => {
       const response = await salesApi.getSalesReps();
       if (!response?.success || !Array.isArray(response.data)) {
@@ -960,7 +972,7 @@ export default function QuotesDashboardPage({
     };
 
     void fetchSalesReps();
-  }, []);
+  }, [isSalesRepUser, salesRepUserId, user?.name]);
 
   useEffect(() => {
     const fetchQuotesData = async () => {
@@ -977,8 +989,8 @@ export default function QuotesDashboardPage({
         const dashboardParams = {
           range: effectiveRange,
           ...(effectiveDateOn ? { date_on: effectiveDateOn } : {}),
-          ...(selectedSalesperson !== "all"
-            ? { assigned_sales_rep_id: selectedSalesperson }
+          ...(effectiveSalesperson !== "all"
+            ? { assigned_sales_rep_id: effectiveSalesperson }
             : {}),
         };
 
@@ -991,8 +1003,8 @@ export default function QuotesDashboardPage({
             ...(selectedStatusFilter !== "all"
               ? { status: selectedStatusFilter }
               : {}),
-            ...(selectedSalesperson !== "all"
-              ? { assigned_sales_rep_id: selectedSalesperson }
+            ...(effectiveSalesperson !== "all"
+              ? { assigned_sales_rep_id: effectiveSalesperson }
               : {}),
             range: effectiveRange,
             ...(effectiveDateOn ? { date_on: effectiveDateOn } : {}),
@@ -1025,7 +1037,7 @@ export default function QuotesDashboardPage({
     currentPage,
     debouncedSearch,
     selectedDate,
-    selectedSalesperson,
+    effectiveSalesperson,
     selectedStatusFilter,
   ]);
 
@@ -1168,8 +1180,8 @@ export default function QuotesDashboardPage({
         ...(selectedStatusFilter !== "all"
           ? { status: selectedStatusFilter }
           : {}),
-        ...(selectedSalesperson !== "all"
-          ? { assigned_sales_rep_id: selectedSalesperson }
+        ...(effectiveSalesperson !== "all"
+          ? { assigned_sales_rep_id: effectiveSalesperson }
           : {}),
         range: effectiveExportRange,
         ...(effectiveExportDateOn ? { date_on: effectiveExportDateOn } : {}),
@@ -1502,7 +1514,7 @@ export default function QuotesDashboardPage({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [chartRange, debouncedSearch, selectedDate, selectedSalesperson, selectedStatusFilter]);
+  }, [chartRange, debouncedSearch, selectedDate, effectiveSalesperson, selectedStatusFilter]);
 
   const totalFilteredQuotes = quotePagination?.total ?? filteredQuotesData.length;
   const totalListPages = Math.max(1, quotePagination?.totalPages ?? 1);
@@ -1533,7 +1545,7 @@ export default function QuotesDashboardPage({
   );
 
   const hasActiveFilters =
-    selectedSalesperson !== "all" ||
+    effectiveSalesperson !== "all" ||
     selectedStatusFilter !== "all" ||
     Boolean(debouncedSearch.trim()) ||
     Boolean(selectedDate);
@@ -1798,12 +1810,13 @@ export default function QuotesDashboardPage({
                 {isRefreshing && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-[#E5D5B8]" size={18} />}
               </div>
               <div className="flex w-full flex-wrap gap-3 md:w-auto md:flex-nowrap md:gap-4">
-                <Select value={selectedSalesperson} onValueChange={setSelectedSalesperson}>
+                <Select value={effectiveSalesperson} onValueChange={setSelectedSalesperson}>
                   <SelectTrigger
+                    disabled={isSalesRepUser}
                     className={`min-w-[170px] rounded-xl text-sm focus:ring-[#E5D5B8]/40 ${isDark
                       ? "border-[#3D3D3D] bg-[#161616] text-white/70"
                       : "border-[#E3E3E3] bg-white text-black/70"
-                      }`}
+                      } ${isSalesRepUser ? "opacity-60" : ""}`}
                   >
                     <SelectValue placeholder="All Salesperson" />
                   </SelectTrigger>
@@ -1814,7 +1827,7 @@ export default function QuotesDashboardPage({
                         : "border-[#E3E3E3] bg-white text-black"
                     }
                   >
-                    <SelectItem value="all">All Salesperson</SelectItem>
+                    {!isSalesRepUser && <SelectItem value="all">All Salesperson</SelectItem>}
                     {salespersonOptions.map((salesperson) => (
                       <SelectItem key={salesperson.id} value={salesperson.id}>
                         <div className="flex flex-col leading-tight">

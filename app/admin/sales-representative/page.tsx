@@ -502,7 +502,7 @@ export default function AdminSaleRepManagerPage() {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, resolvedTheme } = useTheme();
-  const { token } = useAppSelector((state) => state.auth);
+  const { token, user } = useAppSelector((state) => state.auth);
   const [mounted, setMounted] = useState(false);
   const { canCreate } = usePermissions("admin_sales_representative_dashboard");
   const hasRestoredFiltersRef = useRef(false);
@@ -545,12 +545,23 @@ export default function AdminSaleRepManagerPage() {
   const [salesRepOptions, setSalesRepOptions] = useState<{ label: string; value: string }[]>([
     { label: "All Representatives", value: "all" },
   ]);
+  const authRole = String(
+    (user as any)?.role ?? (user as any)?.userRole ?? (user as any)?.user_role ?? ""
+  ).trim().toLowerCase();
+  const isSalesRepUser = authRole === "sales_rep";
+  const salesRepUserId = (user as any)?.id != null ? String((user as any).id) : "";
+  // Non-null only for sales_rep users. Every other role stays null (no change).
+  const lockedSalesRepId = isSalesRepUser && salesRepUserId ? salesRepUserId : null;
+  // Used for ALL API requests so saved session filters can't override it.
+  const effectiveAssignedRepId =
+    lockedSalesRepId ?? normalizeAssignedRepFilterValue(assignedRepIdFilter);
+
   const hasAnyGridLeadFilterActive = (
     leadTypeFilter !== "All Leads" ||
     statusFilter !== "All" ||
     intentFilter !== "All" ||
     shootStageFilter !== "all" ||
-    assignedRepIdFilter !== "all" ||
+    effectiveAssignedRepId !== "all" ||
     cpAssignmentFilter !== "all" ||
     productionFilter !== "all" ||
     Boolean(debouncedSearch)
@@ -696,6 +707,13 @@ export default function AdminSaleRepManagerPage() {
       return;
     }
 
+    if (lockedSalesRepId) {
+      setSalesRepOptions([
+        { label: (user as any)?.name || "My Leads", value: lockedSalesRepId },
+      ]);
+      return;
+    }
+
     const fetchSalesReps = async () => {
       try {
         const result = await salesService.getSalesReps();
@@ -716,7 +734,7 @@ export default function AdminSaleRepManagerPage() {
     };
 
     fetchSalesReps();
-  }, [token]);
+  }, [token, lockedSalesRepId]);
 
   useEffect(() => {
     fetchDashboardOverview();
@@ -731,6 +749,13 @@ export default function AdminSaleRepManagerPage() {
   }, [salesRepOptions, assignedRepIdFilter, clientAssignedRepIdFilter]);
 
   useEffect(() => {
+    if (!lockedSalesRepId) return;
+    setAssignedRepIdFilter(lockedSalesRepId);
+    setClientAssignedRepIdFilter(lockedSalesRepId);
+  }, [lockedSalesRepId]);
+
+  useEffect(() => {
+    if (lockedSalesRepId) return; // don't reset a sales rep's locked filter to "all"
     const normalizedAssigned = normalizeAssignedRepFilterValue(assignedRepIdFilter);
     const normalizedClientAssigned = normalizeAssignedRepFilterValue(clientAssignedRepIdFilter);
     const validValues = new Set(salesRepOptions.map((option) => option.value));
@@ -790,7 +815,7 @@ export default function AdminSaleRepManagerPage() {
   ]);
 
   // --- LEADS API CALL WITH FILTERS ---
-  const leadsQueryArgs = token && !isBoardAllStatusesMode
+  const leadsQueryArgs = token && !isBoardAllStatusesMode && !(isSalesRepUser && !salesRepUserId)
     ? {
       page: leadsCurrentPage,
       limit: leadsLimit,
@@ -800,10 +825,7 @@ export default function AdminSaleRepManagerPage() {
       status: statusFilter !== "All" 
         ? normalizeBookingStatusFilterValue(statusFilter) 
         : (shootStageFilter !== "all" ? shootStageFilter : undefined),
-      assigned_to:
-        normalizeAssignedRepFilterValue(assignedRepIdFilter) === "all"
-          ? undefined
-          : normalizeAssignedRepFilterValue(assignedRepIdFilter),
+      assigned_to: effectiveAssignedRepId === "all" ? undefined : effectiveAssignedRepId,
       cp_assignment:
         leadsViewMode === "grid" && cpAssignmentFilter !== "all"
           ? cpAssignmentFilter
@@ -832,10 +854,7 @@ export default function AdminSaleRepManagerPage() {
   const getBoardBaseLeadParams = () => ({
     search: debouncedSearch || undefined,
     lead_type: leadTypeFilter === "Self-Serve" ? "self_serve" : leadTypeFilter === "Sales Assisted" ? "sales_assisted" : undefined,
-    assigned_to:
-      normalizeAssignedRepFilterValue(assignedRepIdFilter) === "all"
-        ? undefined
-        : normalizeAssignedRepFilterValue(assignedRepIdFilter),
+    assigned_to: effectiveAssignedRepId === "all" ? undefined : effectiveAssignedRepId,
     cp_assignment: cpAssignmentFilter !== "all" ? cpAssignmentFilter : undefined,
     production_filter:
       normalizeProductionFilterValue(productionFilter) !== "all"
@@ -913,7 +932,7 @@ export default function AdminSaleRepManagerPage() {
   };
 
   useEffect(() => {
-    if (!token || !isBoardAllStatusesMode) {
+    if (!token || !isBoardAllStatusesMode || (isSalesRepUser && !salesRepUserId)) {
       setGridColumnsState({});
       setGridBoardBootstrapping(false);
       setGridBoardTotal(0);
@@ -963,7 +982,7 @@ export default function AdminSaleRepManagerPage() {
     isBoardAllStatusesMode,
     debouncedSearch,
     leadTypeFilter,
-    assignedRepIdFilter,
+    effectiveAssignedRepId,
     cpAssignmentFilter,
     productionFilter,
     intentFilter,
@@ -1352,6 +1371,7 @@ export default function AdminSaleRepManagerPage() {
                   label="Client Representative"
                   value={assignedRepIdFilter}
                   options={salesRepOptions}
+                  disabled={isSalesRepUser}
                   searchable
                   searchPlaceholder="Search representative..."
                   onChange={(val) => {
@@ -1443,6 +1463,7 @@ export default function AdminSaleRepManagerPage() {
                   label="Client Representative"
                   value={clientAssignedRepIdFilter}
                   options={salesRepOptions}
+                  disabled={isSalesRepUser}
                   searchable
                   searchPlaceholder="Search representative..."
                   onChange={(val) => {
@@ -1466,6 +1487,7 @@ export default function AdminSaleRepManagerPage() {
                     label="Client Representative"
                     value={assignedRepIdFilter}
                     options={salesRepOptions}
+                    disabled={isSalesRepUser}
                     searchable
                     searchPlaceholder="Search representative..."
                     onChange={(val) => {
