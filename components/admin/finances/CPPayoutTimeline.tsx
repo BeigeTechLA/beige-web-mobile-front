@@ -33,12 +33,7 @@ export interface PayoutBucket {
   segments: Partial<Record<SegmentId, number>>;
 }
 
-const DUMMY_BUCKETS: PayoutBucket[] = [
-  { id: 'this_week', label: 'This Week', segments: { upcoming: 18_000_000, dueSoon: 11_000_000, later: 19_000_000 } },
-  { id: 'next_week', label: 'Next Week', segments: { upcoming: 13_000_000, dueSoon: 34_000_000, later: 25_000_000 } },
-  { id: '2_4_weeks', label: '2-4 Weeks', segments: { upcoming: 30_000_000, dueSoon: 10_000_000, later: 39_000_000, overdue: 20_000_000 } },
-  { id: 'overdue', label: 'Overdue', segments: { upcoming: 43_000_000, dueSoon: 6_000_000, overdue: 53_000_000 } },
-];
+
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
