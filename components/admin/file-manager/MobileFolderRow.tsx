@@ -13,17 +13,11 @@ const formatFolderTimestamp = (value?: string) => {
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return raw;
 
-  const datePart = new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat("en-US", {
     month: "short",
-    day: "numeric",
+    day: "2-digit",
     year: "numeric",
   }).format(parsed);
-  const timePart = new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(parsed);
-
-  return `${datePart}\n${timePart}`;
 };
 
 interface FolderEntry {
