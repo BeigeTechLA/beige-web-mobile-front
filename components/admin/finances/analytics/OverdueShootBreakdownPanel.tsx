@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, EllipsisVertical, Eye, Loader2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { getInitials } from "@/lib/utils";
 import { adminApi } from "@/lib/api";
@@ -37,7 +37,7 @@ const formatCurrency = (amount: number) =>
     maximumFractionDigits: 0,
   }).format(amount);
 
-// CPPayoutTable jevi j pagination logic
+// Match the pagination behavior used by CPPayoutTable.
 const buildPaginationItems = (currentPage: number, totalPages: number): Array<number | "..."> => {
   const items: Array<number | "..."> = [];
   for (let page = 1; page <= totalPages; page += 1) {
@@ -55,7 +55,7 @@ const buildPaginationItems = (currentPage: number, totalPages: number): Array<nu
 const pageList = (current: number, total: number): Array<number | "…"> =>
   buildPaginationItems(current, total).map((p) => (p === "..." ? "…" : p));
 
-/* ---------- CPPayoutTable jevu j truncate + tooltip ---------- */
+/* ---------- Truncated text and tooltip, matching CPPayoutTable ---------- */
 const TruncatedTableText = ({
   text,
   isDark,
@@ -120,7 +120,7 @@ export default function OverdueShootBreakdownPanel({
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [menu, setMenu] = useState<{ id: string; top: number; left: number } | null>(null);
+
   const prevCpIdRef = useRef<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [snapOut, setSnapOut] = useState(false); // card parked off-screen (no transition) before sliding in again
@@ -169,16 +169,13 @@ export default function OverdueShootBreakdownPanel({
     return () => controller.abort();
   }, [open, cpId, startDate, endDate, currentPage]);
 
-  // Collapse animation vakhte header ma name gayab na thay etle last values yaad rakho
+  // Keep the last values visible in the header during the collapse animation.
   const [snap, setSnap] = useState({ cpName, totalOverdue, shootCount, avatarUrl });
 
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (!open) {
-      setMenu(null);
-      return;
-    }
+    if (!open) return;
     setSnap({ cpName, totalOverdue, shootCount, avatarUrl });
     setCurrentPage(1);
     setRows([]);
@@ -241,12 +238,7 @@ export default function OverdueShootBreakdownPanel({
     };
   }, [open, cpId]);
 
-  useEffect(() => {
-    if (!menu) return;
-    const close = () => setMenu(null);
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [menu]);
+
 
   const safePage = Math.min(currentPage, totalPages);
   const visibleRows = rows;
@@ -260,20 +252,7 @@ export default function OverdueShootBreakdownPanel({
   const isDark = resolvedTheme === "dark" || theme === "dark";
   const muted = isDark ? "text-[#FFFFFF80]" : "text-black/40";
 
-  const openMenu = (rowId: string, button: HTMLButtonElement) => {
-    if (menu?.id === rowId) return setMenu(null);
-    const rect = button.getBoundingClientRect();
-    const menuHeight = 52;
-    const top =
-      rect.bottom + menuHeight + 8 > window.innerHeight
-        ? Math.max(8, rect.top - menuHeight - 8)
-        : rect.bottom + 8;
-    setMenu({
-      id: rowId,
-      top,
-      left: Math.max(8, Math.min(window.innerWidth - 196, rect.right - 180)),
-    });
-  };
+
 
   return (
     <div
@@ -326,25 +305,24 @@ export default function OverdueShootBreakdownPanel({
             </button>
           </div>
 
-          {/* Table (narrow screen par horizontal scroll) */}
+          {/* Allow horizontal scrolling on narrow screens. */}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] table-fixed text-left [&_td]:align-middle">
               <thead
                 className={`border-b ${isDark ? "border-[#3D3D3D] bg-[#3D3D3D]/40" : "border-[#E3E3E3] bg-[#FFFCF6]"}`}
               >
                 <tr className={`text-sm font-medium capitalize ${isDark ? "text-[#E8D1AB]" : "text-[#000000]"}`}>
-                  <th className="w-[26%] px-4 py-3">Shoot Name</th>
-                  <th className="w-[27%] px-4 py-3">Customer</th>
-                  <th className="w-[15%] px-4 py-3">Overdue Amount</th>
+                  <th className="w-[30%] px-4 py-3">Shoot Name</th>
+                  <th className="w-[30%] px-4 py-3">Customer</th>
+                  <th className="w-[16%] px-4 py-3">Overdue Amount</th>
                   <th className="w-[24%] px-4 py-3">Status</th>
-                  <th className="w-[8%] px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-transparent">
                 {showLoader
                   ? (
                     <tr>
-                      <td colSpan={5} className="h-[480px] p-0">
+                      <td colSpan={4} className="h-[480px] p-0">
                         <div className="flex h-full w-full items-center justify-center">
                           <Loader2 className="h-8 w-8 animate-spin text-[#E5D5B8]" />
                         </div>
@@ -378,24 +356,11 @@ export default function OverdueShootBreakdownPanel({
                         Overdue {row.daysAgo} day{row.daysAgo === 1 ? "" : "s"} ago
                       </span>
                     </td>
-                    <td className="px-4 py-[9px] text-right">
-                      <button
-                        type="button"
-                        aria-label="Open row actions"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openMenu(row.id, e.currentTarget);
-                        }}
-                        className={`inline-flex items-center justify-center rounded-lg p-2 transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-black/60 hover:bg-black/5"}`}
-                      >
-                        <EllipsisVertical size={22} />
-                      </button>
-                    </td>
                   </tr>
                 ))}
                 {!showLoader && visibleRows.length === 0 && (
                   <tr>
-                    <td colSpan={5} className={`h-32 text-center text-sm ${muted}`}>
+                    <td colSpan={4} className={`h-32 text-center text-sm ${muted}`}>
                       {error || "No overdue shoots found."}
                     </td>
                   </tr>
@@ -455,23 +420,7 @@ export default function OverdueShootBreakdownPanel({
         </section>
       </div>
 
-      {/* Row action menu */}
-      {open && menu && (
-        <div
-          className={`fixed z-[160] min-w-[180px] rounded-xl border p-1 text-left shadow-2xl ${isDark ? "border-[#3A3A3A] bg-[#171717]" : "border-[#E5E5E5] bg-white"}`}
-          style={{ top: menu.top, left: menu.left }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            onClick={() => setMenu(null)}
-            className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-[#222222] hover:bg-[#F8F4EA]"}`}
-          >
-            <Eye size={16} className="opacity-70" />
-            View details
-          </button>
-        </div>
-      )}
+
     </div>
   );
 }
