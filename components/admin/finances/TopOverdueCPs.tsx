@@ -245,7 +245,7 @@ export default function TopOverdueCPs({
               <SelectTrigger className={triggerCls}>
                 <SelectValue placeholder="Sort">{sort === 'amount' ? 'Amount' : 'Days'}</SelectValue>
               </SelectTrigger>
-              <SelectContent className={contentCls}>
+              <SelectContent className={contentCls} side='left' >
                 <SelectItem value="amount">Highest amount</SelectItem>
                 <SelectItem value="days">Most overdue days</SelectItem>
               </SelectContent>

@@ -552,6 +552,7 @@ export const OverallShootsTable = () => {
         title="Delete Shoot"
         description="Are you sure you want to delete this shoot? This action cannot be undone."
         isLoading={isDeleting}
+        isDark={isDark}
       />
     </div>
   );

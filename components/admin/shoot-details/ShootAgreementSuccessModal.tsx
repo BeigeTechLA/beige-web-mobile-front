@@ -24,7 +24,7 @@ export default function ShootAgreementSuccessModal({
     <div role="dialog" aria-modal="true" aria-labelledby="shoot-agreement-success-title" className="fixed inset-0 z-[140] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
       <div
         className={`relative w-full max-w-[500px] overflow-hidden rounded-2xl border transition-colors duration-200 p-6 lg:p-8 flex flex-col items-center text-center gap-6 ${isDark
-          ? "border-[#1F1F1F] bg-[#0A0A0A] text-white shadow-2xl"
+          ? "border-white/40 bg-[#000000] text-white shadow-2xl"
           : "border-[#E5E7EB] bg-white text-black shadow-2xl"
           }`}
       >
@@ -57,7 +57,7 @@ export default function ShootAgreementSuccessModal({
           <Button
             type="button"
             onClick={onBackToShoots}
-            className="h-12 w-full rounded-lg bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] font-medium text-sm transition-colors"
+            className={`h-12 w-full rounded-lg font-medium text-sm transition-colors ${isDark? "bg-[#101010] hover:bg-[#101010]/80 text-white border border-[#8E8E8E]":"bg-[#E8D1AB] text-black hover:bg-[#D4C3A3]"}`}
           >
             Back to Shoots
           </Button>

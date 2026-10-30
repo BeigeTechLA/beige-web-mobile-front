@@ -640,7 +640,7 @@ export function Step2AgreementDetails({
             )}
           </div>
         ))}
-        <Button type="button" onClick={addSection} variant="outline" className="w-full border-dashed"><Plus size={16} className="mr-2" /> Add Section</Button>
+        <Button type="button" onClick={addSection} variant="default" className="w-full bg-[#E8D1AB] text-black"><Plus size={16} className="mr-2" /> Add Section</Button>
       </div>
 
       {/* Information Notice Bar */}
