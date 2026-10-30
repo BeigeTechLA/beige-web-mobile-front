@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { adminApi } from "@/lib/api";
-import { AlertCircle, ChevronLeft, ChevronRight, Loader2, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Search, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { getInitials } from "@/lib/utils";
 import {
@@ -93,7 +93,7 @@ interface PartnerPayoutHistoryPanelProps {
   /** Page-level date range (yyyy-MM-dd), same as the analytics request */
   startDate?: string | null;
   endDate?: string | null;
-  /** API loading state (aave tyare page thi pass karvu) */
+  /** API loading state passed from the page. */
   loading?: boolean;
 }
 
@@ -109,7 +109,7 @@ export default function PartnerPayoutHistoryPanel({
 }: PartnerPayoutHistoryPanelProps) {
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [snap, setSnap] = useState({ cpName, totalPayout }); // collapse vakhte header na jay
+  const [snap, setSnap] = useState({ cpName, totalPayout }); // Keep the header visible while collapsing.
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [monthFilter, setMonthFilter] = useState("Month");
@@ -141,7 +141,7 @@ export default function PartnerPayoutHistoryPanel({
     );
   }, [cpId, open]);
 
-  // Navo CP khule tyare reset
+  // Reset the panel when a different creative partner is opened.
   useEffect(() => {
     if (!open) return;
     setSnap({ cpName, totalPayout });
@@ -352,13 +352,12 @@ export default function PartnerPayoutHistoryPanel({
                   <th className="w-[12%] px-4 py-3">Net Payout</th>
                   <th className="w-[16%] px-4 py-3">Payment Method</th>
                   <th className="w-[15%] px-4 py-3">Status</th>
-                  <th className="w-[8%] px-5 py-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {showLoader ? (
                   <tr>
-                    <td colSpan={7} className="h-[620px] p-0">
+                    <td colSpan={6} className="h-[620px] p-0">
                       <div className="flex h-full w-full items-center justify-center">
                         <Loader2 className="h-8 w-8 animate-spin text-[#E5D5B8]" />
                       </div>
@@ -366,7 +365,7 @@ export default function PartnerPayoutHistoryPanel({
                   </tr>
                 ) : visibleRows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className={`py-10 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+                    <td colSpan={6} className={`py-10 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
                       {error ?? "No payouts found."}                    </td>
                   </tr>
                 ) : (
@@ -394,12 +393,6 @@ export default function PartnerPayoutHistoryPanel({
                         <span className={`inline-flex min-w-[110px] items-center justify-center rounded-full px-4 py-2 text-xs font-semibold ${STATUS_STYLES[row.status]}`}>
                           {row.status}
                         </span>
-                      </td>
-                      <td className="px-5 py-[9px]">
-                        <div className={`flex items-center justify-end gap-3 ${isDark ? "text-white" : "text-black"}`}>
-                          <AlertCircle size={20} />
-                          <ChevronRight size={20} />
-                        </div>
                       </td>
                     </tr>
                   ))

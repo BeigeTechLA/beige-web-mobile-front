@@ -113,7 +113,7 @@ export default function AdminAgreementsPage() {
     if (!value) return "—";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "—";
-    return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(date);
+    return new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(date);
   };
   const createNewVersion = () => {
     if (!activeGeneralAgreement) return;
@@ -143,7 +143,7 @@ export default function AdminAgreementsPage() {
         setAgreements((current) => current.map((agreement) => agreement.agreement_document_id === Number(item.id)
           ? { ...agreement, status: "cancelled", is_current: false } : agreement));
         setAgreementsRefreshKey((key) => key + 1);
-        toast.success(item.rawStatus === "draft" ? "Draft discarded" : "Agreement cancelled; the CP request remains assigned");
+        toast.success(item.rawStatus === "draft" ? "Draft discarded and CP assignment removed" : "Agreement cancelled and CP assignment removed");
       }
       setAgreementConfirmation(null);
     } catch (error) {
@@ -359,11 +359,11 @@ export default function AdminAgreementsPage() {
           description={agreementConfirmation?.type === "delete-general"
             ? "This agreement can only be deleted before it has been presented to a Creative Partner. This action cannot be undone."
             : agreementConfirmation?.agreement.rawStatus === "draft"
-              ? "This draft will be discarded and will not be available to the Creative Partner."
-              : "The Creative Partner will no longer be able to review or accept this agreement. Their CP request stays assigned, so you can create and send another version."}
+              ? "This draft will be discarded and the CP assignment removed from this shoot. You won’t be able to create or send another version from this assignment."
+              : "The agreement will be cancelled and the CP assignment removed from this shoot. You won’t be able to create or send another version from this assignment."}
           confirmLabel={agreementConfirmation?.type === "delete-general"
             ? "Delete Agreement"
-            : agreementConfirmation?.agreement.rawStatus === "draft" ? "Discard Draft" : "Cancel Agreement"}
+            : agreementConfirmation?.agreement.rawStatus === "draft" ? "Discard & Remove CP" : "Cancel & Remove CP"}
         />
 
         {/* Floating Mobile Button */}

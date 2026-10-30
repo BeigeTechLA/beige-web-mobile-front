@@ -11,9 +11,9 @@ export function formatAgreementDate(value?: string | null, withTime = false): st
   if (Number.isNaN(date.getTime())) return "—";
 
   const timeZone = getBrowserTimeZone();
-  const datePart = new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
+  const datePart = new Intl.DateTimeFormat("en-US", {
     month: "short",
+    day: "2-digit",
     year: "numeric",
     timeZone,
   }).format(date);

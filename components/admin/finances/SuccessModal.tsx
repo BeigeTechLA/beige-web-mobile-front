@@ -44,7 +44,7 @@ export default function SuccessModal({
       className="fixed inset-0 z-[140] flex items-center justify-center bg-black/82 p-3 backdrop-blur-md lg:p-5">
       <div
         ref={containerRef}
-        className={`relative max-h-[84vh] w-full lg:max-w-lg overflow-y-auto rounded-[16px] border transition-colors duration-200 p-5 lg:p-8 flex flex-col items-center gap-3 lg:gap-6 ${isDark
+        className={`relative max-h-[84vh] w-full lg:max-w-lg overflow-y-auto rounded-2xl border transition-colors duration-200 p-5 lg:p-8 flex flex-col items-center gap-3 lg:gap-6 ${isDark
           ? "border-white/40 bg-black text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_70px_rgba(0,0,0,0.62)]"
           : "border-[#D7D7D7] bg-white text-black shadow-2xl"
           }`}>

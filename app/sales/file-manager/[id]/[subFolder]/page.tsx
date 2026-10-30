@@ -101,6 +101,15 @@ const getFileMeta = (file: any) => {
   return { icon: FileText, label: extension || "file", accentClass: "text-white/80", badgeClass: "bg-white/10" };
 };
 
+const formatDisplayDate = (value?: string | number | Date | null) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const month = date.toLocaleString("en-US", { month: "short" });
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${month} ${day}, ${date.getFullYear()}`; // e.g. Oct 05, 2026
+};
+
 const tryDecodeURIComponent = (value: string) => {
   const normalizedValue = String(value || "").replace(/\+/g, " ");
   try {
@@ -269,7 +278,10 @@ export default function SalesFileManagerPhasePage() {
   }, [phaseSlug, projectId, workspaceFiles, workspaceFolders, workspaceName]);
 
   const filteredFolders = useMemo(() => {
-    let items = viewState.folders;
+    let items = viewState.folders.map((folder) => ({
+      ...folder,
+      lastOpened: formatDisplayDate(folder.lastOpened),
+    }));
     if (status === "Linked") {
       items = items.filter((item) => item.isLinked);
     } else if (status === "Unlinked") {
@@ -284,6 +296,7 @@ export default function SalesFileManagerPhasePage() {
     const filesWithMeta = viewState.files.map((file) => ({
       ...file,
       ...getFileMeta(file),
+      lastOpened: formatDisplayDate(file.lastOpened),
     }));
     if (!searchTerm.trim()) return filesWithMeta;
     const query = searchTerm.toLowerCase();

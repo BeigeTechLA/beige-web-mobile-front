@@ -9,8 +9,10 @@ import type { FinancePayoutScheduleParams, FinancePayoutScheduleRow } from "@/li
 import type { SegmentId } from "../CPPayoutTimeline";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { toast } from "sonner";
+import DatePicker from "@/components/ui/Datepicker";
+import { FinanceStatusBadge } from "../FinanceStatusBadge";
 
-type PayoutStatus = "Pending" | "Partially Paid" | "Finance Approval" | "Approved" | "Fully Paid";
+type PayoutStatus = "Pending" | "Partially Paid" | "Approval Pending" | "Approved" | "Fully Paid";
 type DueTone = "amber" | "red" | "blue";
 
 type PayoutRow = {
@@ -49,12 +51,16 @@ const localToday = () => new Intl.DateTimeFormat("en-CA", {
   year: "numeric", month: "2-digit", day: "2-digit",
 }).format(new Date());
 
-const STATUS_STYLES: Record<PayoutStatus, string> = {
-  Pending: "bg-[#FFF4C9] text-[#BA6605]",
-  "Partially Paid": "bg-[#DBEAFE] text-[#1D4ED8]",
-  "Finance Approval": "bg-[#FFF4C9] text-[#BA6605]",
-  Approved: "bg-[#D4FFE4] text-[#16A34A]",
-  "Fully Paid": "bg-[#E9E5FF] text-[#6D4AE0]",
+const parseLocalDate = (value: string) => {
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  return year && month && day ? new Date(year, month - 1, day) : null;
+};
+
+const toLocalDateString = (value: Date) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 const formatCurrency = (n: number) =>
@@ -86,7 +92,7 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
   const { theme, resolvedTheme } = useTheme();
   const { canEdit } = usePermissions("admin_finances_cp_compensation");
   const [mounted, setMounted] = useState(false);
-  const [snapLabel, setSnapLabel] = useState(bucketLabel); // collapse vakhte title na jay
+  const [snapLabel, setSnapLabel] = useState(bucketLabel); 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -148,7 +154,7 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
     );
   }, [bucketId, open]);
 
-  // Navi bucket khule tyare reset
+  // Reset the panel when a different bucket is opened.
   useEffect(() => {
     if (!open) return;
     setSnapLabel(segmentLabel ? `${bucketLabel} · ${segmentLabel}` : bucketLabel);
@@ -233,7 +239,7 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
         hasDueDate: Boolean(row.original_due_date),
         dueTone: row.due_date && row.due_date < today ? "red" : row.due_date && row.due_date > today ? "blue" : "amber",
         pending: row.pending_amount,
-        status: row.status,
+        status: row.status === "Finance Approval" ? "Approval Pending" : row.status,
       })));
       setTotalPages(Math.max(1, response.data.pagination.total_pages));
       if (response.data.pagination.page !== currentPage) setCurrentPage(response.data.pagination.page);
@@ -348,9 +354,7 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
                         <p className={`text-[10px] ${muted}`}>Pending Amount {formatCurrency(row.pending)}</p>
                       </td>
                       <td className="px-4 py-[9px]">
-                        <span className={`inline-flex min-w-[130px] items-center justify-center whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold ${STATUS_STYLES[row.status]}`}>
-                          {row.status}
-                        </span>
+                        <FinanceStatusBadge status={row.status} />
                       </td>
                       <td className="px-5 py-[9px] text-right">
                         {canEdit && <button
@@ -418,13 +422,25 @@ export default function PayoutSchedulePanel({ open, bucketId, bucketLabel, loadi
         </section>
       </div>
     </div>
-    <dialog ref={dialogRef} aria-labelledby="payout-schedule-title" onCancel={(event) => { if (saving) event.preventDefault(); else setEditingRow(null); }} onClose={() => setEditingRow(null)} className={`fixed m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border p-6 shadow-2xl backdrop:bg-black/60 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
+    <dialog ref={dialogRef} aria-labelledby="payout-schedule-title" onCancel={(event) => { if (saving) event.preventDefault(); else setEditingRow(null); }} onClose={() => setEditingRow(null)} className={`fixed m-auto w-[calc(100%-2rem)] max-w-md overflow-visible rounded-2xl border p-6 shadow-2xl backdrop:bg-black/60 ${isDark ? "bg-[#171717] border-[#3D3D3D] text-white" : "bg-white border-[#E5E5E5] text-[#202020]"}`}>
       <form onSubmit={saveSchedule}>
         <h3 id="payout-schedule-title" className="text-lg font-semibold">Schedule payout</h3>
         <p className={`mt-2 text-sm ${muted}`}>{editingRow?.name} · {editingRow?.shootId}</p>
         <p className={`mt-2 text-sm ${muted}`}>Original due date: {editingRow?.due}. Scheduling sets when finance plans to pay; the original deadline stays the same.</p>
         <label htmlFor="scheduled-payout-date" className="mt-5 block text-sm">Scheduled payout date</label>
-        <input id="scheduled-payout-date" type="date" required autoFocus disabled={saving} value={scheduledDate} onChange={(event) => setScheduledDate(event.target.value)} className={`mt-2 w-full rounded-lg border p-3 ${isDark ? "bg-[#222] border-[#444] [color-scheme:dark]" : "bg-white border-[#ddd]"}`} />
+        <div className="mt-2">
+          <DatePicker
+            label=""
+            value={parseLocalDate(scheduledDate)}
+            onChange={(date) => setScheduledDate(date ? toLocalDateString(date) : "")}
+            disabled={saving}
+            isDark={isDark}
+            disablePortal
+            format="MM/dd/yyyy"
+            placeholder="Select payout date"
+            sx={{ height: "62px" }}
+          />
+        </div>
         <p className={`mt-2 text-xs ${muted}`}>A past date places the payment in the Overdue row. Dates more than 27 days ahead are outside this timeline.</p>
         {saveError && <p role="alert" className="mt-3 text-sm text-red-500">{saveError}</p>}
         <div className="mt-6 flex justify-end gap-3">

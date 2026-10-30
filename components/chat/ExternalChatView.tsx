@@ -3383,7 +3383,7 @@ export const ExternalChatView = forwardRef<ExternalChatViewRef, ExternalChatView
                                   </div>
                                 ) : null}
 
-                                <span className={`mt-1 text-[9px] tracking-wide shrink-0 ${isDark ? "text-white/30" : "text-zinc-400"}`}>
+                                <span className={`mt-1.5 text-[11px] lg:text-xs tracking-wide shrink-0 ${isDark ? "text-white/45" : "text-zinc-450"}`}>
                                   {formatTime(message.createdAt)} {formatDate(message.createdAt)}
                                 </span>
                               </div>

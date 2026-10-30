@@ -291,8 +291,8 @@ export const formatQuoteDate = (value?: string | null) => {
   if (dateOnlyMatch) {
     const [, year, month, day] = dateOnlyMatch;
     return new Date(Number(year), Number(month) - 1, Number(day)).toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
+      month: "short",
+      day: "2-digit",
       year: "numeric",
     });
   }
@@ -303,8 +303,8 @@ export const formatQuoteDate = (value?: string | null) => {
   }
 
   return parsedDate.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
+    month: "short",
+    day: "2-digit",
     year: "numeric",
   });
 };

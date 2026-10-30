@@ -23,6 +23,8 @@ type CreativeWithDistance = {
   status?: string;
   shoots?: number;
   assigned_shoots?: number;
+  active_assigned_shoots?: number;
+  past_accepted_shoots?: number;
   specialities?: string;
   role?: string;
   availability?: string;
@@ -59,6 +61,8 @@ type CrewApiItem = {
   distance?: number | string;
   years_of_experience?: number;
   assigned_shoots?: number;
+  active_assigned_shoots?: number;
+  past_accepted_shoots?: number;
   hourly_rate?: number | string;
   is_active?: boolean;
   [key: string]: unknown;
@@ -325,7 +329,9 @@ export const CreativeProfileSelectorAdd = ({
             name: `${item.first_name} ${item.last_name}`,
             status: item.is_active ? "Active" : "Inactive",
             shoots: item.years_of_experience || 0,
-            assigned_shoots: Number(item.assigned_shoots ?? 0) || 0,
+            assigned_shoots: Number(item.active_assigned_shoots ?? item.assigned_shoots ?? 0) || 0,
+            active_assigned_shoots: Number(item.active_assigned_shoots ?? item.assigned_shoots ?? 0) || 0,
+            past_accepted_shoots: Number(item.past_accepted_shoots ?? 0) || 0,
             hourly_rate: item.hourly_rate,
             specialities: item.role || "Creative",
             availability: item.availability || "Available",
@@ -706,7 +712,8 @@ export const CreativeProfileSelectorAdd = ({
             <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
               <div><dt className="opacity-60">Location</dt><dd className="mt-1">{formatLocation(briefCreative.location)}</dd></div>
               <div><dt className="opacity-60">Availability</dt><dd className="mt-1">{briefCreative.availability || "—"}</dd></div>
-              <div><dt className="opacity-60">Assigned shoots</dt><dd className="mt-1">{briefCreative.assigned_shoots ?? "—"}</dd></div>
+              <div><dt className="opacity-60">Active assigned shoots</dt><dd className="mt-1">{briefCreative.active_assigned_shoots ?? briefCreative.assigned_shoots ?? 0}</dd></div>
+              <div><dt className="opacity-60">Past accepted shoots</dt><dd className="mt-1">{briefCreative.past_accepted_shoots ?? 0}</dd></div>
               <div><dt className="opacity-60">Hourly rate</dt><dd className="mt-1">{formatHourlyRate(briefCreative.hourly_rate) || "—"}</dd></div>
             </dl>
             <button type="button" onClick={() => openFullProfile(briefCreative)} className="mt-6 w-full rounded-lg bg-[#E8D1AB] px-4 py-3 text-sm font-semibold text-black">
@@ -888,8 +895,10 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewBriefProfile, onVi
   const imageSrc = creative.profile_photo
     ? (creative.profile_photo.startsWith('http') ? creative.profile_photo : `${S3_PREFIX}${creative.profile_photo}`)
     : null;
-  const assignedShoots = Number(creative.assigned_shoots ?? 0) || 0;
-  const assignedShootsLabel = `${String(assignedShoots).padStart(2, '0')} Shoot${assignedShoots === 1 ? '' : 's'}`;
+  const activeAssignedShoots = Number(creative.active_assigned_shoots ?? creative.assigned_shoots ?? 0) || 0;
+  const pastAcceptedShoots = Number(creative.past_accepted_shoots ?? 0) || 0;
+  const activeAssignedShootsLabel = `${String(activeAssignedShoots).padStart(2, '0')} Shoot${activeAssignedShoots === 1 ? '' : 's'}`;
+  const pastAcceptedShootsLabel = `${String(pastAcceptedShoots).padStart(2, '0')} Shoot${pastAcceptedShoots === 1 ? '' : 's'}`;
   const hourlyRate = formatHourlyRate(creative.hourly_rate);
   const locationLabel = formatLocation(creative.location);
   const hasLocation = locationLabel !== "N/A";
@@ -991,13 +1000,16 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewBriefProfile, onVi
             <div className={`my-3 lg:my-5 h-px w-full ${isDark ? "bg-white/10" : "bg-[#E5E5E5]"}`} />
 
             {/* Assigned Shoots | Roles */}
-            <div className="grid grid-cols-[auto_auto_1fr] items-start gap-x-4 lg:gap-x-8">
+            <div className="grid grid-cols-2 items-start gap-x-4 gap-y-2 lg:gap-x-6">
               <div>
-                <p className={labelCls}>Assigned Shoots:</p>
-                <p className={valueCls}>{assignedShootsLabel}</p>
+                <p className={labelCls}>Active Assigned Shoots:</p>
+                <p className={valueCls}>{activeAssignedShootsLabel}</p>
               </div>
-              <div className={`mt-2 h-6 w-px ${dividerCls}`} />
-              <div className="min-w-0">
+              <div>
+                <p className={labelCls}>Past Accepted Shoots:</p>
+                <p className={valueCls}>{pastAcceptedShootsLabel}</p>
+              </div>
+              <div className="min-w-0 col-span-2">
                 <p className={labelCls}>Roles:</p>
                 <p className={valueCls}>{creative.specialities}</p>
               </div>
@@ -1041,12 +1053,17 @@ const CreativeCard = ({ creative, isSelected, onToggle, onViewBriefProfile, onVi
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between w-full">
               {/* Assigned Shoots | Roles | Location */}
               <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:flex sm:items-start sm:gap-x-0">
-                <div className="pr-3 lg:pr-7">
-                  <p className={labelCls}>Assigned Shoots:</p>
-                  <p className={valueCls}>{assignedShootsLabel}</p>
+                <div className="pr-3 lg:pr-5">
+                  <p className={labelCls}>Active Assigned Shoots:</p>
+                  <p className={valueCls}>{activeAssignedShootsLabel}</p>
                 </div>
                 <div className={`hidden sm:block mt-3 h-6 w-px ${dividerCls}`} />
-                <div className="px-3 lg:px-7 min-w-0">
+                <div className="px-3 lg:px-5">
+                  <p className={labelCls}>Past Accepted Shoots:</p>
+                  <p className={valueCls}>{pastAcceptedShootsLabel}</p>
+                </div>
+                <div className={`hidden sm:block mt-3 h-6 w-px ${dividerCls}`} />
+                <div className="px-3 lg:px-5 min-w-0">
                   <p className={labelCls}>Roles:</p>
                   <p className={valueCls}>{creative.specialities}</p>
                 </div>
