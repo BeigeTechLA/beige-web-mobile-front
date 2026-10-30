@@ -209,9 +209,12 @@ const getLocationLabel = (project: any) => {
 };
 
 const getShootStatus = (project: any): GlobeStatus | null => {
+  const rawStatus = String(project?.status ?? "").toLowerCase().trim();
   if (
-    Number(project?.is_active) === 0 ||
-    String(project?.status || "").toLowerCase() === "cancelled"
+    project?.is_cancelled === true ||
+    Number(project?.is_cancelled) === 1 ||
+    rawStatus === "cancelled" ||
+    Number(rawStatus) === 7
   ) {
     return "cancelled";
   }
@@ -507,8 +510,8 @@ export const ShootsGlobeView = ({
   const [statusFilter, setStatusFilter] = useState<GlobeStatusFilter>("all");
   const [crewFilter, setCrewFilter] = useState<CrewFilter>("all");
   const [postProductionUserFilter, setPostProductionUserFilter] = useState("all");
-  const [postProductionTeamOptions] = useState<PostProductionTeamOption[]>([]);
-  const [isLoadingPostProductionTeam] = useState(false);
+  const [postProductionTeamOptions, setPostProductionTeamOptions] = useState<PostProductionTeamOption[]>([]);
+  const [isLoadingPostProductionTeam, setIsLoadingPostProductionTeam] = useState(true);
   const selectedPostProductionUser = postProductionTeamOptions.find(
     (option) => String(option.id) === postProductionUserFilter,
   );
@@ -527,6 +530,38 @@ export const ShootsGlobeView = ({
   );
   const [highlightedLegend, setHighlightedLegend] =
     useState<GlobeStatus | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPostProductionTeamOptions = async () => {
+      setIsLoadingPostProductionTeam(true);
+      try {
+        const response = await adminApi.getPostProductionTeamOptions();
+        if (cancelled) return;
+
+        const options = response?.success && Array.isArray(response.data)
+          ? response.data
+          : [];
+        setPostProductionTeamOptions(options);
+        setPostProductionUserFilter((current) =>
+          current === "all" || options.some((option: PostProductionTeamOption) => String(option.id) === current)
+            ? current
+            : "all",
+        );
+      } catch (error) {
+        console.error("Failed to load post-production team options:", error);
+        if (!cancelled) setPostProductionTeamOptions([]);
+      } finally {
+        if (!cancelled) setIsLoadingPostProductionTeam(false);
+      }
+    };
+
+    void loadPostProductionTeamOptions();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -636,8 +671,10 @@ export const ShootsGlobeView = ({
             : { range };
 
         if (debouncedSearchQuery) params.search = debouncedSearchQuery;
-        if (statusFilter !== "all") params.status = statusFilter;
         if (crewFilter !== "all") params.cp_assignment = crewFilter;
+        if (postProductionUserFilter !== "all") {
+          params.post_production_user_id = postProductionUserFilter;
+        }
 
         const response = await adminApi.getGlobalShoots(params as any);
         if (cancelled) return;
@@ -730,8 +767,8 @@ export const ShootsGlobeView = ({
     customStartDate,
     customEndDate,
     debouncedSearchQuery,
-    statusFilter,
     crewFilter,
+    postProductionUserFilter,
     geocodeAddress,
     refreshEventsKey,
   ]);
@@ -783,10 +820,11 @@ export const ShootsGlobeView = ({
     () =>
       dbEvents.filter(
         (event) =>
+          (statusFilter === "all" || event.status === statusFilter) &&
           event.hasCoordinates &&
           hasValidCoordinates(event.latitude, event.longitude),
       ),
-    [dbEvents],
+    [dbEvents, statusFilter],
   );
 
   useEffect(() => {
@@ -811,17 +849,8 @@ export const ShootsGlobeView = ({
   );
 
   const filteredEvents = useMemo(() => {
-    return dbEvents.filter((event) => {
-      if (
-        !event.hasCoordinates ||
-        !hasValidCoordinates(event.latitude, event.longitude)
-      ) {
-        return false;
-      }
-
-      return activeFilters.has(event.status);
-    });
-  }, [dbEvents, activeFilters]);
+    return mappedEvents.filter((event) => activeFilters.has(event.status));
+  }, [mappedEvents, activeFilters]);
 
   const mapEventsToRender = useMemo(() => {
     if (
@@ -1329,6 +1358,7 @@ export const ShootsGlobeView = ({
               value={statusFilter}
               onValueChange={(value: GlobeStatusFilter) => {
                 setStatusFilter(value);
+                setSelectedEvent(null);
                 setActiveFilters(
                   new Set<GlobeStatus>([
                     "active",
