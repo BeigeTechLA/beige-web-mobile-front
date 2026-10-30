@@ -165,7 +165,7 @@ type QuoteOverview = {
   total_amount: number;
 };
 
-type QuoteChartRange = "all" | "week" | "month" | "custom";
+type QuoteChartRange = "all_time" | "all" | "week" | "month" | "custom";
 type QuoteChartMetricKey =
   | "total"
   | "accepted"
@@ -897,7 +897,7 @@ export default function QuotesDashboardPage({
     ? createHref.slice(0, -"/create".length)
     : createHref;
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [chartRange, setChartRange] = useState<QuoteChartRange>("all");
+  const [chartRange, setChartRange] = useState<QuoteChartRange>("all_time");
   const [selectedStat, setSelectedStat] = useState("Total Quotes");
   const [dashboardData, setDashboardData] = useState<QuotesDashboardData | null>(null);
   const [quotes, setQuotes] = useState<SalesQuoteListItem[]>([]);
@@ -943,7 +943,7 @@ export default function QuotesDashboardPage({
       return;
     }
 
-    setChartRange((prev) => (prev === "custom" ? "all" : prev));
+    setChartRange((prev) => (prev === "custom" ? "all_time" : prev));
   }, [selectedDate]);
 
   useEffect(() => {
@@ -1633,6 +1633,7 @@ export default function QuotesDashboardPage({
                         : "border-[#E3E3E3] bg-white text-black"
                     }
                   >
+                    <SelectItem value="all_time">All Time</SelectItem>
                     <SelectItem value="all">Last 6 Months</SelectItem>
                     <SelectItem value="week">This Week</SelectItem>
                     <SelectItem value="month">This Month</SelectItem>
