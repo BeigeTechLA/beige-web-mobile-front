@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
-  EllipsisVertical,
   FileText,
   Landmark,
   Loader2,
@@ -362,13 +361,12 @@ export default function PartnerShootHistoryPanel({
                   <th className="w-[13%] px-4 py-3">Invoices</th>
                   <th className="w-[13%] px-4 py-3">Payment Method</th>
                   <th className="w-[12%] px-4 py-3">Status</th>
-                  <th className="w-[9%] px-5 py-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {showLoader ? (
                   <tr>
-                    <td colSpan={8} className="h-[620px] p-0">
+                    <td colSpan={7} className="h-[620px] p-0">
                       <div className="flex h-full w-full items-center justify-center">
                         <Loader2 className="h-8 w-8 animate-spin text-[#E5D5B8]" />
                       </div>
@@ -376,7 +374,7 @@ export default function PartnerShootHistoryPanel({
                   </tr>
                 ) : visibleRows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className={`py-10 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
+                    <td colSpan={7} className={`py-10 text-center text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>
                       {error ?? "No shoots found."}
                     </td>
                   </tr>
@@ -422,21 +420,11 @@ export default function PartnerShootHistoryPanel({
                               {row.status}
                             </span>
                           </td>
-                          <td className="px-5 py-[9px] text-right">
-                            <button
-                              type="button"
-                              aria-label="Open row actions"
-                              onClick={(e) => e.stopPropagation()}
-                              className={`inline-flex items-center justify-center rounded-lg p-2 transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-black hover:bg-black/5"}`}
-                            >
-                              <EllipsisVertical size={26} strokeWidth={2.5} />
-                            </button>
-                          </td>
                         </tr>
 
                         {isExpanded && (
                           <tr>
-                            <td colSpan={8} className="p-0">
+                            <td colSpan={7} className="p-0">
                               <div className={`space-y-3 px-5 py-5 ${isDark ? "bg-[#0A0A0A]" : "bg-[#FAFAFA]"}`}>
                                 <div className="flex items-center gap-2">
                                   <FileText size={16} className={isDark ? "text-[#D3B98A]" : "text-[#8B6B36]"} />
