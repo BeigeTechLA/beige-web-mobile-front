@@ -7,8 +7,9 @@ import Topbar from "@/components/admin/Topbar";
 import { Button } from "@/components/ui/button";
 import { agreementApi, AgreementDocument, type AgreementEvent, type AgreementResponse } from "@/lib/api/agreements";
 import { AgreementSignatureEvidence } from "@/components/creator-profile/AgreementSignatureEvidence";
-import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+import { formatProjectTimeValue, getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import { formatAgreementDate } from "@/lib/utils/agreementDate";
+import { agreementContentToSafeHtml } from "@/lib/utils/agreementContent";
 
 
 const formatDate = formatAgreementDate;
@@ -32,7 +33,7 @@ const getAgreementSections = (content: unknown): AgreementSection[] => {
 };
 
 const SectionContent = ({ content }: { content: string }) => /<[/!]?\w[\s\S]*>/i.test(content)
-  ? <div className="agreement-content text-sm leading-6 text-[#D8D8D8]" dangerouslySetInnerHTML={{ __html: content }} />
+  ? <div className="agreement-content text-sm leading-6 text-[#D8D8D8] [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_strong]:font-bold [&_b]:font-bold [&_em]:italic [&_i]:italic" dangerouslySetInnerHTML={{ __html: agreementContentToSafeHtml(content) }} />
   : <p className="whitespace-pre-wrap text-sm leading-6 text-[#D8D8D8]">{content}</p>;
 
 export default function AdminShootAgreementDetailsPage() {
@@ -104,7 +105,7 @@ export default function AdminShootAgreementDetailsPage() {
               </header>
               <div className="space-y-7 p-6 lg:p-8">
                 <section><h3 className="mb-3 text-sm font-medium">Project Information</h3><div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-[#AAA7A7]"><span>Project Name: <b className="font-medium text-white">{shoot.name || "—"}</b></span><span>Project ID: <b className="font-medium text-white">{agreement.booking_id ? `PRJ-${agreement.booking_id}` : "—"}</b></span><span>Assignment ID: <b className="font-medium text-white">{agreement.assignment_id ? `ASN-${agreement.assignment_id}` : "—"}</b></span></div></section>
-                <section><h3 className="mb-3 text-sm font-medium">Production Details</h3><div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-[#AAA7A7]"><span>Date: <b className="font-medium text-white">{shoot.date ? formatDate(shoot.date) : "—"}</b></span><span>Location: <b className="font-medium text-white">{shoot.location || "—"}</b></span><span>Call Time: <b className="font-medium text-white">{shoot.start_time || "—"}</b></span><span>Expected End Time: <b className="font-medium text-white">{shoot.end_time || "—"}</b></span></div></section>
+                <section><h3 className="mb-3 text-sm font-medium">Production Details</h3><div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-[#AAA7A7]"><span>Date: <b className="font-medium text-white">{shoot.date ? formatDate(shoot.date) : "—"}</b></span><span>Location: <b className="font-medium text-white">{shoot.location || "—"}</b></span><span>Call Time: <b className="font-medium text-white">{formatProjectTimeValue(shoot.start_time) || "—"}</b></span><span>Expected End Time: <b className="font-medium text-white">{formatProjectTimeValue(shoot.end_time) || "—"}</b></span></div></section>
                 <section><h3 className="mb-3 text-sm font-medium">Compensation</h3><div className="rounded-lg border border-[#6E6049] bg-[#2A2824] px-4 py-3 text-sm">Total Compensation <b className="float-right text-[#E8D1AB]">{formatMoney(agreement.compensation_amount ?? snapshot.compensation?.amount, currency)}</b></div></section>
                 {agreementSections.length ? agreementSections.map((section, index) => (
                   <section key={section.id || `${section.title}-${index}`} className="border-t border-[#3D3D3D] pt-6 first:border-t-0 first:pt-0">
@@ -112,7 +113,7 @@ export default function AdminShootAgreementDetailsPage() {
                     <h3 className="mb-3 text-base font-medium text-white">{section.title}</h3>
                     <div className="rounded-lg border border-[#6E6049] bg-[#2A2824] px-4 py-3"><SectionContent content={section.content || ""} /></div>
                   </section>
-                )) : <section className="agreement-content text-sm leading-6 text-[#D8D8D8]" dangerouslySetInnerHTML={{ __html: agreement.content_html }} />}
+                )) : <section className="agreement-content text-sm leading-6 text-[#D8D8D8] [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_strong]:font-bold [&_b]:font-bold [&_em]:italic [&_i]:italic" dangerouslySetInnerHTML={{ __html: agreementContentToSafeHtml(agreement.content_html) }} />}
               </div>
             </article>
             <AgreementSignatureEvidence response={signatureResponse} />

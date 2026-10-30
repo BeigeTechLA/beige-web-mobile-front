@@ -4,7 +4,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useRouter, usePathname, useParams, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, FileText, Loader2 } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import Topbar from "@/components/admin/Topbar";
@@ -23,7 +23,8 @@ import {
 import { Step3ReviewAgreement } from "@/components/admin/shoot-details/Step3ReviewAgreement";
 import { getProject } from "@/lib/api";
 import { agreementApi } from "@/lib/api/agreements";
-import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+import { formatProjectTimeValue, getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
+import { agreementContentPreview, agreementContentToSafeHtml } from "@/lib/utils/agreementContent";
 import { shootAgreementPlanKey, type ShootAgreementPlan } from "@/lib/shootAgreementPlan";
 
 type ShootBooking = { event_date?: string; event_location?: string; location?: string; start_time?: string; end_time?: string; project_name?: string };
@@ -43,6 +44,7 @@ export default function AdminAgreementDetailsPage() {
     useState<AgreementCreationMode>("individual");
   const [activeCpIndex, setActiveCpIndex] = useState<number>(0);
   const [reviewCpIndex, setReviewCpIndex] = useState<number>(0);
+  const [previewSourceCpIndex, setPreviewSourceCpIndex] = useState<number | null>(null);
 
   // Form Fields State
   const [productionDate, setProductionDate] = useState<Date | null>(null);
@@ -134,8 +136,8 @@ export default function AdminAgreementDetailsPage() {
             if (!Number.isNaN(date.getTime())) setProductionDate(date);
           }
           setLocation(String(booking?.event_location || booking?.location || ""));
-          setCallTime(String(booking?.start_time || ""));
-          setEndTime(String(booking?.end_time || ""));
+          setCallTime(formatProjectTimeValue(String(booking?.start_time || "")));
+          setEndTime(formatProjectTimeValue(String(booking?.end_time || "")));
         };
         if (requestedRevisionId) {
           const [sourceResponse, projectResponse, agreementsResponse] = await Promise.all([
@@ -168,8 +170,8 @@ export default function AdminAgreementDetailsPage() {
           if (Array.isArray(content?.sections) && content.sections.length) setSections(content.sections);
           if (content?.production_date) setProductionDate(new Date(content.production_date));
           if (content?.location) setLocation(content.location);
-          if (content?.call_time) setCallTime(content.call_time);
-          if (content?.end_time) setEndTime(content.end_time);
+          if (content?.call_time) setCallTime(formatProjectTimeValue(content.call_time));
+          if (content?.end_time) setEndTime(formatProjectTimeValue(content.end_time));
           setSelectedMode("individual");
           setCurrentStep(2);
           return;
@@ -183,6 +185,16 @@ export default function AdminAgreementDetailsPage() {
             const booking = payload?.project ?? payload;
             applyBookingDetails(booking);
             setPendingPlan(plan);
+            if (plan.agreement_draft) {
+              const draft = plan.agreement_draft;
+              setSectionsByCreator(draft.sections_by_creator || {});
+              setSections(draft.sections_by_creator?.[String(plan.creators[0].creator_id)] || draft.sections);
+              setProductionDate(draft.production_date ? new Date(draft.production_date) : null);
+              setLocation(draft.location || "");
+              setCallTime(formatProjectTimeValue(draft.call_time || ""));
+              setEndTime(formatProjectTimeValue(draft.end_time || ""));
+              setSelectedMode(draft.selected_mode || "individual");
+            }
             setCpList(plan.creators.map((creator) => {
               const name = creator.creator_name || `CP #${creator.creator_id}`;
               return { id: String(creator.creator_id), name, role: creator.cp_role || "Creative Partner",
@@ -286,7 +298,7 @@ export default function AdminAgreementDetailsPage() {
       toast.error("Add at least one agreement section with a title and content.");
       return false;
     }
-    const invalidIndex = items.findIndex((section) => !section.title.trim() || !section.content.trim());
+    const invalidIndex = items.findIndex((section) => !section.title.trim() || !agreementContentPreview(section.content));
     if (invalidIndex !== -1) {
       setSections((previous) => previous.map((section, index) => index === invalidIndex ? { ...section, isExpanded: true } : section));
       toast.error(`Section ${invalidIndex + 1} needs a title and content.`);
@@ -310,17 +322,35 @@ export default function AdminAgreementDetailsPage() {
         setActiveCpIndex((prev) => prev + 1);
       } else {
         if (selectedMode === "individual") setSectionsByCreator((previous) => ({ ...previous, [cpList[activeCpIndex].id]: sections.map((section) => ({ ...section })) }));
+        setPreviewSourceCpIndex(null);
         setCurrentStep(3);
         setReviewCpIndex(0);
       }
     }
   };
 
+  const handlePreviewAgreement = () => {
+    if (selectedMode === "individual" && cpList[activeCpIndex]) {
+      setSectionsByCreator((previous) => ({
+        ...previous,
+        [cpList[activeCpIndex].id]: sections.map((section) => ({ ...section })),
+      }));
+      setPreviewSourceCpIndex(activeCpIndex);
+      setReviewCpIndex(activeCpIndex);
+    } else {
+      setPreviewSourceCpIndex(null);
+      setReviewCpIndex(0);
+    }
+    setCurrentStep(3);
+  };
+
   const handlePreviousStep = () => {
     if (currentStep === 3) {
+      const returnCpIndex = previewSourceCpIndex ?? Math.max(cpList.length - 1, 0);
       setCurrentStep(2);
-      setActiveCpIndex(Math.max(cpList.length - 1, 0));
-      if (selectedMode === "individual") setSections(sectionsByCreator[cpList[cpList.length - 1].id]?.map((section) => ({ ...section })) || sections);
+      setActiveCpIndex(returnCpIndex);
+      if (selectedMode === "individual") setSections(sectionsByCreator[cpList[returnCpIndex]?.id]?.map((section) => ({ ...section })) || sections);
+      setPreviewSourceCpIndex(null);
     } else if (currentStep === 2) {
       if (selectedMode === "individual" && activeCpIndex > 0) {
         setSectionsByCreator((previous) => ({ ...previous, [cpList[activeCpIndex].id]: sections.map((section) => ({ ...section })) }));
@@ -345,7 +375,7 @@ export default function AdminAgreementDetailsPage() {
 
   const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const buildAgreementHtml = (agreementSections = sections) => agreementSections.map((section) =>
-    `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.content).replace(/\n/g, "<br />")}</p></section>`
+    `<section><h2>${escapeHtml(section.title)}</h2>${agreementContentToSafeHtml(section.content)}</section>`
   ).join("\n");
 
   const persistAgreementDrafts = async () => {
@@ -406,7 +436,26 @@ export default function AdminAgreementDetailsPage() {
   const saveDrafts = async () => {
     if (!validateSections(sections)) return;
     if (pendingPlan) {
-      toast.info("The agreement and compensation will be saved together when you send it.");
+      const nextSectionsByCreator = { ...sectionsByCreator };
+      if (selectedMode === "individual" && cpList[activeCpIndex]) {
+        nextSectionsByCreator[cpList[activeCpIndex].id] = sections.map((section) => ({ ...section }));
+      }
+      const updatedPlan: ShootAgreementPlan = {
+        ...pendingPlan,
+        agreement_draft: {
+          sections: sections.map((section) => ({ ...section })),
+          sections_by_creator: nextSectionsByCreator,
+          production_date: productionDate?.toISOString() || null,
+          location,
+          call_time: callTime,
+          end_time: endTime,
+          selected_mode: selectedMode,
+        },
+      };
+      sessionStorage.setItem(shootAgreementPlanKey(Number(params.id)), JSON.stringify(updatedPlan));
+      setPendingPlan(updatedPlan);
+      setSectionsByCreator(nextSectionsByCreator);
+      toast.success("Shoot agreement draft saved");
       return;
     }
     try {
@@ -473,7 +522,33 @@ export default function AdminAgreementDetailsPage() {
     />;
   }
   if (!cpList.length) {
-    return <><Topbar pathname={pathname} /><div className={`min-h-screen p-10 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}><p>No pending CP assignment is ready for a shoot agreement.</p><Button className="mt-4" onClick={() => router.back()}>Back</Button></div></>;
+    return (
+      <>
+        <Topbar pathname={pathname} />
+        <main className={`flex min-h-[calc(100vh-5rem)] items-center justify-center p-5 lg:p-10 ${isDark ? "bg-[#0A0A0A] text-white" : "bg-[#F3F4F6] text-black"}`}>
+          <section className={`w-full max-w-xl rounded-2xl border p-7 text-center shadow-xl lg:p-10 ${isDark ? "border-white/10 bg-[#141414]" : "border-black/10 bg-white"}`}>
+            <div className={`mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl ${isDark ? "bg-[#E8D1AB]/10 text-[#E8D1AB]" : "bg-[#E8D1AB]/30 text-[#73572E]"}`}>
+              <FileText aria-hidden="true" size={28} strokeWidth={1.7} />
+            </div>
+            <p className={`mb-2 text-xs font-semibold uppercase tracking-[0.18em] ${isDark ? "text-[#E8D1AB]" : "text-[#73572E]"}`}>
+              Shoot Agreement
+            </p>
+            <h1 className="text-xl font-semibold lg:text-2xl">No CP assignment is ready yet</h1>
+            <p className={`mx-auto mt-3 max-w-md text-sm leading-6 ${isDark ? "text-white/60" : "text-black/60"}`}>
+              Assign a Creative Partner to this shoot before creating an agreement.
+            </p>
+            <Button
+              type="button"
+              onClick={() => router.back()}
+              className="mt-7 h-11 rounded-lg bg-[#E8D1AB] px-5 font-semibold text-black hover:bg-[#D4C3A3]"
+            >
+              <ArrowLeft aria-hidden="true" size={16} className="mr-2" />
+              Back to Shoot
+            </Button>
+          </section>
+        </main>
+      </>
+    );
   }
 
   return (
@@ -482,7 +557,7 @@ export default function AdminAgreementDetailsPage() {
         pathname={pathname}
         actions={
           <>
-            {currentStep === 2 && !pendingPlan &&
+            {currentStep === 2 &&
               <>
                 <Button
                   variant="outline"
@@ -499,6 +574,8 @@ export default function AdminAgreementDetailsPage() {
                     ? "bg-white border-white/10 text-black hover:bg-[#F0F0F0]"
                     : "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
                     }`}
+                  type="button"
+                  onClick={handlePreviewAgreement}
                 >
                   Preview
                 </Button>
@@ -556,7 +633,8 @@ export default function AdminAgreementDetailsPage() {
             removeSection={removeSection}
             onNext={handleNextStep}
             onPrevious={handlePreviousStep}
-            onSaveDraft={pendingPlan ? undefined : () => void saveDrafts()}
+            onSaveDraft={() => void saveDrafts()}
+            onPreview={handlePreviewAgreement}
           />
         )}
 

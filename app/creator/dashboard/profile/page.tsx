@@ -67,6 +67,58 @@ import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
 const S3_BASE_URL = process.env.NEXT_PUBLIC_S3_PREFIX || "https://beige-web-prod.s3.us-east-1.amazonaws.com/beige/";
 const GOOGLE_ONBOARDING_STORAGE_KEY = "creator_google_onboarding";
 
+const formatAgreementVersion = (value?: string | null) => {
+  const version = String(value || "").trim().replace(/^version\s+/i, "");
+  if (!version) return "v—";
+  if (/^v?\d+$/i.test(version)) return `v${version.replace(/^v/i, "")}.0`;
+  return /^v/i.test(version) ? version : `v${version}`;
+};
+
+const formatAgreementStatus = (status?: string | null) => {
+  const labels: Record<string, string> = {
+    pending_acceptance: "Awaiting Acceptance",
+    accepted: "Accepted",
+    rejected: "Rejected",
+    cancelled: "Cancelled",
+    expired: "Expired",
+    draft: "Draft",
+  };
+  return labels[String(status || "").toLowerCase()] || String(status || "Pending")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
+const formatCreatorAgreementDate = (value?: string | null, withTime = false) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  const dateText = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+  if (!withTime) return dateText;
+  const timeText = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+  return `${dateText}, ${timeText}`;
+};
+
+const titleCaseAgreementTitle = (value: string) =>
+  value.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+
+const agreementStatusColor = (status?: string | null) => {
+  switch (String(status || "").toLowerCase()) {
+    case "accepted": return "text-[#16A34A]";
+    case "pending_acceptance": return "text-[#E8D1AB]";
+    case "rejected":
+    case "cancelled": return "text-[#EF4444]";
+    default: return "text-[#BEBDBD]";
+  }
+};
+
 const isValidPhoneNumber = (phone: string) => {
   const digits = phone.replace(/\D/g, "");
   return digits.length >= 10 && digits.length <= 15;
@@ -1595,14 +1647,39 @@ export default function ProfilePage() {
                 {(["general", "shoot"] as const).map((type) => {
                   const documents = agreements.filter((agreement) => agreement.agreement_type === type);
                   return <div key={type}>
-                    <h3 className={`text-sm font-semibold mb-3 ${isDark ? "text-white" : "text-black"}`}>{type === "general" ? "General Agreement History" : "Shoot Agreements"}</h3>
+                    <h3 className={`text-sm font-semibold mb-3 ${isDark ? "text-white" : "text-black"}`}>{type === "general" ? "General Agreement" : "Shoot Agreements"}</h3>
                     <div className="space-y-3">
                       {documents.length === 0 ? <p className={`text-sm ${isDark ? "text-white/50" : "text-black/50"}`}>No {type} agreements yet.</p> : documents.map((agreement) => {
                         const shoot = agreement.snapshot?.shoot;
-                        const status = agreement.status.replace(/_/g, " ");
+                        const status = formatAgreementStatus(agreement.status);
+                        const version = formatAgreementVersion(agreement.display_version);
                         const href = type === "general" ? `/creator/dashboard/agreements/general-agreement?agreement_id=${agreement.agreement_document_id}` : `/creator/dashboard/agreements/shoot-agreement?agreement_id=${agreement.agreement_document_id}`;
+                        const statusDate = agreement.status === "accepted"
+                          ? agreement.responded_at || agreement.created_at
+                          : agreement.sent_at || agreement.created_at;
                         return <div key={agreement.agreement_document_id} className={`border rounded-lg lg:rounded-xl p-4 flex items-center justify-between gap-4 ${isDark ? "bg-[#1F1F1F] border-[#1F1F1F]" : "bg-white border-[#E5E5E5]"}`}>
-                          <div><h4 className={`text-xs lg:text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>{type === "general" ? agreement.title : shoot?.name || agreement.title}</h4><p className={`text-xs ${isDark ? "text-[#BEBDBD]" : "text-gray-500"}`}>{agreement.display_version} · {status}</p>{type === "shoot" ? <p className={`text-xs pt-2 ${isDark ? "text-white" : "text-black"}`}>{agreement.currency || "USD"} {Number(agreement.compensation_amount || 0).toFixed(2)}</p> : null}</div>
+                          <div className="flex min-w-0 items-center gap-3">
+                            {type === "general" && <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#D4FFE4] text-[#16803F]"><FileText size={20} /></div>}
+                            <div className="min-w-0">
+                              <h4 className={`text-xs lg:text-sm font-semibold ${isDark ? "text-[#E8D1AB]" : "text-black"}`}>
+                                {type === "general" ? titleCaseAgreementTitle(agreement.title) : shoot?.name || agreement.title}
+                              </h4>
+                              {type === "general" ? (
+                                <p className={`text-xs ${agreementStatusColor(agreement.status)}`}>
+                                  {version} <span className="px-1">·</span> {status} <span className="px-1">·</span> {formatCreatorAgreementDate(statusDate)}
+                                </p>
+                              ) : (
+                                <>
+                                  <p className={`text-xs ${isDark ? "text-[#BEBDBD]" : "text-gray-500"}`}>
+                                    {agreement.snapshot?.creative_partner?.role || "Creative Partner"} <span className="px-1">·</span> {version} <span className="px-1">·</span> <span className={agreementStatusColor(agreement.status)}>{status}</span>
+                                  </p>
+                                  <p className={`text-xs pt-2 ${isDark ? "text-white" : "text-black"}`}>
+                                    {agreement.currency || "USD"} {Number(agreement.compensation_amount || 0).toFixed(2)} <span className="px-1">·</span> {formatCreatorAgreementDate(agreement.created_at, true)}
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                          </div>
                           <Link className={`px-3 py-2 text-xs font-medium rounded-lg ${isDark ? "bg-[#0F0F0F] text-white" : "bg-gray-100 text-gray-800"}`} href={href}>View</Link>
                         </div>;
                       })}

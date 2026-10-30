@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DatePickerFloating } from "@/components/admin/DatePickerFloating";
 import {
@@ -16,7 +16,144 @@ import {
   Link,
 } from "lucide-react";
 import { CPDetail, AgreementCreationMode } from "./Step1AgreementTypeSelection";
-import { agreementContentPreview } from "@/lib/utils/agreementContent";
+import { agreementContentPreview, agreementContentToSafeHtml } from "@/lib/utils/agreementContent";
+import { formatProjectTimeValue } from "@/lib/utils/shootDetails";
+import { TimePicker } from "@/components/ui/Timepicker";
+
+const toTimePickerDate = (value: string) => {
+  if (!value) return null;
+  const formatted = formatProjectTimeValue(value);
+  const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(formatted);
+  if (!match) return null;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const meridiem = match[3].toUpperCase();
+  if (hours < 1 || hours > 12 || minutes > 59) return null;
+  if (meridiem === "AM" && hours === 12) hours = 0;
+  if (meridiem === "PM" && hours !== 12) hours += 12;
+
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date;
+};
+
+const fromTimePickerDate = (value: Date | null) => value && !Number.isNaN(value.getTime())
+  ? value.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
+  : "";
+
+function ShootAgreementRichTextEditor({
+  value,
+  onChange,
+  isDark,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  isDark: boolean;
+}) {
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const savedRange = useRef<Range | null>(null);
+  const [activeCommands, setActiveCommands] = useState<Record<string, boolean>>({});
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkError, setLinkError] = useState("");
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const safeHtml = agreementContentToSafeHtml(value);
+    if (editor.innerHTML !== safeHtml) editor.innerHTML = safeHtml;
+  }, [value]);
+
+  const rememberSelection = () => {
+    const selection = window.getSelection();
+    if (selection?.rangeCount && editorRef.current?.contains(selection.anchorNode)) {
+      savedRange.current = selection.getRangeAt(0).cloneRange();
+    }
+    setActiveCommands({
+      bold: document.queryCommandState("bold"),
+      italic: document.queryCommandState("italic"),
+      insertUnorderedList: document.queryCommandState("insertUnorderedList"),
+      insertOrderedList: document.queryCommandState("insertOrderedList"),
+    });
+  };
+
+  const restoreSelection = () => {
+    const selection = window.getSelection();
+    if (!selection || !savedRange.current || !editorRef.current?.contains(savedRange.current.commonAncestorContainer)) return;
+    selection.removeAllRanges();
+    selection.addRange(savedRange.current);
+  };
+
+  const syncValue = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const safeHtml = agreementContentToSafeHtml(editor.innerHTML);
+    if (editor.innerHTML !== safeHtml) editor.innerHTML = safeHtml;
+    onChange(safeHtml);
+    rememberSelection();
+  };
+
+  const runCommand = (command: "bold" | "italic" | "insertUnorderedList" | "insertOrderedList") => {
+    editorRef.current?.focus();
+    restoreSelection();
+    document.execCommand(command, false);
+    syncValue();
+  };
+
+  const addLink = () => {
+    const url = linkUrl.trim();
+    if (!/^https?:\/\//i.test(url)) {
+      setLinkError("Enter a valid URL beginning with https:// or http://.");
+      return;
+    }
+    editorRef.current?.focus();
+    restoreSelection();
+    document.execCommand("createLink", false, url);
+    syncValue();
+    setLinkUrl("");
+    setLinkError("");
+    setIsLinkDialogOpen(false);
+  };
+
+  const toolClass = (active = false) => `rounded px-2 py-1 transition-colors ${active
+    ? "bg-[#E8D1AB] text-black"
+    : isDark ? "text-white/70 hover:bg-white/10" : "text-black/70 hover:bg-black/5"}`;
+
+  return <>
+    <div className={`flex items-center gap-1 w-full px-4 py-3 rounded-md border text-sm ${isDark ? "bg-[#111110] border-[#3D3D3D]" : "bg-[#F8F8F8] border-gray-200"}`}>
+      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand("bold")} className={toolClass(activeCommands.bold)} aria-label="Bold"><Bold size={14} /></button>
+      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand("italic")} className={toolClass(activeCommands.italic)} aria-label="Italic"><Italic size={14} /></button>
+      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand("insertUnorderedList")} className={toolClass(activeCommands.insertUnorderedList)} aria-label="Bulleted list"><List size={14} /></button>
+      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand("insertOrderedList")} className={toolClass(activeCommands.insertOrderedList)} aria-label="Numbered list"><ListOrdered size={14} /></button>
+      <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { rememberSelection(); setLinkError(""); setIsLinkDialogOpen(true); }} className={toolClass()} aria-label="Add link"><Link size={14} /></button>
+    </div>
+    <div className={`overflow-hidden rounded-md border ${isDark ? "bg-[#111110] border-[#3D3D3D] text-[#E8E8E7]" : "bg-[#F8F8F8] border-gray-200 text-black"}`}>
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        role="textbox"
+        aria-label="Agreement section content"
+        aria-multiline="true"
+        onInput={syncValue}
+        onKeyUp={rememberSelection}
+        onMouseUp={rememberSelection}
+        onFocus={rememberSelection}
+        className={`min-h-32 w-full p-4 text-sm focus:outline-none [&_a]:text-[#E8D1AB] [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6 ${isDark ? "text-[#E8E8E7]" : "text-black"}`}
+      />
+    </div>
+    {isLinkDialogOpen && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" onMouseDown={() => setIsLinkDialogOpen(false)}>
+      <div className={`w-full max-w-md rounded-xl border p-6 shadow-2xl ${isDark ? "border-[#3D3D3D] bg-[#202020] text-white" : "border-[#E5E5E5] bg-white text-black"}`} onMouseDown={(event) => event.stopPropagation()}>
+        <h3 className="text-lg font-semibold">Add Link</h3>
+        <p className="mt-1 text-sm opacity-60">Paste a full URL beginning with https://</p>
+        <input autoFocus value={linkUrl} onChange={(event) => { setLinkUrl(event.target.value); setLinkError(""); }} onKeyDown={(event) => { if (event.key === "Enter") addLink(); }} placeholder="https://example.com" className={`mt-5 w-full rounded-md border px-3 py-2 text-sm outline-none ${isDark ? "border-[#3D3D3D] bg-[#111110]" : "border-gray-300 bg-white"}`} />
+        {linkError && <p className="mt-2 text-xs text-red-400">{linkError}</p>}
+        <div className="mt-5 flex justify-end gap-3"><Button type="button" variant="outline" onClick={() => setIsLinkDialogOpen(false)}>Cancel</Button><Button type="button" className="bg-[#E8D1AB] text-black hover:bg-[#D4C3A3]" onClick={addLink}>Add Link</Button></div>
+      </div>
+    </div>}
+  </>;
+}
 
 export interface ClauseSection {
   id: string;
@@ -50,6 +187,7 @@ interface Step2AgreementDetailsProps {
   onNext: () => void;
   onPrevious: () => void;
   onSaveDraft?: () => void;
+  onPreview?: () => void;
 }
 
 export function Step2AgreementDetails({
@@ -75,8 +213,12 @@ export function Step2AgreementDetails({
   onNext,
   onPrevious,
   onSaveDraft,
+  onPreview,
 }: Step2AgreementDetailsProps) {
   const isCommon = selectedMode === "common";
+  const displayedVersion = /^v\d+$/i.test(agreementVersion)
+    ? `${agreementVersion}.0`
+    : agreementVersion;
 
   const cpList = allCPs;
 
@@ -108,7 +250,7 @@ export function Step2AgreementDetails({
           type="button"
           className="flex-0 w-full lg:w-auto bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] h-10 px-5 rounded-lg font-semibold text-xs transition-all shrink-0"
         >
-          Version {agreementVersion}
+          Version {displayedVersion} (auto-generated)
         </Button>
       </div>
 
@@ -124,6 +266,8 @@ export function Step2AgreementDetails({
         </Button>
 
         <Button
+          type="button"
+          onClick={onPreview}
           className={`w-full rounded-lg h-12 px-4 lg:px-7 gap-2 transition-all ${isDark
             ? "bg-white border-white/10 text-black hover:bg-[#F0F0F0]"
             : "bg-[#1A1A1A] border-white/10 text-white hover:bg-[#2C2C2C]"
@@ -222,6 +366,7 @@ export function Step2AgreementDetails({
               <DatePickerFloating
                 selectedDate={productionDate}
                 onDateChange={setProductionDate}
+                displayFormat="MMM dd, yyyy"
                 width="w-full"
                 classnames={`pointer-none w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] relative rounded-xl border ${isDark
                   ? "text-white placeholder:text-white/20"
@@ -253,45 +398,25 @@ export function Step2AgreementDetails({
                 />
               </div>
 
-              <div
-                className={`relative rounded-xl border ${isDark
-                  ? "border-white/20 bg-[#171717]"
-                  : "border-gray-300 bg-white"
-                  }`}
-              >
-                <label className={`text-sm lg:text-base absolute -top-2.5 lg:-top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"}`}>
-                  Call Time
-                </label>
-                <input
-                  type="text"
-                  value={callTime}
-                  onChange={(e) => setCallTime(e.target.value)}
-                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
-                    ? "text-white placeholder:text-white/20"
-                    : "text-black placeholder:text-gray-400"
-                    }`}
-                />
-              </div>
+              <TimePicker
+                label="Call Time"
+                value={toTimePickerDate(callTime)}
+                onChange={(value) => setCallTime(fromTimePickerDate(value))}
+                isDark={isDark}
+                height={{ xs: "56px", lg: "82px" }}
+                minuteStep={15}
+                ampm
+              />
 
-              <div
-                className={`relative rounded-xl border ${isDark
-                  ? "border-white/20 bg-[#171717]"
-                  : "border-gray-300 bg-white"
-                  }`}
-              >
-                <label className={`text-sm lg:text-base absolute -top-2.5 lg:-top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"}`}>
-                  Expected End Time / Duration
-                </label>
-                <input
-                  type="text"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
-                    ? "text-white placeholder:text-white/20"
-                    : "text-black placeholder:text-gray-400"
-                    }`}
-                />
-              </div>
+              <TimePicker
+                label="Expected End Time / Duration"
+                value={toTimePickerDate(endTime)}
+                onChange={(value) => setEndTime(fromTimePickerDate(value))}
+                isDark={isDark}
+                height={{ xs: "56px", lg: "82px" }}
+                minuteStep={15}
+                ampm
+              />
             </div>
           </div>
 
@@ -398,6 +523,7 @@ export function Step2AgreementDetails({
               <DatePickerFloating
                 selectedDate={productionDate}
                 onDateChange={setProductionDate}
+                displayFormat="MMM dd, yyyy"
                 width="w-full"
                 classnames={`pointer-none w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] relative rounded-xl border ${isDark
                   ? "text-white placeholder:text-white/20"
@@ -432,51 +558,25 @@ export function Step2AgreementDetails({
                 />
               </div>
 
-              <div
-                className={`relative rounded-xl border ${isDark
-                  ? "border-white/20 bg-[#171717]"
-                  : "border-gray-300 bg-white"
-                  }`}
-              >
-                <label
-                  className={`absolute -top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
-                    }`}
-                >
-                  Call Time
-                </label>
-                <input
-                  type="text"
-                  value={callTime}
-                  onChange={(e) => setCallTime(e.target.value)}
-                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
-                    ? "text-white placeholder:text-white/20"
-                    : "text-black placeholder:text-gray-400"
-                    }`}
-                />
-              </div>
+              <TimePicker
+                label="Call Time"
+                value={toTimePickerDate(callTime)}
+                onChange={(value) => setCallTime(fromTimePickerDate(value))}
+                isDark={isDark}
+                height={{ xs: "56px", lg: "82px" }}
+                minuteStep={15}
+                ampm
+              />
 
-              <div
-                className={`relative rounded-xl border ${isDark
-                  ? "border-white/20 bg-[#171717]"
-                  : "border-gray-300 bg-white"
-                  }`}
-              >
-                <label
-                  className={`absolute -top-3.5 left-3 px-1.5 ${isDark ? "bg-[#171717] text-white/60" : "bg-white text-gray-600"
-                    }`}
-                >
-                  Expected End Time / Duration
-                </label>
-                <input
-                  type="text"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className={`w-full px-4 py-3.5 bg-transparent text-base focus:outline-none h-14 lg:h-[82px] ${isDark
-                    ? "text-white placeholder:text-white/20"
-                    : "text-black placeholder:text-gray-400"
-                    }`}
-                />
-              </div>
+              <TimePicker
+                label="Expected End Time / Duration"
+                value={toTimePickerDate(endTime)}
+                onChange={(value) => setEndTime(fromTimePickerDate(value))}
+                isDark={isDark}
+                height={{ xs: "56px", lg: "82px" }}
+                minuteStep={15}
+                ampm
+              />
             </div>
           </div>
         </>
@@ -565,78 +665,11 @@ export function Step2AgreementDetails({
                   />
                 </div>
 
-                <div
-                  className={`flex items-center gap-1 w-full px-4 py-3 rounded-md border text-sm focus:outline-none ${isDark
-                    ? "bg-[#111110] border-[#3D3D3D] text-[#E8E8E7]"
-                    : "bg-[#F8F8F8] border-gray-200 text-black"
-                    }`}
-                >
-                  <button
-                    type="button"
-                    className={`py-0.5 px-2 rounded transition-colors ${isDark
-                      ? "hover:bg-white/10 text-white/70"
-                      : "hover:bg-black/5 text-black/70"
-                      }`}
-                  >
-                    <Bold size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`py-0.5 px-2 rounded transition-colors ${isDark
-                      ? "hover:bg-white/10 text-white/70"
-                      : "hover:bg-black/5 text-black/70"
-                      }`}
-                  >
-                    <Italic size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`py-0.5 px-2 rounded transition-colors ${isDark
-                      ? "hover:bg-white/10 text-white/70"
-                      : "hover:bg-black/5 text-black/70"
-                      }`}
-                  >
-                    <List size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`py-0.5 px-2 rounded transition-colors ${isDark
-                      ? "hover:bg-white/10 text-white/70"
-                      : "hover:bg-black/5 text-black/70"
-                      }`}
-                  >
-                    <ListOrdered size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`py-0.5 px-2 rounded transition-colors ${isDark
-                      ? "hover:bg-white/10 text-white/70"
-                      : "hover:bg-black/5 text-black/70"
-                      }`}
-                  >
-                    <Link size={14} />
-                  </button>
-                </div>
-
-                <div
-                  className={`border rounded-md overflow-hidden ${isDark
-                    ? "bg-[#111110] border-[#3D3D3D] text-[#E8E8E7]"
-                    : "bg-[#F8F8F8] border-gray-200 text-black"
-                    }`}
-                >
-                  <textarea
-                    rows={4}
-                    value={section.content}
-                    onChange={(e) =>
-                      updateSectionContent(section.id, e.target.value)
-                    }
-                    placeholder="Write section content here..."
-                    className={`w-full p-4 bg-transparent text-sm focus:outline-none resize-none ${isDark
-                      ? "text-white placeholder:text-white/30"
-                      : "text-black placeholder:text-gray-400"
-                      }`}
-                  />
-                </div>
+                <ShootAgreementRichTextEditor
+                  value={section.content}
+                  onChange={(content) => updateSectionContent(section.id, content)}
+                  isDark={isDark}
+                />
               </div>
             )}
           </div>

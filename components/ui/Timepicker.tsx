@@ -81,6 +81,8 @@ interface Props {
   height?: string | number | object;
   fontSize?: string;
   labelFontSize?: string;
+  minuteStep?: number;
+  ampm?: boolean;
 }
 
 export const TimePicker: React.FC<Props> = ({
@@ -95,6 +97,8 @@ export const TimePicker: React.FC<Props> = ({
   height = "48px",
   fontSize = "14px",
   labelFontSize = "13px",
+  minuteStep = 5,
+  ampm,
 }) => {
   const baseColors = isDark ? themeColors.dark : themeColors.light;
   const colors = { ...baseColors, ...customColors };
@@ -146,6 +150,8 @@ export const TimePicker: React.FC<Props> = ({
         <MuiTimePicker
           value={value}
           onChange={onChange}
+          ampm={ampm}
+          timeSteps={{ minutes: minuteStep }}
           open={open}
           onOpen={() => setOpen(true)}
           onClose={() => setOpen(false)}

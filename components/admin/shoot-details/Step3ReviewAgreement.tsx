@@ -2,6 +2,8 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { formatProjectTimeValue } from "@/lib/utils/shootDetails";
+import { agreementContentToSafeHtml } from "@/lib/utils/agreementContent";
 import { Info, Send, Users } from "lucide-react";
 import { CPDetail, AgreementCreationMode } from "./Step1AgreementTypeSelection";
 import { ClauseSection } from "./Step2AgreementDetails";
@@ -264,12 +266,12 @@ export function Step3ReviewAgreement({
             </div>
             <div className={`text-right ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
               {productionDate
-                ? productionDate.toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "long",
+                ? productionDate.toLocaleDateString("en-US", {
+                  day: "2-digit",
+                  month: "short",
                   year: "numeric",
                 })
-                : "15 September, 2026"}
+                : "—"}
             </div>
 
             <div className={isDark ? "text-[#7B7B7B]" : "text-black/60"}>
@@ -283,14 +285,14 @@ export function Step3ReviewAgreement({
               Call Time
             </div>
             <div className={`text-right ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
-              {callTime}
+              {formatProjectTimeValue(callTime) || "—"}
             </div>
 
             <div className={isDark ? "text-[#7B7B7B]" : "text-black/60"}>
               Expected End Time / Duration
             </div>
             <div className={`text-right ${isDark ? "text-[#E8E8E7]" : "text-black"}`}>
-              {endTime}
+              {formatProjectTimeValue(endTime) || "—"}
             </div>
           </div>
         </div>
@@ -380,9 +382,10 @@ export function Step3ReviewAgreement({
               <h3 className="text-sm font-medium tracking-wider uppercase text-[#E8D1AB]">
                 {sec.title}
               </h3>
-              <p className={`text-base ${isDark ? "text-[#7B7B7B]" : "text-black/80"}`}>
-                {sec.content}
-              </p>
+              <div
+                className={`text-base leading-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_strong]:font-bold [&_b]:font-bold [&_em]:italic [&_i]:italic ${isDark ? "text-[#7B7B7B]" : "text-black/80"}`}
+                dangerouslySetInnerHTML={{ __html: agreementContentToSafeHtml(sec.content) }}
+              />
             </div>
           ))
         }
@@ -392,7 +395,8 @@ export function Step3ReviewAgreement({
           This Shoot Assignment Agreement is issued under the Beige Creative Partner
           Agreement. By accepting, the Creative Partner confirms their ability to perform
           the assignment as described and agrees to the terms herein and the governing
-          Beige Creative Partner Agreement.
+          Beige Creative Partner Agreement. Both parties acknowledge that acceptance
+          creates a binding commitment for the specified production.
         </div>
 
         <div className="p-5 lg:p-10 flex items-center gap-6 text-xs lg:text-sm">
@@ -426,7 +430,7 @@ export function Step3ReviewAgreement({
           onClick={onSave}
           className="h-12 lg:h-18 lg:min-w-50 rounded-xl border text-sm lg:text-xl font-medium bg-[#E8D1AB] text-black hover:bg-[#D4C3A3] transition-colors"
         >
-          Save and Send
+          Save
         </Button>
       </div >
     </div >
