@@ -193,9 +193,9 @@ export const CpCompensationCalendarView = ({
   /* ---------- Toolbar ---------- */
   const renderToolbar = () => (
     <div
-      className={`flex flex-col items-stretch gap-3 border-b px-3 py-3 sm:min-h-[64px] sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-0 lg:px-6 ${border} ${isDark ? "bg-[#111111]" : "bg-white"}`}
+      className={`flex flex-col items-stretch gap-3 border-b p-3 sm:min-h-[64px] sm:flex-row sm:items-center sm:justify-between md:px-4 sm:py-0 lg:p-6 ${border} ${isDark ? "bg-[#111111]" : "bg-white"}`}
     >
-      <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-5">
+      <div className="flex flex-wrap min-w-0 items-center gap-3 sm:gap-5">
         <button
           type="button"
           onClick={() => setFocusDate(new Date())}
@@ -221,46 +221,46 @@ export const CpCompensationCalendarView = ({
         </h2>
       </div>
 
-      <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:shrink-0 sm:gap-5">
-
-        <div className={`hidden items-center gap-4 text-sm xl:flex ${isDark ? "text-white/65" : "text-black/60"}`}>
-          {STATUS_OPTIONS.map((s) => (
-            <span key={s} className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: statusColors(s, isDark).dot }} />
-              {s}
-            </span>
-          ))}
-        </div>
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
-          <SelectTrigger
-            className={`h-10 w-[150px] rounded-full text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}
-          >
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent
-            className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}
-          >
-            <SelectItem value="All">All Status</SelectItem>
+      <div className="flex flex-wrap w-full items-center justify-end gap-3 sm:w-auto lg:gap-5">
+        <div className="flex items-center gap-3 lg:gap-5">
+          <div className={`hidden items-center gap-4 text-sm xl:flex ${isDark ? "text-white/65" : "text-black/60"}`}>
             {STATUS_OPTIONS.map((s) => (
-              <SelectItem key={s} value={s}>
+              <span key={s} className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: statusColors(s, isDark).dot }} />
                 {s}
-              </SelectItem>
+              </span>
             ))}
-          </SelectContent>
-        </Select>
+          </div>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+            <SelectTrigger
+              className={`h-10 w-[150px] rounded-full text-xs focus:ring-0 ${isDark ? "bg-zinc-900 border-[#3D3D3D] text-white/70" : "bg-[#FFFFFF] border-[#E3E3E3] text-[#323232]"}`}
+            >
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent
+              className={isDark ? "bg-[#111111] border-[#3D3D3D]" : "text-black bg-white border-[#E3E3E3]"}
+            >
+              <SelectItem value="All">All Status</SelectItem>
+              {STATUS_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className={`flex h-10 overflow-hidden rounded-lg border ${isDark ? "border-white/5 bg-[#202020]" : "border-[#E5E5E5] bg-[#FAFAFA]"}`}>
           {(["month", "week", "day"] as CalendarView[]).map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setView(item)}
-              className={`min-w-[62px] px-3 text-xs capitalize transition-colors ${
-                view === item
+              className={`min-w-[62px] px-3 text-xs capitalize transition-colors ${view === item
                   ? "bg-[#E5D5B8] text-black"
                   : isDark
                     ? "text-white/40 hover:text-white"
                     : "text-[#666] hover:text-black"
-              }`}
+                }`}
             >
               {item}
             </button>
@@ -283,13 +283,12 @@ export const CpCompensationCalendarView = ({
         type="button"
         onClick={() => setStatusFilter([])}
         aria-pressed={statusFilter.length === 0}
-        className={`h-8 rounded-full border px-3 text-xs font-medium transition-colors ${
-          statusFilter.length === 0
+        className={`h-8 rounded-full border px-3 text-xs font-medium transition-colors ${statusFilter.length === 0
             ? "border-[#E5D5B8] bg-[#E5D5B8] text-black"
             : isDark
               ? "border-[#333333] bg-[#202020] text-white/60 hover:text-white"
               : "border-[#E5E5E5] bg-white text-black/60 hover:text-black"
-        }`}
+          }`}
       >
         All ({items.length})
       </button>
@@ -303,13 +302,12 @@ export const CpCompensationCalendarView = ({
             type="button"
             onClick={() => toggleStatus(status)}
             aria-pressed={active}
-            className={`inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors ${
-              active
+            className={`inline-flex h-8 items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors ${active
                 ? ""
                 : isDark
                   ? "border-[#333333] bg-[#202020] text-white/60 hover:text-white"
                   : "border-[#E5E5E5] bg-white text-black/60 hover:text-black"
-            }`}
+              }`}
             style={
               active
                 ? { borderColor: colors.border, backgroundColor: colors.bg, color: colors.text }
@@ -403,19 +401,17 @@ export const CpCompensationCalendarView = ({
                   className={`relative h-[145px] border-b border-r p-[7px] text-left transition-colors ${border} ${isDark ? "hover:bg-white/[0.015]" : "bg-white hover:bg-[#FAFAFA]"} ${index % 7 === 6 ? "border-r-0" : ""}`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={`px-1 text-xs font-bold ${
-                    isDark ? "text-[#E8D1AB]" : "text-[#6F542B]"
-                    }`}>
+                    <span className={`px-1 text-xs font-bold ${isDark ? "text-[#E8D1AB]" : "text-[#6F542B]"
+                      }`}>
                       {dayItems.length > 0 ? formatCurrency(dayTotal) : ""}
                     </span>
                     <span
-                      className={`flex h-7 min-w-7 items-center justify-center rounded-full px-1 text-[14px] ${
-                        todayCell
+                      className={`flex h-7 min-w-7 items-center justify-center rounded-full px-1 text-[14px] ${todayCell
                           ? "bg-[#E8D1AB] font-semibold text-black"
                           : isCurrentMonth
                             ? isDark ? "text-[#F2F2F2]" : "text-[#323232]"
                             : isDark ? "text-[#505050]" : "text-[#B8B8B8]"
-                      }`}
+                        }`}
                     >
                       {date.getDate()}
                     </span>
@@ -466,9 +462,8 @@ export const CpCompensationCalendarView = ({
               >
                 <p className="mt-2 text-[12px] tracking-[0.08em] text-[#838383]">{WEEKDAYS[date.getDay()]}</p>
                 <span
-                  className={`mt-1 flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-semibold ${
-                    todayCell ? "bg-[#E8D1AB] text-black" : isDark ? "text-[#A6A6A6]" : "text-[#323232]"
-                  }`}
+                  className={`mt-1 flex h-8 w-8 items-center justify-center rounded-full text-[14px] font-semibold ${todayCell ? "bg-[#E8D1AB] text-black" : isDark ? "text-[#A6A6A6]" : "text-[#323232]"
+                    }`}
                 >
                   {date.getDate()}
                 </span>
@@ -583,43 +578,43 @@ export const CpCompensationCalendarView = ({
                           </span>
                         )}
                       </div>
-<div className="flex items-start justify-between gap-2 sm:gap-4">
-  <h3 className={`truncate text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
-    {item.creatorName}
-  </h3>
-  <p className={`shrink-0 text-lg font-bold ${isDark ? "text-white" : "text-black"}`}>
-    {formatCurrency(item.amount)}
-  </p>
-</div>
+                      <div className="flex items-start justify-between gap-2 sm:gap-4">
+                        <h3 className={`truncate text-base font-semibold ${isDark ? "text-white" : "text-black"}`}>
+                          {item.creatorName}
+                        </h3>
+                        <p className={`shrink-0 text-lg font-bold ${isDark ? "text-white" : "text-black"}`}>
+                          {formatCurrency(item.amount)}
+                        </p>
+                      </div>
 
-<div className="mt-3 space-y-2 text-sm">
-  <div className="flex justify-between gap-3">
-    <span className={isDark ? "text-white/60" : "text-black/60"}>
-      Total Amount
-    </span>
-    <span className="font-semibold">
-      {formatCurrency(item.amount)}
-    </span>
-  </div>
+                      <div className="mt-3 space-y-2 text-sm">
+                        <div className="flex justify-between gap-3">
+                          <span className={isDark ? "text-white/60" : "text-black/60"}>
+                            Total Amount
+                          </span>
+                          <span className="font-semibold">
+                            {formatCurrency(item.amount)}
+                          </span>
+                        </div>
 
-  <div className="flex justify-between gap-3">
-    <span className={isDark ? "text-white/60" : "text-black/60"}>
-      Paid Amount
-    </span>
-    <span className="font-semibold text-emerald-500">
-      {formatCurrency(item.paidAmount)}
-    </span>
-  </div>
+                        <div className="flex justify-between gap-3">
+                          <span className={isDark ? "text-white/60" : "text-black/60"}>
+                            Paid Amount
+                          </span>
+                          <span className="font-semibold text-emerald-500">
+                            {formatCurrency(item.paidAmount)}
+                          </span>
+                        </div>
 
-  <div className="flex justify-between gap-3">
-    <span className={isDark ? "text-white/60" : "text-black/60"}>
-      Remaining Amount
-    </span>
-    <span className="font-semibold text-amber-500">
-      {formatCurrency(item.remainingAmount)}
-    </span>
-  </div>
-</div>
+                        <div className="flex justify-between gap-3">
+                          <span className={isDark ? "text-white/60" : "text-black/60"}>
+                            Remaining Amount
+                          </span>
+                          <span className="font-semibold text-amber-500">
+                            {formatCurrency(item.remainingAmount)}
+                          </span>
+                        </div>
+                      </div>
                       <div className={`mt-4 grid gap-3 text-xs ${isDark ? "text-white/50" : "text-black/50"}`}>
                         {item.creatorRoles.length > 0 && (
                           <div className="flex items-center gap-2.5">

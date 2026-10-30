@@ -44,7 +44,7 @@ export default function SuccessModal({
   return (
     <div
       onClick={handleBackdropClick}
-      className="fixed inset-0 z-[140] flex items-center justify-center bg-black/82 p-3 backdrop-blur-md lg:p-5">
+      className="fixed inset-0 z-[140] flex items-center justify-center bg-black/82 p-3 backdrop-blur-md lg:p-5 h-full">
       <div
         ref={containerRef}
         className={`relative max-h-[84vh] w-full lg:max-w-xl overflow-y-auto rounded-2xl border transition-colors duration-200 p-5 lg:p-8 flex flex-col items-center gap-3 lg:gap-6 ${isDark
