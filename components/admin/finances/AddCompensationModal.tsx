@@ -21,6 +21,7 @@ interface AddCompensationModalProps {
   showAgreementAction?: boolean;
   enableAdvanceProofUpload?: boolean;
   initialShootId?: number | null;
+  initialPlan?: AddCpCompensationPayload;
   defaultCompensationMethod?: "equal" | "role" | "manual";
   submitButtonLabel?: string;
   showSendMailOption?: boolean;
@@ -252,6 +253,7 @@ export default function AddCompensationModal({
   showAgreementAction = true,
   enableAdvanceProofUpload = false,
   initialShootId,
+  initialPlan,
   defaultCompensationMethod = "equal",
   submitButtonLabel,
   showSendMailOption = true,
@@ -276,6 +278,13 @@ export default function AddCompensationModal({
   const canOpenExistingAgreement = Boolean(currentShoot && selectedCreators.length && selectedCreators.every((creatorId) =>
     Number(currentShoot.creators.find((creator) => String(creator.creator_id) === creatorId)?.assignment_id || 0) > 0
   ));
+
+  useEffect(() => {
+    if (!isOpen || !initialPlan || Number(initialPlan.booking_id) !== Number(selectedShootId)) return;
+    setCompensationMethod(initialPlan.compensation_method === "manual"
+      ? "manual"
+      : initialPlan.compensation_method === "role_based" ? "role" : "equal");
+  }, [initialPlan, isOpen, selectedShootId]);
 
   const filteredShoots = useMemo(() => {
     const query = shootSearchQuery.trim().toLowerCase();
@@ -398,6 +407,48 @@ export default function AddCompensationModal({
       return;
     }
 
+    const savedCreators = initialPlan && Number(initialPlan.booking_id) === Number(currentShoot.booking_id)
+      ? initialPlan.creators
+      : null;
+    if (savedCreators) {
+      const savedCreatorIds = savedCreators.map((creator) => String(creator.creator_id));
+      setSelectedCreators(savedCreatorIds);
+      setCreatorForms(currentShoot.creators.reduce<Record<string, CreatorFormState>>((acc, creator) => {
+        const id = String(creator.creator_id);
+        if (!savedCreatorIds.includes(id)) return acc;
+
+        const saved = savedCreators.find((item) => Number(item.creator_id) === Number(creator.creator_id));
+        const items = saved?.items || [];
+        const amountFor = (label: string, fallbackIndex: number) => {
+          const item = items.find((item) => item.label.toLowerCase() === label.toLowerCase()) || items[fallbackIndex];
+          return String(Number(item?.amount || 0));
+        };
+        const base = amountFor("Base Payout", 0);
+        const editing = amountFor("Editing Payout", 1);
+        const travel = amountFor("Travel Adjustment", 2);
+        const bonus = amountFor("Bonus/Other Adjustment", 3);
+        const target = String([base, editing, travel, bonus].reduce((total, value) => total + parseAmount(value), 0));
+        const rateType = saved?.rate_type || "flat";
+        acc[id] = {
+          ...getCreatorFormDefaults(target, target),
+          base,
+          baseTarget: target,
+          hourlyCommittedTotal: target,
+          hourlyRate: rateType === "hourly" ? getHourlyRateForAmount(target, "1") : target,
+          rateType,
+          editing,
+          travel,
+          bonus,
+          notes: saved?.notes || "",
+          advanceAmount: String(saved?.advance?.amount || ""),
+          advancePaymentDate: saved?.advance?.payment_date || "",
+          advanceNotes: saved?.advance?.notes || "",
+        };
+        return acc;
+      }, {}));
+      return;
+    }
+
     const defaultPerCreator = getCPCompensationReference(
       Number(currentShoot.shoot_amount || 0), Number(currentShoot.required_cp_count || 0)
     ).perCreator;
@@ -411,7 +462,7 @@ export default function AddCompensationModal({
         return acc;
       }, {})
     );
-  }, [compensationMethod, currentShoot]);
+  }, [compensationMethod, currentShoot, initialPlan]);
 
   useEffect(() => {
     syncCreatorFormsForCompensationMethod();

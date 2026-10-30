@@ -146,6 +146,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   const [projectLocation, setProjectLocation] = useState<string>("");
   const [isAddCompOpen, setIsAddCompOpen] = useState(false);
   const [selectedCreatives, setSelectedCreatives] = useState<SelectedCreative[]>([]);
+  const [savedAgreementPlan, setSavedAgreementPlan] = useState<ShootAgreementPlan | null>(null);
 
   const [roleType, setRoleType] = useState<string>('videographer');
   const [stats, setStats] = useState<FulfillmentStats | null>(null);
@@ -155,6 +156,38 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Keep the CP selection in sync with the plan created before opening the
+  // agreement screen. The plan remains in session storage until the agreement
+  // is sent, so returning to this page can restore the in-progress assignment.
+  useEffect(() => {
+    if (!projectId) return;
+
+    try {
+      const savedPlan = sessionStorage.getItem(shootAgreementPlanKey(projectId));
+      if (!savedPlan) return;
+
+      const plan = JSON.parse(savedPlan) as ShootAgreementPlan;
+      if (Number(plan.compensation?.booking_id) !== Number(projectId) || !Array.isArray(plan.creators)) return;
+
+      setSavedAgreementPlan(plan);
+      const creators = plan.creators.filter((creator) => Number(creator.creator_id) > 0);
+      const creativeIds = Array.isArray(plan.selected_creative_ids) && plan.selected_creative_ids.length === creators.length
+        ? plan.selected_creative_ids
+        : creators.map((creator) => Number(creator.creator_id));
+      setSelectedCreativeIds(creativeIds);
+      setSelectedCreatives(creators.map((creator, index) => ({
+        id: Number(creativeIds[index]),
+        crew_member_id: Number(creator.creator_id),
+        name: creator.creator_name || `Creator #${creator.creator_id}`,
+        email: creator.creator_email || undefined,
+        specialities: creator.cp_role || undefined,
+        hourly_rate: creator.hourly_rate,
+      })));
+    } catch (error) {
+      console.error("Unable to restore the shoot agreement plan", error);
+    }
+  }, [projectId]);
 
   useEffect(() => {
     if (!mounted || isPermissionsLoading || canEdit) return;
@@ -274,6 +307,13 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
     () => selectedCompensationShoot ? [selectedCompensationShoot] : [],
     [selectedCompensationShoot]
   );
+  const restoredCompensationPlan = savedAgreementPlan && selectedCompensationShoot &&
+    savedAgreementPlan.creators.length === selectedCompensationShoot.creators.length &&
+    savedAgreementPlan.creators.every((creator) =>
+      selectedCompensationShoot.creators.some((selected) => Number(selected.creator_id) === Number(creator.creator_id))
+    )
+    ? savedAgreementPlan.compensation
+    : undefined;
 
   const handleSelectedCreativesChange = useCallback((creatives: SelectedCreative[]) => {
     setSelectedCreatives((current) => {
@@ -314,7 +354,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
   };
 
   const prepareShootAgreement = async (compensation: AddCpCompensationPayload, creators: PendingCompensationShoot["creators"]) => {
-    const plan: ShootAgreementPlan = { compensation, creators };
+    const plan: ShootAgreementPlan = { compensation, creators, selected_creative_ids: selectedCreativeIds };
     sessionStorage.setItem(shootAgreementPlanKey(projectId), JSON.stringify(plan));
     setIsAddCompOpen(false);
     router.push(`/admin/shoots/${projectId}/shoot-agreement`);
@@ -475,6 +515,7 @@ export default function AddCreativesPage({ params }: { params: Promise<{ id: str
             onClose={() => setIsAddCompOpen(false)}
             shoots={compensationShootOptions}
             onPrepareAgreement={prepareShootAgreement}
+            initialPlan={restoredCompensationPlan}
           />
         )}
 

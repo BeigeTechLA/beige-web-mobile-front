@@ -164,12 +164,12 @@ export const formatProjectTimeValue = (value?: string | null) => {
 
   const normalizedValue = value.trim();
   const timeMatch = normalizedValue.match(
-    /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*([AaPp][Mm]))?$/,
+    /^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?(?:\s*([AaPp][Mm]))?$/,
   );
 
   if (timeMatch) {
     let hours = Number(timeMatch[1]);
-    const minutes = Number(timeMatch[2]);
+    const minutes = Number(timeMatch[2] || 0);
     const meridiem = timeMatch[4]?.toUpperCase();
 
     if (!Number.isNaN(hours) && !Number.isNaN(minutes) && minutes >= 0 && minutes < 60) {
@@ -185,6 +185,12 @@ export const formatProjectTimeValue = (value?: string | null) => {
         return formatUsTime(hours, minutes);
       }
     }
+  }
+
+  // Only parse date-time strings here. Parsing arbitrary input such as "6"
+  // with Date can produce an unrelated calendar date and a misleading time.
+  if (!/^\d{4}-\d{2}-\d{2}[T\s]/.test(normalizedValue)) {
+    return normalizedValue;
   }
 
   const parsedDate = new Date(normalizedValue);

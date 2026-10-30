@@ -13,6 +13,7 @@ import { AgreementSignatureModal } from "@/components/creator-profile/AgreementS
 import { AgreementSignatureEvidence } from "@/components/creator-profile/AgreementSignatureEvidence";
 import { getPrimaryRoleLabel } from "@/lib/utils/shootDetails";
 import { formatAgreementDate } from "@/lib/utils/agreementDate";
+import { agreementContentToSafeHtml } from "@/lib/utils/agreementContent";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type AgreementSection = { id?: string; num?: string; title?: string; content?: string };
@@ -30,7 +31,7 @@ const getAgreementSections = (content: unknown): AgreementSection[] => {
 };
 
 const SectionContent = ({ content }: { content: string }) => /<[/!]?\w[\s\S]*>/i.test(content)
-  ? <div className="agreement-content" dangerouslySetInnerHTML={{ __html: content }} />
+  ? <div className="agreement-content [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_strong]:font-bold [&_b]:font-bold [&_em]:italic [&_i]:italic" dangerouslySetInnerHTML={{ __html: agreementContentToSafeHtml(content) }} />
   : <p className="whitespace-pre-wrap">{content}</p>;
 
 export default function AgreementReviewPage() {
