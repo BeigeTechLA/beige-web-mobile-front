@@ -576,10 +576,7 @@ export default function AdminAgreementDetailsPage() {
         )}
 
         {/* Mobile Sticky Action Bar */}
-        <div
-          className={`lg:hidden fixed flex flex-wrap gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]"
-            }`}
-        >
+        <div className={`lg:hidden fixed flex flex-wrap gap-2 bottom-0 left-0 right-0 px-6 pb-6 pt-4 z-[40] ${isDark ? "bg-[#0f0f0f]" : "bg-[#F4F5F7]" }`}>
           <Button
             type="button"
             onClick={handlePreviousStep}
