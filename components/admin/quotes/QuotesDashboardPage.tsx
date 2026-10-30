@@ -1818,7 +1818,13 @@ export default function QuotesDashboardPage({
                       : "border-[#E3E3E3] bg-white text-black/70"
                       } ${isSalesRepUser ? "opacity-60" : ""}`}
                   >
-                    <SelectValue placeholder="All Salesperson" />
+                    <SelectValue placeholder="All Salesperson">
+                      {effectiveSalesperson === "all"
+                        ? "All Salesperson"
+                        : salespersonOptions.find(
+                            (salesperson) => salesperson.id === effectiveSalesperson
+                          )?.name}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent
                     className={

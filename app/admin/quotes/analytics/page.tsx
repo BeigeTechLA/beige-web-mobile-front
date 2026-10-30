@@ -266,7 +266,18 @@ const fetchQuoteAnalyticsQuotes = useCallback(async () => {
                   : "border-[#E3E3E3] bg-white text-black/70"
                   } ${isSalesRepUser ? "opacity-60" : ""}`}
               >
-                <SelectValue placeholder="Sales Rep" className="text-sm medium" />
+                <SelectValue placeholder="Sales Rep" className="text-sm medium">
+                  {effectiveSalesperson === "all"
+                    ? "All Salesperson"
+                    : (() => {
+                        const selectedRep = salespersonOptions.find(
+                          (salesperson) => salesperson.id === effectiveSalesperson
+                        );
+                        return selectedRep ? (
+                          <span className="capitalize">{selectedRep.name}</span>
+                        ) : null;
+                      })()}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent
                 className={
