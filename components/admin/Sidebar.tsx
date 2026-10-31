@@ -139,6 +139,11 @@ const menuItems: MenuItem[] = [
       { name: "All Users", link: "/admin/users/all" },
       { name: "Clients", link: "/admin/users/clients" },
       { name: "Creative Partners", link: "/admin/users/creative-partners" },
+      {
+        name: "Deletion Requests",
+        link: "/admin/users/deletion-requests",
+        permissionKeys: ["users"],
+      },
     ],
   },
   {

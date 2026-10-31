@@ -7,7 +7,7 @@ import { useAppDispatch } from "@/lib/redux/hooks";
 
 import { useChangePasswordClientMutation, useGetCurrentUserQuery } from "@/lib/redux/features/auth/authApi";
 import { toast } from "sonner";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Trash2, RotateCcw } from "lucide-react";
 import Cookies from "js-cookie";
 
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { affiliateApi } from "@/lib/api";
 import { TimezonePreference } from "@/components/common/TimezonePreference";
+import { DeleteAccountReview } from "./DeleteAccountReview";
+import { DeleteAccountCancelModal } from "./DeleteAccountCancelModal";
+import { DeleteAccountCancelledModal } from "./DeleteAccountCancelledModal";
 
 export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }) => {
   const [changePasswordClient, { isLoading }] = useChangePasswordClientMutation();
@@ -27,6 +30,13 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showDeleteReview, setShowDeleteReview] = useState(false);
+  const [deletionRequested, setDeletionRequested] = useState(false);
+  const [deletionRequestId, setDeletionRequestId] = useState<string | undefined>();
+  const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | undefined>();
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const { data: currentUserData } = useGetCurrentUserQuery(undefined, {
     skip: !user,
   });
@@ -101,6 +111,45 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
       toast.error(message || "Failed to change password");
     }
   };
+
+  if (showDeleteReview) {
+    return (
+      <DeleteAccountReview
+        isDark={isDark}
+        onBack={() => setShowDeleteReview(false)}
+        onResend={() => {
+          // TODO: call "send delete-account OTP" API
+          toast.info("Verification code sent");
+        }}
+        onVerify={async (code) => {
+          // TODO: call "verify OTP" API. Return false if the code is wrong.
+          console.log("OTP entered:", code);
+          return true;
+        }}
+        onDelete={async () => {
+          // TODO: call "submit account deletion request" API.
+          // Return false on failure, or { requestId: response.request_id } on success.
+          const requestId = "DEL-000000";
+          setDeletionRequestId(requestId);
+          return { requestId };
+        }}
+        onContactSupport={() => {
+          // TODO: open support page / mailto
+          window.location.href = "mailto:support@beige.com";
+        }}
+        onPreviewLogin={() => {
+          // TODO: use the exact date returned by the API
+          const d = new Date();
+          d.setDate(d.getDate() + 60);
+          setScheduledDeletionDate(
+            d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+          );
+          setShowDeleteReview(false); // closes the review page and all its modals
+          setDeletionRequested(true);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -269,6 +318,90 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
             </Button>
           </div>
         </form>
+      </div>
+
+      <DeleteAccountCancelModal
+        open={showCancelConfirm}
+        isDark={isDark}
+        scheduledDate={scheduledDeletionDate}
+        email={user?.email}
+        isLoading={isCancelling}
+        onKeep={() => setShowCancelConfirm(false)}
+        onCancelRequest={async () => {
+          setIsCancelling(true);
+          try {
+            // TODO: call "cancel deletion request" API; on failure show toast.error and return
+            setShowCancelConfirm(false);
+            setShowCancelled(true);
+          } finally {
+            setIsCancelling(false);
+          }
+        }}
+      />
+
+      <DeleteAccountCancelledModal
+        open={showCancelled}
+        isDark={isDark}
+        requestId={deletionRequestId}
+        onGoToAccount={() => {
+          setShowCancelled(false);
+          setDeletionRequested(false); // button goes back to red "Delete Account"
+        }}
+      />
+
+      {/* Delete Account Card (static UI) */}
+      <div className={`rounded-lg lg:rounded-2xl p-4 md:p-10 border transition-colors ${
+        isDark ? "bg-[#111] border-white/5" : "bg-white border-zinc-200"
+      }`}>
+        <div className="flex items-start gap-4 lg:gap-6">
+          <div className="shrink-0 flex items-center justify-center w-10 h-10 lg:w-[50px] lg:h-[50px] rounded-full bg-[#FF6B6B]/15">
+            <Trash2 className="w-5 h-5 lg:w-6 lg:h-6 text-[#FF6B6B]" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h2 className={`lg:text-xl font-bold tracking-tight mb-2 lg:mb-3 transition-colors ${
+              isDark ? "text-white" : "text-[#171717]"
+            }`}>
+              Delete Account
+            </h2>
+
+            <p className={`text-sm lg:text-base leading-relaxed mb-3 transition-colors ${
+              isDark ? "text-white/60" : "text-zinc-500"
+            }`}>
+              Permanently delete your Beige account and associated personal data. Once you submit a
+              deletion request, your account will be deactivated, and eligible data will be scheduled
+              for deletion after{" "}
+              <span className={`font-bold ${isDark ? "text-white" : "text-[#171717]"}`}>60 days.</span>
+            </p>
+
+            <p className={`text-sm lg:text-base leading-relaxed mb-5 lg:mb-6 transition-colors ${
+              isDark ? "text-white/60" : "text-zinc-500"
+            }`}>
+              You can cancel your request during this period, subject to verification. Certain
+              records may be retained where required by law or for legitimate business purposes.
+            </p>
+
+            {deletionRequested ? (
+              <Button
+                type="button"
+                onClick={() => setShowCancelConfirm(true)}
+                className="h-10 lg:h-12 px-5 lg:px-6 bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black font-medium lg:text-base rounded-lg lg:rounded-xl gap-2"
+              >
+                <RotateCcw size={18} />
+                Cancel Delete
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => setShowDeleteReview(true)}
+                className="h-10 lg:h-12 px-5 lg:px-6 bg-[#FF6B6B] hover:bg-[#FF6B6B]/90 text-white font-medium lg:text-base rounded-lg lg:rounded-xl gap-2"
+              >
+                <Trash2 size={18} />
+                Delete Account
+              </Button>
+            )}
+          </div>
+        </div>  
       </div>
     </div>
   );
