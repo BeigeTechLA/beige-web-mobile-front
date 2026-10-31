@@ -17,7 +17,7 @@ export interface AgreementData {
   role: string;
   version: string;
   compensation?: number;
-  status: "Accepted" | "Expired" | "Not Accepted" | "Pending" | "Draft" | "Cancelled";
+  status: "Accepted" | "Expired" | "Rejected" | "Pending" | "Draft" | "Cancelled";
   rawStatus?: "draft" | "pending_acceptance" | "accepted" | "rejected" | "cancelled" | "expired";
   isCurrent?: boolean;
   bookingId?: number | null;
@@ -293,7 +293,7 @@ export default function GeneralAgreementHistoryTable({
             {status}
           </span>
         );
-      case "Not Accepted":
+      case "Rejected":
         return (
           <span
             className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm lg:text-base font-medium ${isDark
@@ -301,7 +301,7 @@ export default function GeneralAgreementHistoryTable({
               : "bg-[#FDE8E8] text-[#E53E3E] border border-[#F87171]"
               }`}
           >
-            Not Accepted
+            Rejected
           </span>
         );
       default:

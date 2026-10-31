@@ -318,7 +318,7 @@ export default function AdminAgreementsPage() {
             role: agreement.snapshot?.creative_partner?.role || "—",
             version: agreement.display_version,
             compensation: Number(agreement.compensation_amount || 0),
-            status: agreement.status === "accepted" ? "Accepted" : agreement.status === "rejected" ? "Not Accepted" : agreement.status === "draft" ? "Draft" : agreement.status === "cancelled" ? "Cancelled" : agreement.status === "expired" ? "Expired" : "Pending",
+            status: agreement.status === "accepted" ? "Accepted" : agreement.status === "rejected" ? "Rejected" : agreement.status === "draft" ? "Draft" : agreement.status === "cancelled" ? "Cancelled" : agreement.status === "expired" ? "Expired" : "Pending",
             rawStatus: agreement.status,
             isCurrent: agreement.is_current,
           }))}
@@ -332,7 +332,7 @@ export default function AdminAgreementsPage() {
             role: agreement.snapshot?.creative_partner?.role || "—",
             version: agreement.display_version,
             compensation: Number(agreement.compensation_amount || 0),
-            status: agreement.status === "accepted" ? "Accepted" : agreement.status === "rejected" ? "Not Accepted" : agreement.status === "draft" ? "Draft" : agreement.status === "cancelled" ? "Cancelled" : agreement.status === "expired" ? "Expired" : "Pending",
+            status: agreement.status === "accepted" ? "Accepted" : agreement.status === "rejected" ? "Rejected" : agreement.status === "draft" ? "Draft" : agreement.status === "cancelled" ? "Cancelled" : agreement.status === "expired" ? "Expired" : "Pending",
             rawStatus: agreement.status,
             isCurrent: agreement.is_current,
             bookingId: agreement.booking_id,
