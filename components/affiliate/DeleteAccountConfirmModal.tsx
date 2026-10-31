@@ -81,7 +81,7 @@ export const DeleteAccountConfirmModal = ({
         {/* Checkbox */}
         <div
           onClick={() => setChecked((value) => !value)}
-          className={`mt-4 flex items-start gap-3 rounded-xl border px-4 py-3 cursor-pointer select-none ${
+          className={`mt-4 flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer select-none ${
             isDark ? "bg-[#161616] border-white/5" : "bg-zinc-50 border-zinc-200"
           }`}
         >
@@ -91,7 +91,7 @@ export const DeleteAccountConfirmModal = ({
             onClick={(event) => event.stopPropagation()}
             checked={checked}
             onCheckedChange={(value) => setChecked(value === true)}
-            className="mt-0.5 h-5 w-5 shrink-0 rounded border-white/30 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
+            className="h-5 w-5 shrink-0 rounded border-white/30 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
           />
           <span className={`text-xs ${isDark ? "text-white/80" : "text-zinc-700"}`}>
             I understand the consequences of deleting my account and want to proceed.

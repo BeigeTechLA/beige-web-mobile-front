@@ -232,9 +232,10 @@ export const DeleteAccountReview = ({
         onClose={() => setShowVerify(false)}
         onVerify={async (code) => {
           const result = await onVerify(code);
-          if (result === false) return; // verification failed, stay on this modal
+          if (result === false) return false; // verification failed, stay on this modal and mark the code invalid
           setShowVerify(false);
           setShowFinal(true);
+          return true;
         }}
         onResend={onResend}
       />

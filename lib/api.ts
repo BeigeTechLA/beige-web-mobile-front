@@ -1169,6 +1169,65 @@ export type QuoteTypesBulkDeleteResponse = {
   } | null;
 };
 
+export const accountDeletionApi = {
+  getMyRequest: async (): Promise<{
+    success: boolean;
+    data: { request_id: string; requested_at: string; scheduled_deletion_at: string; status: string; cancelled_by?: string | null; cancelled_at?: string | null; cooldown_ends_at?: string | null } | null;
+  }> => {
+    const response = await api.get('/auth/account-deletion/requests/me');
+    return response.data;
+  },
+  cancelMyRequest: async (): Promise<{ success: boolean; message?: string; data?: { request_id: string; status: string; cancelled_by?: string; cancelled_at?: string; cooldown_ends_at?: string | null } }> => {
+    const response = await api.patch('/auth/account-deletion/requests/me/cancel');
+    return response.data;
+  },
+  cancelRequestAsAdmin: async (requestCode: string): Promise<{ success: boolean; message?: string }> => {
+    const response = await api.patch(`/admin/users/deletion-requests/${encodeURIComponent(requestCode)}/cancel`);
+    return response.data;
+  },
+  acceptRequestAsAdmin: async (requestCode: string): Promise<{ success: boolean; message?: string }> => {
+    const response = await api.patch(`/admin/users/deletion-requests/${encodeURIComponent(requestCode)}/accept`);
+    return response.data;
+  },
+  requestOtp: async (): Promise<{ success: boolean; message?: string; retry_after_seconds?: number }> => {
+    const response = await api.post('/auth/account-deletion/request-otp');
+    return response.data;
+  },
+  verifyOtp: async (otp: string): Promise<{
+    success: boolean;
+    verified?: boolean;
+    message?: string;
+    data?: { request_id: string; requested_at: string; scheduled_deletion_at: string; status: string };
+  }> => {
+    const response = await api.post('/auth/account-deletion/verify-otp', { otp });
+    return response.data;
+  },
+  listRequests: async (): Promise<{
+    success: boolean;
+    data: Array<{
+      request_id: number;
+      request_code: string;
+      user_id: number;
+      name: string;
+      email: string | null;
+      avatar: string | null;
+      account_type: string;
+      source: string;
+      verification_status: string;
+      status: string;
+      requested_at: string;
+      scheduled_deletion_at: string;
+      cancelled_by: string | null;
+      cancelled_at: string | null;
+      verified_at: string | null;
+      completed_at: string | null;
+    }>;
+  }> => {
+    const response = await api.get('/admin/users/deletion-requests');
+    return response.data;
+  },
+};
+
 export const affiliateApi = {
   // Validate a referral code (public endpoint)
   validateCode: async (code: string, userId?: string | number | null): Promise<AffiliateValidationResponse> => {

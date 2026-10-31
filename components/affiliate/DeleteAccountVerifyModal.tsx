@@ -23,12 +23,14 @@ export const DeleteAccountVerifyModal = ({
   isLoading = false,
 }: DeleteAccountVerifyModalProps) => {
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
+  const [hasError, setHasError] = useState(false);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   // reset + focus first box on open
   useEffect(() => {
     if (open) {
       setDigits(Array(OTP_LENGTH).fill(""));
+      setHasError(false);
       setTimeout(() => inputsRef.current[0]?.focus(), 50);
     }
   }, [open]);
@@ -48,7 +50,17 @@ export const DeleteAccountVerifyModal = ({
   const code = digits.join("");
   const isComplete = code.length === OTP_LENGTH;
 
+  const handleVerify = async () => {
+    try {
+      const result = await onVerify(code);
+      setHasError(result === false);
+    } catch {
+      setHasError(true);
+    }
+  };
+
   const handleChange = (index: number, value: string) => {
+    setHasError(false);
     const digit = value.replace(/\D/g, "").slice(-1);
     const next = [...digits];
     next[index] = digit;
@@ -62,13 +74,14 @@ export const DeleteAccountVerifyModal = ({
     }
     if (e.key === "ArrowLeft" && index > 0) inputsRef.current[index - 1]?.focus();
     if (e.key === "ArrowRight" && index < OTP_LENGTH - 1) inputsRef.current[index + 1]?.focus();
-    if (e.key === "Enter" && isComplete && !isLoading) onVerify(code);
+    if (e.key === "Enter" && isComplete && !isLoading) void handleVerify();
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
     if (!pasted) return;
+    setHasError(false);
     const next = Array(OTP_LENGTH).fill("");
     pasted.split("").forEach((d, i) => (next[i] = d));
     setDigits(next);
@@ -126,15 +139,18 @@ export const DeleteAccountVerifyModal = ({
               maxLength={1}
               value={digit}
               placeholder="-"
+              aria-invalid={hasError}
               onChange={(e) => handleChange(i, e.target.value)}
               onKeyDown={(e) => handleKeyDown(i, e)}
               onPaste={handlePaste}
               onFocus={(e) => e.target.select()}
               className={`h-12 md:h-14 w-full rounded-xl border text-center text-lg font-medium outline-none transition-colors ${
-                isDark
-                  ? "bg-[#161616] border-white/5 text-white placeholder:text-white/60 focus:border-[#E8D1AB]/60"
-                  : "bg-zinc-50 border-zinc-200 text-[#171717] placeholder:text-zinc-400 focus:border-[#E8D1AB]"
-              }`}
+                hasError
+                  ? `border-red-500 focus:border-red-500 ${isDark ? "text-white" : "text-[#171717]"}`
+                  : isDark
+                    ? "bg-[#161616] border-white/5 text-white placeholder:text-white/60 focus:border-[#E8D1AB]/60"
+                    : "bg-zinc-50 border-zinc-200 text-[#171717] placeholder:text-zinc-400 focus:border-[#E8D1AB]"
+              } ${hasError ? (isDark ? "bg-[#161616]" : "bg-zinc-50") : ""}`}
             />
           ))}
         </div>
@@ -146,7 +162,7 @@ export const DeleteAccountVerifyModal = ({
         <div className="mt-4 space-y-3">
           <button
             type="button"
-            onClick={() => onVerify(code)}
+            onClick={() => void handleVerify()}
             disabled={!isComplete || isLoading}
             className="w-full h-10 rounded-lg text-sm font-medium bg-[#E8D1AB] text-black transition-opacity hover:bg-[#E8D1AB]/90 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#E8D1AB]"
           >
@@ -154,7 +170,10 @@ export const DeleteAccountVerifyModal = ({
           </button>
           <button
             type="button"
-            onClick={onResend}
+            onClick={() => {
+              setHasError(false);
+              onResend();
+            }}
             disabled={isLoading}
             className={`w-full h-10 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
               isDark

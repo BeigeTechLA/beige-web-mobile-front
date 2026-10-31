@@ -33,7 +33,8 @@ import {
   Loader2,
   EyeOff,
   Pause, Volume2, VolumeX,
-  AlertCircle
+  AlertCircle,
+  RotateCcw,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -50,7 +51,7 @@ import PersonalInfoForm from "@/src/components/cpSignup/PersonalInfoForm";
 import ProfessionalInfoForm from "@/src/components/cpSignup/ProfessionalInfoForm";
 import SkillsForm from "@/src/components/cpSignup/SkillsForm";
 import { toast } from "sonner";
-import { GetMyProfile, EditMyProfile, UploadProfileFile, UploadProfilePhoto, DeleteProfileFile, AddPortfolioLinks, EditPortfolioLink, EditFeaturedWorkProject } from "@/lib/api";
+import { GetMyProfile, EditMyProfile, UploadProfileFile, UploadProfilePhoto, DeleteProfileFile, AddPortfolioLinks, EditPortfolioLink, EditFeaturedWorkProject, accountDeletionApi } from "@/lib/api";
 import { SOCIAL_ICONS, PORTFOLIO_ICONS } from "@/app/data/staticData";
 import DeleteConfirmationModal from "@/src/components/cpSignup/DeleteConfirmationModal";
 import PortfolioLinksModal from "@/src/components/cpSignup/PortfolioLinksModal";
@@ -61,6 +62,9 @@ import Lottie from "lottie-react";
 import redAnimation from "@/public/animations/Red.json";
 import Link from "next/link";
 import { agreementApi, AgreementDocument } from "@/lib/api/agreements";
+import { DeleteAccountReview } from "@/components/affiliate/DeleteAccountReview";
+import { DeleteAccountCancelModal } from "@/components/affiliate/DeleteAccountCancelModal";
+import { DeleteAccountCancelledModal } from "@/components/affiliate/DeleteAccountCancelledModal";
 
 
 // --- CONSTANTS ---
@@ -414,6 +418,16 @@ export default function ProfilePage() {
   const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
   const [isEditingSkills, setIsEditingSkills] = useState(false);
   const [isEditingSecurity, setIsEditingSecurity] = useState(false);
+  const [showDeleteReview, setShowDeleteReview] = useState(false);
+  const [deletionRequested, setDeletionRequested] = useState(false);
+  const [deletionRequestId, setDeletionRequestId] = useState<string>();
+  const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string>();
+  const [deletionRequestStatus, setDeletionRequestStatus] = useState<string>();
+  const [deletionCancelledBy, setDeletionCancelledBy] = useState<string | null>(null);
+  const [deletionCooldownEndsAt, setDeletionCooldownEndsAt] = useState<string | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
+  const [isCancellingDeletion, setIsCancellingDeletion] = useState(false);
   const [isEditingProfessionalInfo, setIsEditingProfessionalInfo] = useState(false);
   const [socialLinks, setSocialLinks] = useState<any[]>([]);
   // State for Certificate Preview
@@ -482,6 +496,29 @@ export default function ProfilePage() {
 
   useEffect(() => {
     void loadProfile();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadRequest = () => accountDeletionApi.getMyRequest().then(({ data }) => {
+      if (cancelled) return;
+      if (!data) {
+        setDeletionRequested(false);
+        setDeletionRequestStatus(undefined);
+        return;
+      }
+      setDeletionRequested(data.status === "Pending Deletion" || data.status === "Processing");
+      setDeletionRequestId(String(data.request_id));
+      setDeletionRequestStatus(data.status);
+      setDeletionCancelledBy(data.cancelled_by || null);
+      setDeletionCooldownEndsAt(data.cooldown_ends_at || null);
+      setScheduledDeletionDate(new Date(data.scheduled_deletion_at).toLocaleDateString("en-US", {
+        month: "long", day: "numeric", year: "numeric",
+      }));
+    }).catch((error) => console.error("Failed to load account deletion request:", error));
+    void loadRequest();
+    const interval = window.setInterval(() => void loadRequest(), 60_000);
+    return () => { cancelled = true; window.clearInterval(interval); };
   }, []);
 
   useEffect(() => {
@@ -1234,6 +1271,59 @@ export default function ProfilePage() {
   };
 
 
+  const deletionReview = (
+      <DeleteAccountReview
+        isDark={isDark}
+        onBack={() => setShowDeleteReview(false)}
+        onResend={async () => {
+          try {
+            const response = await accountDeletionApi.requestOtp();
+            toast.success(response.message || "Verification code sent");
+          } catch (error: unknown) {
+            const message = error && typeof error === "object" && "response" in error
+              ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+              : undefined;
+            toast.error(message || "Could not send verification code");
+          }
+        }}
+        onVerify={async (code) => {
+          try {
+            const response = await accountDeletionApi.verifyOtp(code);
+            if (!response.success || !response.data) {
+              toast.error(response.message || "Verification failed");
+              return false;
+            }
+            setDeletionRequestId(response.data.request_id);
+            setDeletionRequestStatus(response.data.status);
+            setDeletionCancelledBy(null);
+            setDeletionCooldownEndsAt(null);
+            setDeletionRequested(true);
+            setScheduledDeletionDate(new Date(response.data.scheduled_deletion_at).toLocaleDateString("en-US", {
+              month: "long", day: "numeric", year: "numeric",
+            }));
+            return true;
+          } catch (error: unknown) {
+            const message = error && typeof error === "object" && "response" in error
+              ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+              : undefined;
+            toast.error(message || "Verification failed. Please try again.");
+            return false;
+          }
+        }}
+        onDelete={async () => {
+          if (!deletionRequestId) return false;
+          return { requestId: deletionRequestId };
+        }}
+        onContactSupport={() => {
+          window.location.href = "mailto:support@beige.com";
+        }}
+        onPreviewLogin={() => {
+          setShowDeleteReview(false);
+          setDeletionRequested(true);
+        }}
+      />
+  );
+
   return (
     <>
       <Topbar pathname={pathname} />
@@ -1282,7 +1372,7 @@ export default function ProfilePage() {
       )}
       <div className="overflow-hidden p-4 lg:p-6 lg:px-10 lg:py-9 space-y-6">
 
-        <div className="mx-auto space-y-4 lg:space-y-8">
+        {showDeleteReview ? deletionReview : <div className="mx-auto space-y-4 lg:space-y-8">
 
           {/* TOP PROFILE CARD */}
           <div className={`border rounded-lg lg:rounded-xl p-4 lg:p-8 flex flex-col lg:flex-row gap-8 ${isDark ? "bg-[#111111] border-white/5" : "bg-white border-[#E5E5E5]"}`}>
@@ -1639,6 +1729,99 @@ export default function ProfilePage() {
                 </div>
 
                 <TimezonePreference isDark={isDark} />
+
+                <DeleteAccountCancelModal
+                  open={showCancelConfirm}
+                  isDark={isDark}
+                  scheduledDate={scheduledDeletionDate}
+                  email={profile.email}
+                  isLoading={isCancellingDeletion}
+                  onKeep={() => setShowCancelConfirm(false)}
+                  onCancelRequest={async () => {
+                    setIsCancellingDeletion(true);
+                    try {
+                      const response = await accountDeletionApi.cancelMyRequest();
+                      if (!response.success || !response.data) throw new Error(response.message || "Unable to cancel the deletion request.");
+                      setDeletionRequestStatus("Cancelled");
+                      setDeletionCancelledBy(response.data.cancelled_by || "User");
+                      setDeletionCooldownEndsAt(response.data.cooldown_ends_at || null);
+                      setDeletionRequested(false);
+                      setShowCancelConfirm(false);
+                      setShowCancelled(true);
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "Unable to cancel the deletion request.");
+                    } finally {
+                      setIsCancellingDeletion(false);
+                    }
+                  }}
+                />
+
+                <DeleteAccountCancelledModal
+                  open={showCancelled}
+                  isDark={isDark}
+                  requestId={deletionRequestId}
+                  onGoToAccount={() => {
+                    setShowCancelled(false);
+                    setDeletionRequested(false);
+                  }}
+                />
+
+                <div className={`rounded-lg lg:rounded-2xl p-4 lg:p-8 border ${isDark ? "bg-[#111111] border-white/5" : "bg-white border-[#E5E5E5]"}`}>
+                  <div className="flex items-start gap-4">
+                    <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-[#FF6B6B]/15">
+                      <Trash2 className="w-5 h-5 text-[#FF6B6B]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2 className={`font-bold mb-2 ${isDark ? "text-white" : "text-[#171717]"}`}>Delete Account</h2>
+                      <p className={`text-sm leading-relaxed mb-3 ${isDark ? "text-white/60" : "text-zinc-500"}`}>
+                        Permanently delete your Beige account and associated personal data. Once submitted, your account will be deactivated and eligible data scheduled for deletion after <strong className={isDark ? "text-white" : "text-[#171717]"}>60 days.</strong>
+                      </p>
+                      <p className={`text-sm leading-relaxed mb-5 ${isDark ? "text-white/60" : "text-zinc-500"}`}>
+                        You can cancel your request during this period, subject to verification. Certain records may be retained where required by law or for legitimate business purposes.
+                      </p>
+                  {deletionRequestStatus && deletionRequestStatus !== "Failed" && (
+                        <div className={`relative mb-5 min-h-[76px] rounded-lg border px-4 py-3 ${isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/[0.07]" : "border-[#BFA780]/40 bg-[#F8F2E8]"}`}>
+                          <div className="flex min-h-[50px] flex-col justify-center pr-44">
+                            <span className={`text-sm ${isDark ? "text-white/65" : "text-zinc-600"}`}>Deletion request status</span>
+                            {deletionRequestStatus === "Cancelled" ? (
+                              <p className={`mt-2 text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                                Cancelled by {deletionCancelledBy === "Admin" ? "Admin" : "you"}. Your account remains active.
+                              </p>
+                            ) : deletionRequestStatus === "Completed" ? (
+                              <p className={`mt-2 text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                                Deletion is complete and this account is deactivated.
+                              </p>
+                            ) : scheduledDeletionDate && (
+                              <p className={`mt-2 text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                                Scheduled for deletion on {scheduledDeletionDate}
+                              </p>
+                            )}
+                          </div>
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-[#FFF0C2] px-5 py-2 text-sm font-semibold text-[#9A5700]">
+                            {deletionRequestStatus || "Pending Deletion"}
+                          </span>
+                        </div>
+                      )}
+                      {deletionRequested ? (
+                        <Button type="button" onClick={() => setShowCancelConfirm(true)} className="h-10 px-5 bg-[#E8D1AB] hover:bg-[#E8D1AB]/90 text-black font-medium rounded-lg gap-2">
+                          <RotateCcw size={18} /> Cancel Delete
+                        </Button>
+                      ) : deletionRequestStatus === "Completed" ? (
+                        <Button type="button" disabled className="h-10 px-5 bg-[#2B2B2B] text-white/55 font-medium rounded-lg cursor-not-allowed">
+                          Account Deactivated
+                        </Button>
+                      ) : deletionRequestStatus === "Cancelled" && deletionCooldownEndsAt && Date.parse(deletionCooldownEndsAt) > Date.now() ? (
+                        <Button type="button" disabled className="h-10 px-5 bg-[#2B2B2B] text-white/55 font-medium rounded-lg cursor-not-allowed">
+                          Available after {new Date(deletionCooldownEndsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </Button>
+                      ) : (
+                        <Button type="button" onClick={() => setShowDeleteReview(true)} className="h-10 px-5 bg-[#FF6B6B] hover:bg-[#FF6B6B]/90 text-white font-medium rounded-lg gap-2">
+                          <Trash2 size={18} /> Delete Account
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -2115,7 +2298,7 @@ export default function ProfilePage() {
             )}
 
           </div>
-        </div>
+        </div>}
 
         {/* FULL SCREEN LIGHTBOX VIEWER */}
         {lightboxData.isOpen && lightboxData.project && (

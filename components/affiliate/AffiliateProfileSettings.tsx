@@ -13,7 +13,7 @@ import Cookies from "js-cookie";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { affiliateApi } from "@/lib/api";
+import { accountDeletionApi, affiliateApi } from "@/lib/api";
 import { TimezonePreference } from "@/components/common/TimezonePreference";
 import { DeleteAccountReview } from "./DeleteAccountReview";
 import { DeleteAccountCancelModal } from "./DeleteAccountCancelModal";
@@ -34,6 +34,9 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
   const [deletionRequested, setDeletionRequested] = useState(false);
   const [deletionRequestId, setDeletionRequestId] = useState<string | undefined>();
   const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | undefined>();
+  const [deletionRequestStatus, setDeletionRequestStatus] = useState<string | undefined>();
+  const [deletionCancelledBy, setDeletionCancelledBy] = useState<string | null>(null);
+  const [deletionCooldownEndsAt, setDeletionCooldownEndsAt] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -41,6 +44,30 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
     skip: !user,
   });
   const hasPassword = (currentUserData?.has_password ?? user?.has_password) !== false;
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const loadRequest = () => accountDeletionApi.getMyRequest().then(({ data }) => {
+      if (cancelled) return;
+      if (!data) {
+        setDeletionRequested(false);
+        setDeletionRequestStatus(undefined);
+        return;
+      }
+      setDeletionRequested(data.status === "Pending Deletion" || data.status === "Processing");
+      setDeletionRequestId(String(data.request_id));
+      setDeletionRequestStatus(data.status);
+      setDeletionCancelledBy(data.cancelled_by || null);
+      setDeletionCooldownEndsAt(data.cooldown_ends_at || null);
+      setScheduledDeletionDate(new Date(data.scheduled_deletion_at).toLocaleDateString("en-US", {
+        month: "long", day: "numeric", year: "numeric",
+      }));
+    }).catch((error) => console.error("Failed to load account deletion request:", error));
+    void loadRequest();
+    const interval = window.setInterval(() => void loadRequest(), 60_000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [user?.id]);
 
   useEffect(() => {
     if (currentUserData?.has_password !== undefined) {
@@ -117,33 +144,50 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
       <DeleteAccountReview
         isDark={isDark}
         onBack={() => setShowDeleteReview(false)}
-        onResend={() => {
-          // TODO: call "send delete-account OTP" API
-          toast.info("Verification code sent");
+        onResend={async () => {
+          try {
+            const response = await accountDeletionApi.requestOtp();
+            toast.success(response.message || "Verification code sent");
+          } catch (error: unknown) {
+            const message = error && typeof error === "object" && "response" in error
+              ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+              : undefined;
+            toast.error(message || "Could not send verification code");
+          }
         }}
         onVerify={async (code) => {
-          // TODO: call "verify OTP" API. Return false if the code is wrong.
-          console.log("OTP entered:", code);
-          return true;
+          try {
+            const response = await accountDeletionApi.verifyOtp(code);
+            if (!response.success || !response.data) {
+              toast.error(response.message || "Verification failed");
+              return false;
+            }
+            setDeletionRequestId(response.data.request_id);
+            setDeletionRequestStatus(response.data.status);
+            setDeletionCancelledBy(null);
+            setDeletionCooldownEndsAt(null);
+            setDeletionRequested(true);
+            setScheduledDeletionDate(new Date(response.data.scheduled_deletion_at).toLocaleDateString("en-US", {
+              month: "long", day: "numeric", year: "numeric",
+            }));
+            return true;
+          } catch (error: unknown) {
+            const message = error && typeof error === "object" && "response" in error
+              ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+              : undefined;
+            toast.error(message || "Verification failed. Please try again.");
+            return false;
+          }
         }}
         onDelete={async () => {
-          // TODO: call "submit account deletion request" API.
-          // Return false on failure, or { requestId: response.request_id } on success.
-          const requestId = "DEL-000000";
-          setDeletionRequestId(requestId);
-          return { requestId };
+          if (!deletionRequestId) return false;
+          return { requestId: deletionRequestId };
         }}
         onContactSupport={() => {
           // TODO: open support page / mailto
           window.location.href = "mailto:support@beige.com";
         }}
         onPreviewLogin={() => {
-          // TODO: use the exact date returned by the API
-          const d = new Date();
-          d.setDate(d.getDate() + 60);
-          setScheduledDeletionDate(
-            d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-          );
           setShowDeleteReview(false); // closes the review page and all its modals
           setDeletionRequested(true);
         }}
@@ -330,9 +374,16 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
         onCancelRequest={async () => {
           setIsCancelling(true);
           try {
-            // TODO: call "cancel deletion request" API; on failure show toast.error and return
+            const response = await accountDeletionApi.cancelMyRequest();
+            if (!response.success || !response.data) throw new Error(response.message || "Unable to cancel the deletion request.");
+            setDeletionRequestStatus("Cancelled");
+            setDeletionCancelledBy(response.data.cancelled_by || "User");
+            setDeletionCooldownEndsAt(response.data.cooldown_ends_at || null);
+            setDeletionRequested(false);
             setShowCancelConfirm(false);
             setShowCancelled(true);
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to cancel the deletion request.");
           } finally {
             setIsCancelling(false);
           }
@@ -345,7 +396,7 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
         requestId={deletionRequestId}
         onGoToAccount={() => {
           setShowCancelled(false);
-          setDeletionRequested(false); // button goes back to red "Delete Account"
+          setDeletionRequested(false);
         }}
       />
 
@@ -381,6 +432,30 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
               records may be retained where required by law or for legitimate business purposes.
             </p>
 
+            {deletionRequestStatus && deletionRequestStatus !== "Failed" && (
+              <div className={`relative mb-5 min-h-[76px] rounded-lg border px-4 py-3 ${isDark ? "border-[#E8D1AB]/25 bg-[#E8D1AB]/[0.07]" : "border-[#BFA780]/40 bg-[#F8F2E8]"}`}>
+                <div className="flex min-h-[50px] flex-col justify-center pr-44">
+                  <span className={`text-sm ${isDark ? "text-white/65" : "text-zinc-600"}`}>Deletion request status</span>
+                  {deletionRequestStatus === "Cancelled" ? (
+                    <p className={`mt-2 text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                      Cancelled by {deletionCancelledBy === "Admin" ? "Admin" : "you"}. Your account remains active.
+                    </p>
+                  ) : deletionRequestStatus === "Completed" ? (
+                    <p className={`mt-2 text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                      Deletion is complete and this account is deactivated.
+                    </p>
+                  ) : scheduledDeletionDate && (
+                    <p className={`mt-2 text-xs ${isDark ? "text-white/50" : "text-zinc-500"}`}>
+                      Scheduled for deletion on {scheduledDeletionDate}
+                    </p>
+                  )}
+                </div>
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-[#FFF0C2] px-5 py-2 text-sm font-semibold text-[#9A5700]">
+                  {deletionRequestStatus || "Pending Deletion"}
+                </span>
+              </div>
+            )}
+
             {deletionRequested ? (
               <Button
                 type="button"
@@ -389,6 +464,14 @@ export const AffiliateProfileSettings = ({ isDark = true }: { isDark?: boolean }
               >
                 <RotateCcw size={18} />
                 Cancel Delete
+              </Button>
+            ) : deletionRequestStatus === "Completed" ? (
+              <Button type="button" disabled className="h-10 lg:h-12 px-5 lg:px-6 bg-[#2B2B2B] text-white/55 font-medium lg:text-base rounded-lg lg:rounded-xl cursor-not-allowed">
+                Account Deactivated
+              </Button>
+            ) : deletionRequestStatus === "Cancelled" && deletionCooldownEndsAt && Date.parse(deletionCooldownEndsAt) > Date.now() ? (
+              <Button type="button" disabled className="h-10 lg:h-12 px-5 lg:px-6 bg-[#2B2B2B] text-white/55 font-medium lg:text-base rounded-lg lg:rounded-xl cursor-not-allowed">
+                Available after {new Date(deletionCooldownEndsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
               </Button>
             ) : (
               <Button

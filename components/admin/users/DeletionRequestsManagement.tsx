@@ -11,6 +11,8 @@ import {
   Loader2,
   X,
 } from "lucide-react";
+import { accountDeletionApi } from "@/lib/api";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -29,113 +31,19 @@ interface DeletionRequest {
   initials: string;
   avatarClass: string; // initials avatar colors
   avatar?: string; // photo url, falls back to initials
-  type: "Client" | "CP";
-  source: "Web" | "App";
+  type: string;
+  source: string;
   requested: string;
+  requestedAt: string;
+  verifiedAt: string;
+  completedAt: string | null;
   deletionDate: string;
   remaining: string;
   verification: Verification;
   status: RequestStatus;
 }
 
-// Static data (replace with API later)
 const PAGE_SIZE = 10;
-
-const REQUESTS: DeletionRequest[] = [
-  {
-    requestId: "DEL-24091", name: "John Doe", userId: "#12345", initials: "JD",
-    avatar: "/avatars/john-doe.jpg",
-    avatarClass: "bg-[#DCE6F5] text-[#1E3A5F]", type: "Client", source: "Web",
-    requested: "12 Oct 2026", deletionDate: "11 Dec 2026", remaining: "43 Days",
-    verification: "Verified", status: "Pending Deletion",
-  },
-  {
-    requestId: "DEL-24091", name: "Rami Guzman", userId: "#12345", initials: "RG",
-    avatarClass: "bg-[#DCE9FB] text-[#1E3A5F]", type: "CP", source: "App",
-    requested: "11 Oct 2026", deletionDate: "10 Dec 2026", remaining: "42 Days",
-    verification: "Verified", status: "Processing",
-  },
-  {
-    requestId: "DEL-24091", name: "Jhas Lee", userId: "#12345", initials: "JL",
-    avatarClass: "bg-[#F5E9D6] text-[#3A2A10]", type: "CP", source: "App",
-    requested: "8 Oct 2026", deletionDate: "7 Dec 2026", remaining: "39 Days",
-    verification: "Failed", status: "Failed",
-  },
-  {
-    requestId: "DEL-24091", name: "Kevin Brooks", userId: "#12345", initials: "KB",
-    avatarClass: "bg-[#D9F5C8] text-[#1F4D12]", type: "CP", source: "Web",
-    requested: "2 Oct 2026", deletionDate: "1 Dec 2026", remaining: "33 Days",
-    verification: "Verified", status: "Cancelled",
-  },
-  {
-    requestId: "DEL-24091", name: "Yuki Tanaka", userId: "#12345", initials: "YT",
-    avatar: "/avatars/yuki-tanaka.jpg",
-    avatarClass: "bg-[#F5E3D0] text-[#4A2A10]", type: "Client", source: "Web",
-    requested: "18 Jul 2026", deletionDate: "16 Sep 2026", remaining: "--",
-    verification: "Verified", status: "Completed",
-  },
-  {
-    requestId: "DEL-24092", name: "Ava Patel", userId: "#12346", initials: "AP",
-    avatarClass: "bg-[#DCE6F5] text-[#1E3A5F]", type: "Client", source: "Web",
-    requested: "6 Oct 2026", deletionDate: "5 Dec 2026", remaining: "37 Days",
-    verification: "Verified", status: "Pending Deletion",
-  },
-  {
-    requestId: "DEL-24093", name: "Liam Chen", userId: "#12347", initials: "LC",
-    avatarClass: "bg-[#DCE9FB] text-[#1E3A5F]", type: "CP", source: "App",
-    requested: "5 Oct 2026", deletionDate: "4 Dec 2026", remaining: "36 Days",
-    verification: "Verified", status: "Processing",
-  },
-  {
-    requestId: "DEL-24094", name: "Sara Khan", userId: "#12348", initials: "SK",
-    avatarClass: "bg-[#F5E9D6] text-[#3A2A10]", type: "Client", source: "App",
-    requested: "4 Oct 2026", deletionDate: "3 Dec 2026", remaining: "35 Days",
-    verification: "Failed", status: "Failed",
-  },
-  {
-    requestId: "DEL-24095", name: "Noah Smith", userId: "#12349", initials: "NS",
-    avatarClass: "bg-[#D9F5C8] text-[#1F4D12]", type: "CP", source: "Web",
-    requested: "3 Oct 2026", deletionDate: "2 Dec 2026", remaining: "34 Days",
-    verification: "Verified", status: "Pending Deletion",
-  },
-  {
-    requestId: "DEL-24096", name: "Maya Rossi", userId: "#12350", initials: "MR",
-    avatarClass: "bg-[#F5E3D0] text-[#4A2A10]", type: "Client", source: "Web",
-    requested: "28 Sep 2026", deletionDate: "27 Nov 2026", remaining: "29 Days",
-    verification: "Verified", status: "Cancelled",
-  },
-  // ---- page 2 ----
-  {
-    requestId: "DEL-24097", name: "Omar Ali", userId: "#12351", initials: "OA",
-    avatarClass: "bg-[#DCE6F5] text-[#1E3A5F]", type: "CP", source: "App",
-    requested: "25 Sep 2026", deletionDate: "24 Nov 2026", remaining: "26 Days",
-    verification: "Verified", status: "Processing",
-  },
-  {
-    requestId: "DEL-24098", name: "Priya Shah", userId: "#12352", initials: "PS",
-    avatarClass: "bg-[#DCE9FB] text-[#1E3A5F]", type: "Client", source: "App",
-    requested: "20 Sep 2026", deletionDate: "19 Nov 2026", remaining: "21 Days",
-    verification: "Failed", status: "Failed",
-  },
-  {
-    requestId: "DEL-24099", name: "Ethan Cole", userId: "#12353", initials: "EC",
-    avatarClass: "bg-[#F5E9D6] text-[#3A2A10]", type: "CP", source: "Web",
-    requested: "12 Aug 2026", deletionDate: "11 Oct 2026", remaining: "--",
-    verification: "Verified", status: "Completed",
-  },
-  {
-    requestId: "DEL-24100", name: "Zoe Martin", userId: "#12354", initials: "ZM",
-    avatarClass: "bg-[#D9F5C8] text-[#1F4D12]", type: "Client", source: "Web",
-    requested: "2 Aug 2026", deletionDate: "1 Oct 2026", remaining: "--",
-    verification: "Verified", status: "Completed",
-  },
-  {
-    requestId: "DEL-24101", name: "Arjun Mehta", userId: "#12355", initials: "AM",
-    avatarClass: "bg-[#F5E3D0] text-[#4A2A10]", type: "CP", source: "App",
-    requested: "25 Jul 2026", deletionDate: "23 Sep 2026", remaining: "--",
-    verification: "Verified", status: "Completed",
-  },
-];
 
 const StatusBadge = ({ status }: { status: RequestStatus }) => {
   const styles: Record<RequestStatus, { backgroundColor: string; color: string }> = {
@@ -148,7 +56,7 @@ const StatusBadge = ({ status }: { status: RequestStatus }) => {
   return (
     <span
       style={styles[status]}
-      className="inline-flex whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-medium leading-4"
+      className="inline-flex whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-medium leading-4"
     >
       {status}
     </span>
@@ -161,13 +69,71 @@ export const DeletionRequestsManagement = () => {
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(true);
   const [page, setPage] = useState(1);
-  const [requests, setRequests] = useState(REQUESTS);
+  const [requests, setRequests] = useState<DeletionRequest[]>([]);
   const [selectedRequestIndex, setSelectedRequestIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   useEffect(() => setMounted(true), []);
   useEffect(() => {
-    const timer = window.setTimeout(() => setLoading(false), 300);
-    return () => window.clearTimeout(timer);
+    let cancelled = false;
+    const loadRequests = () => accountDeletionApi.listRequests()
+      .then((response) => {
+        if (cancelled) return;
+        if (!response.success) throw new Error("Unable to load account deletion requests.");
+        const formatDate = (value: string) => {
+          const date = new Date(value);
+          return Number.isNaN(date.getTime()) ? "--" : date.toLocaleDateString("en-GB", {
+            day: "numeric", month: "short", year: "numeric",
+          });
+        };
+        const statusValues: RequestStatus[] = ["Pending Deletion", "Processing", "Failed", "Cancelled", "Completed"];
+        setRequests(response.data.map((item) => {
+          const status = statusValues.includes(item.status as RequestStatus)
+            ? item.status as RequestStatus
+            : "Pending Deletion";
+          const scheduledDate = new Date(item.scheduled_deletion_at);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          scheduledDate.setHours(0, 0, 0, 0);
+          const remainingDays = Math.round((scheduledDate.getTime() - today.getTime()) / 86_400_000);
+          const remaining = Number.isNaN(scheduledDate.getTime())
+            ? "--"
+            : status === "Completed" || status === "Cancelled" || status === "Failed"
+              ? "--"
+              : `${Math.max(0, remainingDays)} Days`;
+          const name = item.name || item.email || "Unknown user";
+          const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "U";
+          return {
+            requestId: item.request_code,
+            name,
+            userId: `#${item.user_id}`,
+            initials,
+            avatarClass: "bg-[#F5F5F5] text-black",
+            avatar: item.avatar || undefined,
+            type: item.account_type,
+            source: item.source,
+            requested: formatDate(item.requested_at),
+            requestedAt: formatDate(item.requested_at),
+            verifiedAt: formatDate(item.verified_at || item.requested_at),
+            completedAt: item.completed_at ? formatDate(item.completed_at) : null,
+            deletionDate: formatDate(item.scheduled_deletion_at),
+            remaining,
+            verification: item.verification_status === "Verified" ? "Verified" : "Failed",
+            status,
+          };
+        }));
+        setLoadError("");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setLoadError(error instanceof Error ? error.message : "Unable to load account deletion requests.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    void loadRequests();
+    const interval = window.setInterval(() => void loadRequests(), 60_000);
+    return () => { cancelled = true; window.clearInterval(interval); };
   }, []);
   const isDark = !mounted || theme === "dark";
 
@@ -201,12 +167,36 @@ export const DeletionRequestsManagement = () => {
   const th = `px-4 py-3.5 text-xs font-semibold whitespace-nowrap border-y first:border-l last:border-r first:rounded-bl-xl last:rounded-br-xl first:pl-5 last:pr-5 ${line} ${
     isDark ? "bg-[#111111] text-[#E8D1AB]" : "bg-[#FFFCF6] text-[#101010]"
   }`;
-  const td = "px-4 py-3 text-sm whitespace-nowrap first:pl-5 last:pr-5";
+  const td = "px-4 py-3 text-[15px] whitespace-nowrap first:pl-5 last:pr-5";
   const selectedRequest = selectedRequestIndex === null ? null : requests[selectedRequestIndex] || null;
 
-  const updateSelectedStatus = (status: RequestStatus) => {
-    if (selectedRequestIndex === null) return;
-    setRequests((current) => current.map((request, index) => index === selectedRequestIndex ? { ...request, status } : request));
+  const cancelSelectedRequest = async () => {
+    if (!selectedRequest || selectedRequest.status === "Cancelled") return;
+    const requestId = selectedRequest.requestId;
+    try {
+      const response = await accountDeletionApi.cancelRequestAsAdmin(requestId);
+      if (!response.success) throw new Error(response.message || "Unable to cancel this request.");
+      setRequests((current) => current.map((request) => request.requestId === requestId
+        ? { ...request, status: "Cancelled", remaining: "--", progress: null }
+        : request));
+      setSelectedRequestIndex(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to cancel this request.");
+    }
+  };
+
+  const acceptSelectedRequest = async () => {
+    if (!selectedRequest || selectedRequest.status !== "Pending Deletion") return;
+    const requestId = selectedRequest.requestId;
+    try {
+      const response = await accountDeletionApi.acceptRequestAsAdmin(requestId);
+      if (!response.success) throw new Error(response.message || "Unable to accept this request.");
+      setRequests((current) => current.map((request) => request.requestId === requestId
+        ? { ...request, status: "Processing" }
+        : request));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to accept this request.");
+    }
   };
 
   const changePage = (nextPage: number) => {
@@ -342,7 +332,7 @@ export const DeletionRequestsManagement = () => {
               ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={10} className={`py-10 text-center ${isDark ? "text-white/50" : "text-[#32323266]"}`}>
-                    No deletion requests found.
+                    {loadError || "No deletion requests found."}
                   </td>
                 </tr>
               ) : (
@@ -354,25 +344,17 @@ export const DeletionRequestsManagement = () => {
                     <td className={td}>{r.requestId}</td>
                     <td className={td}>
                       <div className="flex items-center gap-2.5">
-                        {r.avatar ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={r.avatar}
-                            alt={r.name}
-                            className="h-10 w-10 shrink-0 rounded-md object-cover"
-                          />
-                        ) : (
-                          <div
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sm font-medium ${r.avatarClass}`}
-                          >
-                            {r.initials}
-                          </div>
-                        )}
+                        <div
+                          aria-label={`${r.name} initials`}
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold ${r.avatarClass}`}
+                        >
+                          {r.initials}
+                        </div>
                         <div>
-                          <p className={`text-xs font-medium ${isDark ? "text-white" : "text-[#101010]"}`}>
+                          <p className={`text-[13px] font-medium ${isDark ? "text-white" : "text-[#101010]"}`}>
                             {r.name}
                           </p>
-                          <p className={`mt-0.5 text-[10px] ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
+                          <p className={`mt-0.5 text-[11px] ${isDark ? "text-white/40" : "text-[#32323266]"}`}>
                             User ID: {r.userId}
                           </p>
                         </div>
@@ -395,8 +377,12 @@ export const DeletionRequestsManagement = () => {
                       <button
                         type="button"
                         aria-label="Actions"
-                        onClick={() => setSelectedRequestIndex(startIdx + idx)}
-                        className={`rounded-lg p-1.5 transition-colors ${
+                        disabled={r.status === "Cancelled" || r.status === "Failed"}
+                        title={r.status === "Cancelled" || r.status === "Failed" ? `${r.status} requests have no detail panel` : "Open request details"}
+                        onClick={() => {
+                          if (r.status !== "Cancelled" && r.status !== "Failed") setSelectedRequestIndex(startIdx + idx);
+                        }}
+                        className={`rounded-lg p-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
                           isDark ? "hover:bg-white/10 text-white" : "hover:bg-black/5 text-[#323232]"
                         }`}
                       >
@@ -458,7 +444,7 @@ export const DeletionRequestsManagement = () => {
         )}
       </div>
 
-      {selectedRequest && (
+      {selectedRequest && selectedRequest.status !== "Cancelled" && selectedRequest.status !== "Failed" && (
         <div
           className="fixed inset-0 z-[120] flex justify-end bg-black/60 backdrop-blur-sm"
           onClick={() => setSelectedRequestIndex(null)}
@@ -522,9 +508,9 @@ export const DeletionRequestsManagement = () => {
                 <h3 className="mb-4 text-sm font-medium">Timeline</h3>
                 <div className="space-y-4">
                   {[
-                    ["Request Submitted", selectedRequest.requested],
-                    ["Identity Verification Completed", selectedRequest.requested],
-                    ["Account Access Deactivated", selectedRequest.requested],
+                    ["Request Submitted", selectedRequest.requestedAt],
+                    ["Identity Verification Completed", selectedRequest.verifiedAt],
+                    ["Account Access Deactivated", selectedRequest.completedAt || "Pending"],
                   ].map(([label, date], index) => (
                     <div key={label} className="flex gap-4">
                       <div className="relative flex w-8 shrink-0 justify-center">
@@ -546,22 +532,24 @@ export const DeletionRequestsManagement = () => {
             <div className="sticky bottom-0 z-10 mt-auto grid shrink-0 grid-cols-2 gap-3 border-t border-white/10 bg-black px-8 py-5">
               <button
                 type="button"
-                onClick={() => updateSelectedStatus("Processing")}
-                className="h-12 rounded-lg bg-[#E8D1AB] text-sm font-medium text-black transition hover:bg-[#dcc39a]"
+                disabled={selectedRequest.status !== "Pending Deletion"}
+                onClick={() => void acceptSelectedRequest()}
+                className="h-12 rounded-lg bg-[#E8D1AB] text-sm font-medium text-black transition hover:bg-[#dcc39a] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Start Delete Processing
+                Accept Request
               </button>
               <button
                 type="button"
-                onClick={() => updateSelectedStatus("Failed")}
+                disabled
+                aria-label="Mark as Failed is temporarily unavailable"
                 style={{ backgroundColor: "#F04444" }}
-                className="h-12 rounded-lg text-sm font-medium text-white transition hover:brightness-90"
+                className="h-12 cursor-not-allowed rounded-lg text-sm font-medium text-white opacity-45"
               >
                 Mark as Failed
               </button>
               <button
                 type="button"
-                onClick={() => updateSelectedStatus("Cancelled")}
+                onClick={() => void cancelSelectedRequest()}
                 className="col-span-2 h-12 rounded-lg bg-[#202020] text-sm font-medium text-white transition hover:bg-[#2b2b2b]"
               >
                 Cancel Request &amp; Reactivate

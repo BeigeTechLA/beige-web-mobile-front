@@ -110,7 +110,7 @@ export const DeleteAccountFinalModal = ({
         {/* Checkbox */}
         <div
           onClick={() => setChecked((value) => !value)}
-          className="mt-4 flex items-start gap-3 cursor-pointer select-none"
+          className="mt-4 flex items-center gap-3 cursor-pointer select-none"
         >
           <Checkbox
             id="delete-account-final-confirm"
@@ -118,7 +118,7 @@ export const DeleteAccountFinalModal = ({
             onClick={(event) => event.stopPropagation()}
             checked={checked}
             onCheckedChange={(value) => setChecked(value === true)}
-            className="mt-0.5 h-5 w-5 shrink-0 rounded border-white/30 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
+            className="h-5 w-5 shrink-0 rounded border-white/30 bg-transparent data-[state=checked]:border-[#E8D1AB] data-[state=checked]:bg-[#E8D1AB] data-[state=checked]:text-black"
           />
           <span className={`text-xs ${isDark ? "text-white/80" : "text-zinc-700"}`}>
             I confirm that I want to delete my {brandName} account.
